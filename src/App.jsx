@@ -48,21 +48,42 @@ function getPhase(elapsed) {
   return 'SITTING DOWN'
 }
 
-function positionFor(index) {
-  const positions = [
-    [7, 12],
-    [39, 8],
-    [68, 13],
-    [12, 47],
-    [44, 43],
-    [70, 49],
-    [25, 25],
-    [56, 27],
-  ]
-  const [left, top] = positions[index % positions.length]
+function seededFraction(seed, value) {
+  let next = (seed ^ Math.imul(value + 1, 0x9e3779b9)) >>> 0
+  next ^= next >>> 16
+  next = Math.imul(next, 0x7feb352d)
+  next ^= next >>> 15
+  next = Math.imul(next, 0x846ca68b)
+  next ^= next >>> 16
+  return (next >>> 0) / 4294967296
+}
+
+function positionFor(seed, index, existingGames) {
+  let fallback = { left: 39, top: 38 }
+
+  for (let attempt = 0; attempt < 14; attempt += 1) {
+    const left = 6 + seededFraction(seed, index * 31 + attempt * 2) * 66
+    const top = 15 + seededFraction(seed, index * 31 + attempt * 2 + 1) * 47
+    const candidate = { left, top }
+    fallback = candidate
+
+    const separated = existingGames.every((game) => {
+      const previousLeft = Number.parseFloat(game.position.left)
+      const previousTop = Number.parseFloat(game.position.top)
+      return Math.hypot(left - previousLeft, top - previousTop) >= 19
+    })
+
+    if (separated) {
+      return {
+        left: `${left.toFixed(1)}%`,
+        top: `${top.toFixed(1)}%`,
+      }
+    }
+  }
+
   return {
-    left: `${left + ((index * 7) % 5)}%`,
-    top: `${top + ((index * 11) % 7)}%`,
+    left: `${fallback.left.toFixed(1)}%`,
+    top: `${fallback.top.toFixed(1)}%`,
   }
 }
 
@@ -194,7 +215,7 @@ function App() {
       id: `${kind}-${directorRef.current.seed}-${index}`,
       kind,
       tutorialRole,
-      position: positionFor(index),
+      position: positionFor(directorRef.current.seed, index, microgamesRef.current),
     }
     setMicrogames((current) => {
       const next = [...current, game]
@@ -367,7 +388,7 @@ function App() {
   return (
     <main className={`game-shell load-${Math.min(load, 5)}`}>
       <div className="world-layer">
-        <Canvas shadows camera={{ position: [-1.8, 0.92, 2.8], fov: 71, near: 0.08, far: 150 }} dpr={[1, 1.5]}>
+        <Canvas shadows camera={{ position: [-1.8, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }} dpr={[1, 1.5]}>
           <AuthoredJourneyScene
             elapsed={elapsed}
             active={status === 'playing' && !tutorialPaused}

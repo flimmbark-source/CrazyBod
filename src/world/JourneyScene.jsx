@@ -3,12 +3,21 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 const PLAYER_PATH = [
-  { at: 0, position: [-1.8, 0.92, 2.8], look: [-1.7, 1.0, -0.5], walk: 0, fov: 71 },
-  { at: 2, position: [-1.8, 1.06, 2.2], look: [1.8, 1.12, 0.0], walk: 0, fov: 70 },
-  { at: 5, position: [-1.3, 1.48, 1.2], look: [2.4, 1.38, -1.5], walk: 0.15, fov: 68 },
-  { at: 8, position: [1.6, 1.65, -1.2], look: [2.9, 1.45, -2.0], walk: 0.25, fov: 67 },
-  { at: 11, position: [0.8, 1.65, -5.2], look: [0, 1.45, -10], walk: 0.55, fov: 67 },
-  { at: 16, position: [0, 1.65, -15], look: [0, 1.48, -23], walk: 0.8, fov: 67 },
+  // Waking up: already standing beside the bed, then walk straight to the bathroom turn.
+  { at: 0, position: [-1.8, 1.65, 3.1], look: [-1.8, 1.45, -3.5], walk: 0, fov: 68 },
+  { at: 1, position: [-1.8, 1.65, 3.1], look: [-1.8, 1.45, -3.5], walk: 0, fov: 68 },
+  { at: 4.5, position: [-1.8, 1.65, -1.0], look: [-1.8, 1.45, -5.2], walk: 0.82, fov: 68 },
+  { at: 5.2, position: [-1.8, 1.65, -1.0], look: [-1.8, 1.45, -5.2], walk: 0, fov: 68 },
+  { at: 7.4, position: [-1.8, 1.65, -1.0], look: [2.65, 1.4, -1.7], walk: 0, fov: 67 },
+
+  // Getting ready: turn away from the bathroom, walk to the door, and wait for it to open.
+  { at: 8, position: [-1.8, 1.65, -1.0], look: [0, 1.45, -10], walk: 0, fov: 67 },
+  { at: 12.4, position: [0, 1.65, -10.8], look: [-0.95, 1.45, -14.7], walk: 0.88, fov: 67 },
+  { at: 13.6, position: [-0.75, 1.65, -13.0], look: [-0.95, 1.45, -17.5], walk: 0.45, fov: 67 },
+  { at: 15.1, position: [-0.75, 1.65, -13.0], look: [-0.95, 1.45, -18.5], walk: 0, fov: 67 },
+  { at: 16, position: [-0.95, 1.65, -15.5], look: [0, 1.48, -23], walk: 0.78, fov: 67 },
+
+  // Walking to the café and the existing café sequence.
   { at: 20, position: [-0.4, 1.65, -37], look: [0, 1.42, -45], walk: 1, fov: 68 },
   { at: 25, position: [0, 1.65, -68], look: [0, 1.55, -75], walk: 1, fov: 68 },
   { at: 28, position: [0, 1.65, -77], look: [0, 1.5, -87], walk: 0.65, fov: 67 },
@@ -298,7 +307,7 @@ function Atmosphere({ elapsed }) {
 }
 
 function Bedroom({ elapsed }) {
-  const apartmentDoorProgress = clamp01((elapsed - 13) / 1.7)
+  const apartmentDoorProgress = clamp01((elapsed - 13.65) / 1.25)
 
   return (
     <group>
