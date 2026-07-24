@@ -4,7 +4,7 @@ on:
   push:
     branches: [feature/pacing-director]
     paths:
-      - scripts/apply-pacing-director.mjs
+      - scripts/**
 
 permissions:
   contents: write
