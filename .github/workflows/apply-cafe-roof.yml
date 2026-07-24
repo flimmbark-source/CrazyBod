@@ -4,6 +4,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
+    paths:
+      - .github/cafe-roof-trigger
 
 permissions:
   contents: write
@@ -11,7 +13,7 @@ permissions:
 
 jobs:
   apply:
-    if: github.head_ref == 'fix/restore-cafe-roof'
+    if: github.head_ref == 'fix/cafe-ceiling-restoration'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -34,6 +36,8 @@ jobs:
       <Box position={[0, 5.48, -87]} size={[14.5, 0.32, 27.5]} color="#4d4146" castShadow={false} receiveShadow={false} />
       <Box position={[0, 5.68, -87]} size={[15.0, 0.12, 28.0]} color="#3e3840" castShadow={false} receiveShadow={false} />
       <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
+          if replacement in source:
+              raise SystemExit(0)
           if anchor not in source:
               raise SystemExit('Could not find CafeInterior shell anchor')
           path.write_text(source.replace(anchor, replacement, 1))
