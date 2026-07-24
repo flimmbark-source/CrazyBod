@@ -231,14 +231,15 @@ function setupFatigue(windowElement, variant) {
 function setupMicrogame(windowElement) {
   if (windowElement.dataset.enhanced === 'true') return
   const kind = kindFor(windowElement)
-  if (!kind) return
 
-  const variant = drawVariant(kind)
   windowElement.dataset.enhanced = 'true'
-  windowElement.dataset.variant = variant
   windowElement.addEventListener('pointerdown', () => setActive(windowElement), { capture: true })
   windowElement.addEventListener('focusin', () => setActive(windowElement))
 
+  if (!kind) return
+
+  const variant = drawVariant(kind)
+  windowElement.dataset.variant = variant
   if (kind === 'discomfort') setupDiscomfort(windowElement, variant)
   if (kind === 'anxiety') setupAnxiety(windowElement, variant)
   if (kind === 'brainFog') setupBrainFog(windowElement, variant)
