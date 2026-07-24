@@ -5,6 +5,7 @@ on:
     branches: [prototype/rapid-overwhelm-completion-fx]
     paths:
       - scripts/apply-overwhelm-completion-fx.mjs
+      - scripts/cleanup-overwhelm-completion-fx.mjs
       - .github/workflows/apply-overwhelm-completion-fx.yml
 
 permissions:
@@ -21,6 +22,7 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/apply-overwhelm-completion-fx.mjs
+      - run: node scripts/cleanup-overwhelm-completion-fx.mjs
       - name: Commit generated source
         run: |
           if git diff --quiet; then
@@ -32,5 +34,3 @@ jobs:
           git add src/App.jsx src/main.jsx
           git commit -m "accelerate overwhelm and add completion bursts"
           git push origin HEAD:prototype/rapid-overwhelm-completion-fx
-
-# Follow-up commit ensures the branch workflow is registered before execution.
