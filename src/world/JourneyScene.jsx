@@ -528,12 +528,62 @@ function Street({ active }) {
   )
 }
 
+const CAFE_BACKDROP_BUILDINGS = [
+  [-14, -82, 8, 8.5, 10, '#5d6873'],
+  [13, -84, 7, 10.5, 9, '#6d6572'],
+  [-18, -98, 9, 13, 10, '#56636d'],
+  [18, -101, 10, 15, 11, '#4f5c68'],
+  [-8.8, -108, 8, 12, 8, '#647079'],
+  [0, -111, 10, 16, 9, '#505b66'],
+  [9, -107, 7.5, 11, 8, '#65716e'],
+]
+
+const CAFE_BACKDROP_TREES = [
+  [-8.5, -79.5, 0.9],
+  [8.6, -80.5, 0.96],
+  [-12.2, -91.5, 1.05],
+  [12.9, -94.5, 0.92],
+  [-16.2, -111, 1.1],
+  [16.4, -114, 1.0],
+]
+
+function CafeBackdrop() {
+  return (
+    <group>
+      <Box position={[0, -0.62, -96]} size={[48, 0.9, 46]} color="#687363" castShadow={false} receiveShadow />
+
+      {CAFE_BACKDROP_BUILDINGS.map(([x, z, width, height, depth, color], index) => (
+        <Box
+          key={`cafe-backdrop-building-${index}`}
+          position={[x, height / 2 - 0.08, z]}
+          size={[width, height, depth]}
+          color={color}
+          castShadow={false}
+          receiveShadow={false}
+        />
+      ))}
+
+      <Box position={[-1.9, 8.1, -106.44]} size={[1.35, 0.58, 0.08]} color="#c8c6a4" castShadow={false} />
+      <Box position={[0, 8.1, -106.44]} size={[1.35, 0.58, 0.08]} color="#c8c6a4" castShadow={false} />
+      <Box position={[1.9, 8.1, -106.44]} size={[1.35, 0.58, 0.08]} color="#c8c6a4" castShadow={false} />
+      <Box position={[-1.9, 10.1, -106.44]} size={[1.35, 0.58, 0.08]} color="#aeb8af" castShadow={false} />
+      <Box position={[0, 10.1, -106.44]} size={[1.35, 0.58, 0.08]} color="#aeb8af" castShadow={false} />
+      <Box position={[1.9, 10.1, -106.44]} size={[1.35, 0.58, 0.08]} color="#aeb8af" castShadow={false} />
+
+      {CAFE_BACKDROP_TREES.map(([x, z, scale], index) => (
+        <Tree key={`cafe-backdrop-tree-${index}`} position={[x, 0, z]} scale={scale} />
+      ))}
+    </group>
+  )
+}
+
 function CafeFacade({ elapsed, active }) {
   const cafeDoorProgress = clamp01((elapsed - 28.75) / 0.9)
   const maraMode = elapsed >= 24 && elapsed < 29.2 ? 'wave' : 'idle'
 
   return (
     <group>
+      <CafeBackdrop />
       <Box position={[-4.15, 2.6, -73.6]} size={[5.7, 5.2, 0.32]} color="#724f46" />
       <Box position={[4.15, 2.6, -73.6]} size={[5.7, 5.2, 0.32]} color="#724f46" />
       <Box position={[0, 4.35, -73.6]} size={[2.6, 1.7, 0.32]} color="#724f46" />
