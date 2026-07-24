@@ -50,8 +50,8 @@ export const PACING_PHASES = [
     id: 'walking',
     start: 15,
     end: 30,
-    interval: [3, 4],
-    pairChance: 0.10,
+    interval: [3, 3],
+    pairChance: 0.00,
     weights: {
       balance: 4,
       tremor: 3,
@@ -69,10 +69,10 @@ export const PACING_PHASES = [
   },
   {
     id: 'ordering',
-    start: 25,
+    start: 30,
     end: 42,
-    interval: [2, 4],
-    pairChance: 0.20,
+    interval: [2, 3],
+    pairChance: 0.15,
     weights: {
       anxiety: 4,
       taskSwitching: 4,
