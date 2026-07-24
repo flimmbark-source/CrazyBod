@@ -154,7 +154,7 @@ function showOverloadBust(result, originalRestartButton) {
 const RESULT_COPY = {
   overload: {
     eyebrow: 'DAY RESULT',
-    title: 'BUSTED',
+    title: 'WASTED',
     outcome: 'Overloaded',
     note: 'The day kept moving after your capacity ran out.',
   },
