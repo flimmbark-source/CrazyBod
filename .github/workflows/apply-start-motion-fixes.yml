@@ -5,6 +5,7 @@ on:
     branches: [fix/start-motion-and-minigame-feedback]
     paths:
       - scripts/apply-start-motion-fixes.mjs
+      - .github/workflows/apply-start-motion-fixes.yml
 
 permissions:
   contents: write
