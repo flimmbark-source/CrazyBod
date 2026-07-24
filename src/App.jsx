@@ -1,6 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
   createPacingDirector,
@@ -13,12 +14,7 @@ const OVERLOAD_LIMIT = 6
 const SCORE_PER_SECOND = 10
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 
-const MICROGAME_NAMES = {
-  discomfort: 'DISCOMFORT',
-  anxiety: 'ANXIETY',
-  brainFog: 'BRAIN FOG',
-  fatigue: 'FATIGUE',
-}
+const MICROGAME_NAMES = EXPANDED_MICROGAME_NAMES
 
 const COMPLETION_SHARDS = [
   { dx: '-118px', dy: '-78px', start: '-12deg', end: '-185deg', width: '34px', height: '20px' },
@@ -607,6 +603,7 @@ function MicrogameWindow({ game, index, load, tutorialTarget, onResolve }) {
         {game.kind === 'anxiety' && <AnxietyGame onResolve={resolve} />}
         {game.kind === 'brainFog' && <BrainFogGame onResolve={resolve} />}
         {game.kind === 'fatigue' && <FatigueGame onResolve={resolve} />}
+        <NewMicrogameContent kind={game.kind} onResolve={resolve} />
       </div>
     </article>
   )

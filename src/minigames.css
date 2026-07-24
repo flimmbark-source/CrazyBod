@@ -1,0 +1,522 @@
+.new-minigame {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 7px;
+  align-items: center;
+  color: #302b38;
+  font-weight: 800;
+}
+
+.new-minigame > small {
+  display: block;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 0.12em;
+}
+
+.new-minigame button {
+  border: 2px solid #302b38;
+  border-radius: 6px;
+  color: #302b38;
+  background: #fffaf4;
+  box-shadow: 0 3px 0 #302b38;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.new-minigame button:active {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 #302b38;
+}
+
+.mini-progress {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border: 2px solid #302b38;
+  border-radius: 999px;
+  background: #d7cdbf;
+}
+
+.mini-progress i {
+  display: block;
+  height: 100%;
+  background: #efcf69;
+  transition: width 70ms linear;
+}
+
+.mini-button-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mini-button-row button,
+.mini-button-row span {
+  min-width: 42px;
+  padding: 4px 9px;
+  text-align: center;
+}
+
+.microgame-balance .microgame-header,
+.microgame-tremor .microgame-header,
+.microgame-jointSlip .microgame-header,
+.microgame-muscleLock .microgame-header,
+.microgame-weakGrip .microgame-header,
+.microgame-dizziness .microgame-header,
+.microgame-pressurePoint .microgame-header,
+.microgame-spiral .microgame-header { background: #8d5e72; }
+
+.microgame-workingMemory .microgame-header,
+.microgame-taskSwitching .microgame-header,
+.microgame-directionLoss .microgame-header,
+.microgame-packingCheck .microgame-header,
+.microgame-interruptedThought .microgame-header { background: #657c8f; }
+
+.microgame-checking .microgame-header,
+.microgame-racingHeart .microgame-header { background: #bb6c48; }
+
+.microgame-heavyEyes .microgame-header,
+.microgame-microRest .microgame-header { background: #625d82; }
+
+.microgame-lightSensitivity .microgame-header,
+.microgame-pinsNeedles .microgame-header,
+.microgame-afterimage .microgame-header { background: #6e7d61; }
+
+.balance-game { grid-template-rows: auto 1fr auto auto; }
+.balance-track {
+  position: relative;
+  width: 100%;
+  height: 42px;
+  border: 3px solid #302b38;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #d8998e, #e8d29c 42%, #e8d29c 58%, #d8998e);
+}
+.balance-track .balance-zone {
+  position: absolute;
+  left: 43%;
+  top: 0;
+  width: 14%;
+  height: 100%;
+  background: rgba(255, 250, 244, 0.62);
+}
+.balance-track b {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 30px;
+  border: 3px solid #302b38;
+  border-radius: 4px;
+  background: #efcf69;
+  translate: -50% -50%;
+}
+
+.tremor-game { grid-template-rows: auto 1fr auto; }
+.tremor-field,
+.pressure-field {
+  position: relative;
+  width: 100%;
+  height: 96px;
+  overflow: hidden;
+  border: 3px solid #302b38;
+  border-radius: 8px;
+  background: repeating-radial-gradient(circle, #e5d8c6 0 8px, #d9c8b7 9px 10px);
+  cursor: crosshair;
+}
+.tremor-target {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border: 4px solid #8d5e72;
+  border-radius: 50%;
+  background: rgba(255, 250, 244, 0.72);
+  translate: -50% -50%;
+}
+.tremor-field b {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #302b38;
+  translate: -50% -50%;
+}
+
+.joint-game { grid-template-rows: auto 1fr auto; }
+.joint-field {
+  position: relative;
+  width: 100%;
+  height: 96px;
+  border: 3px solid #6d4c54;
+  border-radius: 42% 58% 48% 52%;
+  background: #d8a087;
+}
+.joint-socket {
+  position: absolute;
+  left: 76%;
+  top: 48%;
+  width: 34px;
+  height: 34px;
+  border: 4px dashed #6d4c54;
+  border-radius: 50%;
+  translate: -50% -50%;
+}
+.joint-piece {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50% !important;
+  background: #efcf69 !important;
+  translate: -50% -50%;
+  touch-action: none;
+}
+
+.muscle-game { grid-template-rows: auto 1fr auto auto; }
+.muscle-coil {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2px + var(--release) * 7px);
+  height: 54px;
+}
+.muscle-coil i {
+  width: 22px;
+  height: calc(42px - var(--release) * 18px);
+  border: 3px solid #6d4c54;
+  border-radius: 50%;
+  background: #cf7d77;
+  transform: rotate(calc((var(--release) - .5) * 12deg));
+}
+
+.weak-grip-game { grid-template-rows: auto 1fr auto; }
+.grip-button {
+  justify-self: center;
+  width: 112px;
+  height: 70px;
+  border-radius: 38% 44% 32% 46% !important;
+  color: #fffaf4 !important;
+  background: #8d5e72 !important;
+  touch-action: none;
+}
+.grip-button.pulsing { background: #efcf69 !important; color: #302b38 !important; }
+
+.dizziness-game { grid-template-rows: auto 1fr auto auto; }
+.horizon {
+  position: relative;
+  width: 100%;
+  height: 54px;
+  overflow: hidden;
+  border: 3px solid #302b38;
+  border-radius: 8px;
+  background: linear-gradient(#90a8b9 0 49%, #9a7c67 50%);
+  transition: transform 80ms linear;
+}
+.horizon i {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: rgba(255,255,255,.7);
+}
+
+.pressure-game { grid-template-rows: auto 1fr auto; }
+.pressure-field { background: #d6a08b; }
+.pressure-field i {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 5px solid #8a353f;
+  border-radius: 50%;
+  background: #e15a5a;
+  translate: -50% -50%;
+  box-shadow: 0 0 0 7px rgba(225,90,90,.25);
+}
+
+.spiral-game { grid-template-rows: auto 1fr auto; }
+.spiral-field {
+  position: relative;
+  width: 100%;
+  height: 98px;
+  overflow: hidden;
+  border: 3px solid #302b38;
+  border-radius: 8px;
+  background: #d7c7dc;
+}
+.spiral-rings {
+  position: absolute;
+  inset: 8px 38px;
+  border: 4px solid #8d5e72;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 8px #d7c7dc, inset 0 0 0 12px #8d5e72, inset 0 0 0 20px #d7c7dc, inset 0 0 0 24px #8d5e72;
+}
+.spiral-field button {
+  position: absolute;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border-radius: 50%;
+  background: #efcf69;
+  translate: -50% -50%;
+  touch-action: none;
+}
+
+.memory-game { grid-template-rows: auto auto 1fr auto; }
+.memory-sequence { display: flex; justify-content: center; gap: 7px; }
+.memory-sequence b {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border: 3px solid #3f4e5b;
+  border-radius: 7px;
+  background: #8da2b1;
+  color: #fff;
+}
+.memory-sequence b.hidden { background: #d4cabb; color: #736d72; }
+.memory-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.memory-keys button { padding: 5px 0; }
+
+.switch-game { grid-template-rows: auto 1fr auto; }
+.rule-banner {
+  padding: 4px 8px;
+  border: 2px solid #302b38;
+  border-radius: 6px;
+  text-align: center;
+  background: #efcf69;
+  font-size: 11px;
+}
+.switch-game.mistake { animation: mini-error 150ms steps(2); }
+.switch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.switch-grid button { height: 39px; padding: 4px; background: #e9dfd1; }
+.switch-grid i { display: block; width: 21px; height: 21px; margin: auto; background: currentColor; }
+.switch-grid .red { color: #c45d61; }
+.switch-grid .blue { color: #567c98; }
+.switch-grid .gold { color: #d0a244; }
+.switch-grid .circle i { border-radius: 50%; }
+.switch-grid .triangle i { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.switch-grid .square i { border-radius: 2px; }
+
+.direction-game { grid-template-rows: auto 1fr auto; }
+.direction-stage {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin: auto;
+  border: 4px solid #3f4e5b;
+  border-radius: 12px;
+  background: #9eb0bd;
+  transition: transform 260ms ease;
+}
+.direction-stage b { color: #fff; font-size: 43px; line-height: 1; }
+.direction-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.direction-buttons button { padding: 4px 0; }
+.direction-game.wrong { animation: mini-error 150ms steps(2); }
+
+.packing-game { grid-template-rows: auto 1fr auto; }
+.packing-game > small { font-size: 7px; }
+.packing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.packing-grid button { min-height: 39px; padding: 2px; }
+.packing-grid button b { display: block; font-size: 16px; }
+.packing-grid button span { display: block; font-size: 7px; }
+.packing-grid button.packed { background: #9bb990; }
+.packing-grid button.wrong { background: #d9787d; }
+
+.interrupted-game { grid-template-rows: auto 1fr auto; }
+.thought-sequence { display: flex; justify-content: center; gap: 10px; }
+.thought-sequence b {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 3px solid #3f4e5b;
+  border-radius: 7px;
+  background: #a7bac5;
+  font-size: 20px;
+}
+.thought-popup {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  gap: 7px;
+  padding: 10px;
+  border: 3px solid #302b38;
+  border-radius: 8px;
+  background: #efcf69;
+  text-align: center;
+  font-size: 11px;
+}
+.thought-popup button { padding: 4px 14px; }
+.thought-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.thought-options button { height: 36px; font-size: 18px; }
+.interrupted-game.wrong { animation: mini-error 150ms steps(2); }
+
+.checking-game { grid-template-rows: auto 1fr; }
+.checking-switches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.checking-switches button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 5px;
+}
+.checking-switches button i {
+  width: 23px;
+  height: 13px;
+  border: 2px solid #302b38;
+  border-radius: 99px;
+  background: #c9bdb1;
+}
+.checking-switches button.on { background: #9bb990; }
+.checking-switches button.on i { background: #efcf69; }
+.checking-switches span { font-size: 8px; }
+
+.heart-game { grid-template-rows: auto 1fr auto; }
+.heart {
+  justify-self: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50% !important;
+  color: #fff !important;
+  background: #b84f57 !important;
+  font-size: 34px;
+  transition: transform 40ms linear;
+}
+.heart-game.miss { animation: mini-error 150ms steps(2); }
+.beat-pips { display: flex; justify-content: center; gap: 6px; }
+.beat-pips i { width: 16px; height: 8px; border: 2px solid #302b38; border-radius: 4px; }
+.beat-pips i.hit { background: #efcf69; }
+
+.heavy-eyes-game { grid-template-rows: auto 1fr auto auto; }
+.two-eyes { display: flex; justify-content: center; gap: 12px; }
+.two-eyes button {
+  position: relative;
+  width: 76px;
+  height: 51px;
+  overflow: hidden;
+  border-radius: 50% !important;
+  background: #d9cdbf;
+}
+.two-eyes button i {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 100%;
+  border-bottom: 3px solid #433f59;
+  background: #777195;
+  transition: height 90ms ease;
+}
+.two-eyes button b { font-size: 29px; color: #433f59; }
+.heavy-eyes-game .mini-button-row span { padding: 1px; font-size: 9px; }
+
+.micro-rest-game { grid-template-rows: auto 1fr auto auto; }
+.rest-orb {
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: 72px;
+  height: 72px;
+  border: 4px solid #433f59;
+  border-radius: 50%;
+  background: #8c84b8;
+  transition: transform 100ms linear;
+}
+.rest-orb i { width: 18px; height: 18px; border-radius: 50%; background: #fff4c7; }
+.micro-rest-game > strong { text-align: center; font-size: 9px; letter-spacing: .08em; }
+.micro-rest-game.disturbed .rest-orb { background: #c56a6e; }
+
+.light-game { grid-template-rows: auto 1fr auto auto; }
+.light-symbol {
+  justify-self: center;
+  width: 76px;
+  height: 70px;
+  border-radius: 50% !important;
+  color: rgba(48,43,56,calc(1 - var(--brightness))) !important;
+  background: rgba(255,250,244,var(--brightness)) !important;
+  box-shadow: 0 0 calc(8px + var(--brightness) * 32px) rgba(255,245,190,var(--brightness)) !important;
+  font-size: 31px;
+}
+.light-symbol.visible { background: #c4d0b7 !important; }
+.light-game input { width: 100%; accent-color: #6e7d61; }
+.light-game > span { text-align: center; font-size: 8px; letter-spacing: .1em; }
+
+.pins-game { grid-template-rows: auto 1fr auto; }
+.pins-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; width: 112px; margin: auto; }
+.pins-grid button {
+  width: 31px;
+  height: 31px;
+  padding: 0;
+  border-radius: 50%;
+  background: #c5cbbd;
+}
+.pins-grid button.flash { background: #fff4a8; box-shadow: 0 0 15px #efcf69; }
+.pins-grid button.selected { background: #7e9b72; }
+.pins-grid button.wrong { background: #d9787d; }
+
+.afterimage-game { grid-template-rows: auto 1fr; }
+.afterimage-flash {
+  display: grid;
+  place-items: center;
+  width: 94px;
+  height: 94px;
+  margin: auto;
+  border-radius: 50%;
+  background: #fff8cb;
+  box-shadow: 0 0 25px #efcf69;
+}
+.afterimage-flash b { color: #485444; font-size: 44px; animation: afterimage-pulse 360ms ease-in-out infinite alternate; }
+.afterimage-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.afterimage-options button { height: 48px; font-size: 24px; }
+.afterimage-options button.wrong { background: #d9787d; }
+
+.completion-burst.kind-balance,
+.completion-burst.kind-tremor,
+.completion-burst.kind-jointSlip,
+.completion-burst.kind-muscleLock,
+.completion-burst.kind-weakGrip,
+.completion-burst.kind-dizziness,
+.completion-burst.kind-pressurePoint,
+.completion-burst.kind-spiral { --burst-color: #b47792; }
+
+.completion-burst.kind-workingMemory,
+.completion-burst.kind-taskSwitching,
+.completion-burst.kind-directionLoss,
+.completion-burst.kind-packingCheck,
+.completion-burst.kind-interruptedThought { --burst-color: #8ea8bd; }
+
+.completion-burst.kind-checking,
+.completion-burst.kind-racingHeart { --burst-color: #e58b55; }
+
+.completion-burst.kind-heavyEyes,
+.completion-burst.kind-microRest { --burst-color: #8c84b8; }
+
+.completion-burst.kind-lightSensitivity,
+.completion-burst.kind-pinsNeedles,
+.completion-burst.kind-afterimage { --burst-color: #93aa84; }
+
+@keyframes mini-error {
+  0%, 100% { transform: translateX(0); }
+  33% { transform: translateX(-5px); }
+  66% { transform: translateX(5px); }
+}
+
+@keyframes afterimage-pulse {
+  to { transform: scale(1.18); opacity: .7; }
+}
+
+@media (max-width: 760px) {
+  .new-minigame > small { font-size: 8px; }
+  .packing-game > small { font-size: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .afterimage-flash b,
+  .switch-game.mistake,
+  .direction-game.wrong,
+  .interrupted-game.wrong,
+  .heart-game.miss { animation: none; }
+}
