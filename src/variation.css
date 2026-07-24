@@ -1,0 +1,125 @@
+.microgame:focus { outline: none; }
+
+.microgame.is-active {
+  z-index: 38;
+  border-color: #fff4b5;
+  box-shadow: 0 0 0 4px #282331, 9px 10px 0 rgba(40, 35, 49, 0.78);
+}
+
+.microgame.is-active .microgame-header i {
+  background: #fff4b5;
+  box-shadow: 0 0 0 3px rgba(255, 244, 181, 0.3);
+}
+
+.discomfort-game {
+  grid-template-rows: 1fr auto auto auto;
+  gap: 4px;
+}
+
+.adjust-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.adjust-controls button {
+  min-width: 58px;
+  padding-inline: 12px;
+  opacity: 0.55;
+}
+
+.adjust-controls button.active-adjust {
+  color: #302b38;
+  background: #efcf69;
+  opacity: 1;
+}
+
+.key-hint {
+  color: rgba(48, 43, 56, 0.72);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.fog-side {
+  display: grid;
+  gap: 7px;
+  align-content: center;
+}
+
+.fog-side .key-hint {
+  line-height: 1.2;
+}
+
+.fatigue-game {
+  position: relative;
+  grid-template-rows: 57px auto auto;
+  gap: 6px;
+  overflow: visible;
+}
+
+.fatigue-game::before {
+  content: none;
+}
+
+.fatigue-eye {
+  position: relative;
+  width: 104px;
+  height: 55px;
+  overflow: hidden;
+  border: 4px solid #433f59;
+  border-radius: 50%;
+  background: #d8cbbd;
+}
+
+.fatigue-eye .heavy-lid {
+  top: -42px;
+  left: 4px;
+  right: 4px;
+  height: 52px;
+  pointer-events: none;
+}
+
+.fatigue-controls {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fatigue-controls button {
+  position: relative;
+  z-index: 2;
+}
+
+.dialogue-options button {
+  position: relative;
+  padding-top: 19px;
+}
+
+.dialogue-key {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid #282331;
+  border-radius: 4px;
+  color: #fffaf4;
+  background: #657c8f;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+@media (max-width: 760px) {
+  .microgame.is-active {
+    box-shadow: 0 0 0 3px #282331, 6px 7px 0 rgba(40, 35, 49, 0.78);
+  }
+
+  .key-hint {
+    font-size: 7px;
+  }
+}
