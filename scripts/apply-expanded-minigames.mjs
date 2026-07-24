@@ -42,3 +42,5 @@ enhancements = replaceOnce(
 )
 
 fs.writeFileSync(enhancementsPath, enhancements)
+
+// trigger workflow
