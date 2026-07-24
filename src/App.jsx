@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from '@react-three/fiber'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
@@ -436,7 +436,7 @@ function App() {
       setTutorialStep('none')
     }
     if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
-      setTutorialStep('summary')
+      setTutorialStep('home')
     }
   }, [tutorialRun, tutorialStep])
 
@@ -465,6 +465,14 @@ function App() {
     setDirectorReady(true)
     setTutorialStep('none')
   }
+
+  const advanceTutorial = () => {
+  if (tutorialStep === 'home') {
+    setTutorialStep('summary')
+    return
+  }
+  finishTutorial()
+}
 
   const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
     ? microgames.find((game) => game.tutorialRole === tutorialStep)
@@ -556,7 +564,7 @@ function App() {
             <TutorialCallout
               step={tutorialStep}
               target={tutorialTarget}
-              onProceed={finishTutorial}
+              onProceed={advanceTutorial}
             />
           )}
 
@@ -585,7 +593,7 @@ function App() {
           )}
 
           <button
-            className="go-home"
+            className={`go-home${tutorialStep === 'home' ? ' tutorial-target tutorial-home-target' : ''}`}
             type="button"
             onClick={goHome}
             disabled={gameplayPaused}
@@ -628,6 +636,85 @@ function App() {
 }
 
 function TutorialCallout({ step, target, onProceed }) {
+  const calloutRef = useRef(null)
+  const [calloutPosition, setCalloutPosition] = useState({ left: 12, top: 92, direction: 'right' })
+  const targetId = target?.id ?? null
+
+  useLayoutEffect(() => {
+    if (step === 'summary') return undefined
+
+    const positionCallout = () => {
+      const callout = calloutRef.current
+      const targetElement = step === 'home'
+        ? document.querySelector('.go-home')
+        : targetId
+          ? document.querySelector(`[data-game-id="${targetId}"]`)
+          : null
+      if (!callout || !targetElement) return
+
+      const targetRect = targetElement.getBoundingClientRect()
+      const calloutWidth = callout.offsetWidth
+      const calloutHeight = callout.offsetHeight
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const edge = 12
+      const gap = 28
+      const centerX = targetRect.left + targetRect.width / 2
+      const centerY = targetRect.top + targetRect.height / 2
+      const clampLeft = (left) => Math.max(edge, Math.min(left, viewportWidth - calloutWidth - edge))
+      const clampTop = (top) => Math.max(edge, Math.min(top, viewportHeight - calloutHeight - edge))
+      const candidates = [
+        { direction: 'right', left: targetRect.right + gap, top: centerY - calloutHeight / 2 },
+        { direction: 'left', left: targetRect.left - calloutWidth - gap, top: centerY - calloutHeight / 2 },
+        { direction: 'below', left: centerX - calloutWidth / 2, top: targetRect.bottom + gap },
+        { direction: 'above', left: centerX - calloutWidth / 2, top: targetRect.top - calloutHeight - gap },
+        { direction: 'below', left: edge, top: edge },
+        { direction: 'above', left: viewportWidth - calloutWidth - edge, top: viewportHeight - calloutHeight - edge },
+      ].map((candidate) => ({
+        ...candidate,
+        left: clampLeft(candidate.left),
+        top: clampTop(candidate.top),
+      }))
+
+      const blockedRects = [
+        ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
+        targetRect,
+      ]
+      const candidateRect = (candidate) => ({
+        left: candidate.left,
+        top: candidate.top,
+        right: candidate.left + calloutWidth,
+        bottom: candidate.top + calloutHeight,
+      })
+      const overlaps = (a, b, margin = 10) => (
+        a.left < b.right + margin
+        && a.right > b.left - margin
+        && a.top < b.bottom + margin
+        && a.bottom > b.top - margin
+      )
+      const overlapArea = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+        * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+      const clearCandidate = candidates.find((candidate) => {
+        const rect = candidateRect(candidate)
+        return blockedRects.every((blocked) => !overlaps(rect, blocked))
+      })
+      const chosen = clearCandidate ?? candidates.reduce((best, candidate) => {
+        const rect = candidateRect(candidate)
+        const score = blockedRects.reduce((total, blocked) => total + overlapArea(rect, blocked), 0)
+        return score < best.score ? { candidate, score } : best
+      }, { candidate: candidates[0], score: Number.POSITIVE_INFINITY }).candidate
+
+      setCalloutPosition(chosen)
+    }
+
+    const frame = window.requestAnimationFrame(positionCallout)
+    window.addEventListener('resize', positionCallout)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', positionCallout)
+    }
+  }, [step, targetId])
+
   if (step === 'summary') {
     return (
       <section className="tutorial-layer tutorial-layer-summary" role="dialog" aria-modal="true">
@@ -650,24 +737,32 @@ function TutorialCallout({ step, target, onProceed }) {
         title: 'Hold to clear it.',
         body: 'Hold the button or Space until it clears. Release when it tells you to.',
       }
-    : {
-        eyebrow: 'A DIFFERENT MINIGAME',
-        title: 'This one uses movement.',
-        body: 'Click the box, then use the arrow keys or WASD to reach the exit.',
-      }
+    : step === 'second'
+      ? {
+          eyebrow: 'A DIFFERENT MINIGAME',
+          title: 'This one uses movement.',
+          body: 'Click the box, then use the arrow keys or WASD to reach the exit.',
+        }
+      : {
+          eyebrow: 'WHEN IT IS TOO MUCH',
+          title: 'Go Home if you feel overwhelmed.',
+          body: '',
+        }
 
   return (
     <section className={`tutorial-layer tutorial-layer-${step}`} aria-live="polite">
       <aside
-        className={`tutorial-callout tutorial-callout-${step}`}
-        style={{
-          '--tutorial-left': target?.position.left ?? '50%',
-          '--tutorial-top': target?.position.top ?? '30%',
-        }}
+        ref={calloutRef}
+        className={`tutorial-callout tutorial-callout-${step} placement-${calloutPosition.direction}`}
+        style={{ left: `${calloutPosition.left}px`, top: `${calloutPosition.top}px` }}
       >
+        <i className="tutorial-pointer" aria-hidden="true" />
         <span>{copy.eyebrow}</span>
         <strong>{copy.title}</strong>
-        <p>{copy.body}</p>
+        {copy.body && <p>{copy.body}</p>}
+        {step === 'home' && (
+          <button className="tutorial-next" type="button" onClick={onProceed}>GOT IT</button>
+        )}
       </aside>
     </section>
   )
