@@ -384,6 +384,11 @@ function Bedroom({ elapsed }) {
       <Box position={[-3.86, 0.15, -1]} size={[0.12, 0.28, 13.7]} color="#876c62" />
       <Box position={[3.86, 0.15, -1]} size={[0.12, 0.28, 13.7]} color="#876c62" />
 
+      {/* Seal the wide bedroom shell around the narrower entry hall. */}
+      <Box position={[-3.1, 2.2, -7.88]} size={[1.8, 4.4, 0.22]} color="#c8b49a" />
+      <Box position={[3.1, 2.2, -7.88]} size={[1.8, 4.4, 0.22]} color="#c8b49a" />
+      <Box position={[0, 4.06, -7.88]} size={[4.4, 0.58, 0.22]} color="#c8b49a" />
+
       <group position={[-2.05, 0, 1.9]}>
         <Box position={[0, 0.42, 0]} size={[2.35, 0.72, 4.25]} color="#725b65" />
         <Box position={[0, 0.82, 0]} size={[2.18, 0.26, 4.0]} color="#d7c4b8" />
@@ -409,8 +414,7 @@ function Bedroom({ elapsed }) {
         <Cylinder position={[3.1, 1.44, -1.72]} args={[0.42, 0.34, 0.18, 12]} color="#e2ddd0" castShadow={false} />
         <Cylinder position={[3.1, 1.73, -1.72]} args={[0.045, 0.055, 0.42, 8]} color="#777c83" castShadow={false} />
         <Box position={[3.1, 2.42, -1.41]} size={[1.4, 1.08, 0.07]} color="#9bb5bb" opacity={0.72} castShadow={false} />
-        <Box position={[2.15, 1.76, -2.62]} size={[0.58, 0.1, 0.08]} color="#564c4d" />
-        <Box position={[2.15, 1.48, -2.57]} size={[0.5, 0.52, 0.05]} color="#c98670" />
+
       </group>
 
       <group position={[0, 0, -10.8]}>
