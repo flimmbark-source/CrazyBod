@@ -1,6 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
@@ -341,8 +342,13 @@ function App() {
   return (
     <main className={`game-shell load-${Math.min(load, 5)}`}>
       <div className="world-layer">
-        <Canvas camera={{ position: [0, 1.65, 5], fov: 67 }} dpr={[1, 1.5]}>
-          <JourneyScene elapsed={elapsed} active={status === 'playing' && !tutorialPaused} />
+        <Canvas shadows camera={{ position: [-1.8, 0.92, 2.8], fov: 71, near: 0.08, far: 150 }} dpr={[1, 1.5]}>
+          <AuthoredJourneyScene
+            elapsed={elapsed}
+            active={status === 'playing' && !tutorialPaused}
+            dialogueOpen={dialogueOpen}
+            dialogueAnswered={dialogueAnswered}
+          />
         </Canvas>
       </div>
 
