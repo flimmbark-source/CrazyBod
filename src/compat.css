@@ -4,9 +4,15 @@
 .load-0 .microgame,
 .load-1 .microgame,
 .load-2 .microgame,
-.load-3 .microgame { animation-duration: 180ms, 0.5s; }
-.load-4 .microgame { animation-duration: 180ms, 0.34s; }
-.load-5 .microgame { animation-duration: 180ms, 0.22s; }
+.load-3 .microgame {
+  animation: window-arrive 180ms cubic-bezier(.2,.9,.35,1.2);
+}
+.load-4 .microgame {
+  animation: window-arrive 180ms cubic-bezier(.2,.9,.35,1.2), crowd-jitter 0.34s steps(2) infinite;
+}
+.load-5 .microgame {
+  animation: window-arrive 180ms cubic-bezier(.2,.9,.35,1.2), crowd-jitter 0.22s steps(2) infinite;
+}
 
 @keyframes crowd-jitter {
   0%, 100% { translate: 0 0; }

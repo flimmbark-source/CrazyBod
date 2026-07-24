@@ -33,6 +33,7 @@ const BEDROOM_COLOR = new THREE.Color('#b8a7bb')
 const STREET_COLOR = new THREE.Color('#9eb4c0')
 const CAFE_COLOR = new THREE.Color('#9f7e72')
 const MARA_LOOK = new THREE.Vector3(-1, 1.45, -92)
+const SHARED_BOX_GEOMETRY = new THREE.BoxGeometry(1, 1, 1)
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, value))
@@ -61,11 +62,29 @@ function samplePlayerPath(elapsed) {
   }
 }
 
-function Box({ position, size, color, rotation = [0, 0, 0], castShadow = true, receiveShadow = true, opacity = 1 }) {
+function Box({ position, size, color, rotation = [0, 0, 0], castShadow, receiveShadow, opacity = 1 }) {
+  const shouldCastShadow = castShadow ?? (
+    size[1] > 0.3 && size[0] < 9 && size[2] < 9
+  )
+  const shouldReceiveShadow = receiveShadow ?? size[1] <= 0.3
+
   return (
-    <mesh position={position} rotation={rotation} castShadow={castShadow} receiveShadow={receiveShadow}>
-      <boxGeometry args={size} />
-      <meshStandardMaterial color={color} roughness={0.82} transparent={opacity < 1} opacity={opacity} />
+    <mesh
+      position={position}
+      rotation={rotation}
+      scale={size}
+      geometry={SHARED_BOX_GEOMETRY}
+      castShadow={shouldCastShadow}
+      receiveShadow={shouldReceiveShadow}
+      dispose={null}
+    >
+      <meshStandardMaterial
+        color={color}
+        roughness={0.82}
+        transparent={opacity < 1}
+        opacity={opacity}
+        depthWrite={opacity >= 1}
+      />
     </mesh>
   )
 }
@@ -151,7 +170,6 @@ function Lamp({ position, color = '#f1cf7a' }) {
         <octahedronGeometry args={[0.28, 0]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.65} />
       </mesh>
-      <pointLight position={[0, 2.7, 0]} color={color} intensity={1.2} distance={8} decay={2} />
     </group>
   )
 }
@@ -466,12 +484,22 @@ function CafeInterior({ elapsed, active }) {
 }
 
 function World({ elapsed, active }) {
+  const bedroomVisible = elapsed < 19
+  const streetVisible = elapsed >= 10 && elapsed < 35
+  const cafeVisible = elapsed >= 18
+
   return (
     <group>
-      <Bedroom elapsed={elapsed} />
-      <Street active={active} />
-      <CafeFacade elapsed={elapsed} />
-      <CafeInterior elapsed={elapsed} active={active} />
+      <group visible={bedroomVisible}>
+        <Bedroom elapsed={elapsed} />
+      </group>
+      <group visible={streetVisible}>
+        <Street active={active && streetVisible} />
+      </group>
+      <group visible={cafeVisible}>
+        <CafeFacade elapsed={elapsed} />
+        <CafeInterior elapsed={elapsed} active={active && cafeVisible} />
+      </group>
     </group>
   )
 }
@@ -481,7 +509,20 @@ export function AuthoredJourneyScene({ elapsed, active, dialogueOpen = false }) 
     <>
       <Atmosphere elapsed={elapsed} />
       <hemisphereLight args={['#dbe9ee', '#5c4c4c', 1.15]} />
-      <directionalLight position={[8, 14, 6]} intensity={2.1} color="#fff2d1" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <directionalLight
+        position={[8, 14, 6]}
+        intensity={2.1}
+        color="#fff2d1"
+        castShadow
+        shadow-mapSize-width={512}
+        shadow-mapSize-height={512}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-12}
+        shadow-camera-near={1}
+        shadow-camera-far={45}
+      />
       <CameraRig elapsed={elapsed} active={active} dialogueOpen={dialogueOpen} />
       <World elapsed={elapsed} active={active} />
     </>

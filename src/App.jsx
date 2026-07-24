@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
@@ -58,19 +58,48 @@ function seededFraction(seed, value) {
   return (next >>> 0) / 4294967296
 }
 
+function microgameViewportSize() {
+  const viewportWidth = Math.max(window.innerWidth || 0, 320)
+  const viewportHeight = Math.max(window.innerHeight || 0, 480)
+  const compact = viewportWidth <= 820
+  const width = compact
+    ? Math.min(220, viewportWidth * 0.72)
+    : Math.min(252, Math.max(232, viewportWidth * 0.24))
+  const height = compact
+    ? 178
+    : Math.min(202, Math.max(184, viewportHeight * 0.24))
+
+  return { viewportWidth, viewportHeight, width, height, compact }
+}
+
 function positionFor(seed, index, existingGames) {
-  let fallback = { left: 39, top: 38 }
+  const { viewportWidth, viewportHeight, width, height, compact } = microgameViewportSize()
+  const minimumLeft = compact ? 2.5 : 3
+  const maximumLeft = Math.max(
+    minimumLeft,
+    ((viewportWidth - width - 10) / viewportWidth) * 100,
+  )
+  const minimumTop = compact ? 18 : 15
+  const maximumTop = Math.max(
+    minimumTop,
+    ((viewportHeight - height - 14) / viewportHeight) * 100,
+  )
+  let fallback = { left: minimumLeft, top: minimumTop }
 
   for (let attempt = 0; attempt < 14; attempt += 1) {
-    const left = 6 + seededFraction(seed, index * 31 + attempt * 2) * 66
-    const top = 15 + seededFraction(seed, index * 31 + attempt * 2 + 1) * 47
+    const left = minimumLeft
+      + seededFraction(seed, index * 31 + attempt * 2) * (maximumLeft - minimumLeft)
+    const top = minimumTop
+      + seededFraction(seed, index * 31 + attempt * 2 + 1) * (maximumTop - minimumTop)
     const candidate = { left, top }
     fallback = candidate
 
     const separated = existingGames.every((game) => {
       const previousLeft = Number.parseFloat(game.position.left)
       const previousTop = Number.parseFloat(game.position.top)
-      return Math.hypot(left - previousLeft, top - previousTop) >= 19
+      const horizontalDistance = ((left - previousLeft) / 100) * viewportWidth
+      const verticalDistance = ((top - previousTop) / 100) * viewportHeight
+      return Math.hypot(horizontalDistance, verticalDistance) >= Math.min(width, height) * 0.78
     })
 
     if (separated) {
@@ -388,7 +417,19 @@ function App() {
   return (
     <main className={`game-shell load-${Math.min(load, 5)}`}>
       <div className="world-layer">
-        <Canvas shadows camera={{ position: [-1.8, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }} dpr={[1, 1.5]}>
+        <Canvas
+          shadows="basic"
+          camera={{ position: [-1.8, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }}
+          dpr={[1, 1.25]}
+          gl={{
+            antialias: false,
+            alpha: false,
+            stencil: false,
+            powerPreference: 'high-performance',
+            precision: 'mediump',
+          }}
+          performance={{ min: 0.6 }}
+        >
           <AuthoredJourneyScene
             elapsed={elapsed}
             active={status === 'playing' && !tutorialPaused}
@@ -639,7 +680,7 @@ function CompletionBurst({ effect }) {
   )
 }
 
-function MicrogameWindow({ game, index, load, tutorialTarget, onResolve }) {
+const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutorialTarget, onResolve }) {
   const resolve = useCallback(() => onResolve(game.id), [game.id, onResolve])
 
   return (
@@ -669,7 +710,7 @@ function MicrogameWindow({ game, index, load, tutorialTarget, onResolve }) {
       </div>
     </article>
   )
-}
+})
 
 function DiscomfortGame({ onResolve }) {
   const [presses, setPresses] = useState(0)
