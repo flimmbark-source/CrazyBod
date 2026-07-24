@@ -32,3 +32,5 @@ jobs:
           git add src/App.jsx src/main.jsx
           git commit -m "accelerate overwhelm and add completion bursts"
           git push origin HEAD:prototype/rapid-overwhelm-completion-fx
+
+# Follow-up commit ensures the branch workflow is registered before execution.
