@@ -14,6 +14,8 @@ const DAY_LENGTH = 50
 const OVERLOAD_LIMIT = 6
 const SCORE_PER_SECOND = 10
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
+const READY_CUE_MS = 1150
+const START_CUE_MS = 650
 
 const MICROGAME_NAMES = EXPANDED_MICROGAME_NAMES
 
@@ -96,6 +98,7 @@ function App() {
   const [tutorialRun, setTutorialRun] = useState(false)
   const [tutorialStep, setTutorialStep] = useState('none')
   const [directorReady, setDirectorReady] = useState(false)
+  const [startCue, setStartCue] = useState(null)
   const startTimeRef = useRef(0)
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
@@ -108,13 +111,14 @@ function App() {
   const tutorialSecondSeenRef = useRef(false)
 
   const score = Math.floor(elapsed * SCORE_PER_SECOND)
+  const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - elapsed))
   const load = microgames.length
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
 
   const beginGame = useCallback((withTutorial) => {
     const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0
-    startTimeRef.current = performance.now()
+    startTimeRef.current = 0
     pausedDurationRef.current = 0
     pauseStartedRef.current = null
     directorRef.current = createPacingDirector(seed)
@@ -132,7 +136,8 @@ function App() {
     setTutorialRun(withTutorial)
     setTutorialStep('none')
     setDirectorReady(!withTutorial)
-    setStatus('playing')
+    setStartCue('ready')
+    setStatus('countdown')
   }, [])
 
   const startGame = useCallback(() => {
@@ -161,6 +166,26 @@ function App() {
       return next
     })
   }
+
+  useEffect(() => {
+    if (status !== 'countdown') return undefined
+
+    const timer = window.setTimeout(() => {
+      startTimeRef.current = performance.now()
+      pausedDurationRef.current = 0
+      pauseStartedRef.current = null
+      setStartCue('start')
+      setStatus('playing')
+    }, READY_CUE_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [status])
+
+  useEffect(() => {
+    if (startCue !== 'start') return undefined
+    const timer = window.setTimeout(() => setStartCue(null), START_CUE_MS)
+    return () => window.clearTimeout(timer)
+  }, [startCue])
 
   const spawnMicrogame = useCallback((kind, tutorialRole = null) => {
     const index = spawnCounterRef.current
@@ -352,12 +377,22 @@ function App() {
         </Canvas>
       </div>
 
+      {startCue && (
+        <section
+          className={`race-start-cue race-start-cue-${startCue}`}
+          aria-live="assertive"
+          aria-atomic="true"
+        >
+          <strong key={startCue}>{startCue === 'ready' ? 'Ready?' : 'START!'}</strong>
+        </section>
+      )}
+
       {status === 'playing' && (
         <>
           <header className="hud">
             <div className="hud-panel">
-              <span className="hud-label">OUT</span>
-              <strong>{Math.floor(elapsed)}s</strong>
+              <span className="hud-label">TIME</span>
+              <strong>{remainingTime}s</strong>
             </div>
             <div className="phase-label">{getPhase(elapsed)}</div>
             <div className="hud-panel score-panel">
@@ -435,7 +470,7 @@ function App() {
         </OverlayCard>
       )}
 
-      {status !== 'intro' && status !== 'playing' && (
+      {!['intro', 'countdown', 'playing'].includes(status) && (
         <EndCard status={status} score={finalScore} onRestart={startGame} />
       )}
     </main>
