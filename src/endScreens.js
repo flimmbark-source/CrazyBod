@@ -217,7 +217,10 @@ function showResults(result, originalRestartButton) {
           <small>${result.appeared} demands appeared</small>
         </div>
 
-        <button class="results-restart" type="button">TRY ANOTHER DAY</button>
+        <div class="results-actions">
+          <button class="results-restart" type="button">TRY ANOTHER DAY</button>
+          <button class="results-tutorial" type="button">PLAY TUTORIAL</button>
+        </div>
       </div>
     </section>
   `
@@ -226,6 +229,12 @@ function showResults(result, originalRestartButton) {
     removeEndSequence()
     resetRunSnapshot()
     originalRestartButton.click()
+  }, { once: true })
+
+  root.querySelector('.results-tutorial')?.addEventListener('click', () => {
+    removeEndSequence()
+    resetRunSnapshot()
+    window.dispatchEvent(new Event('crazybod:start-tutorial'))
   }, { once: true })
 }
 

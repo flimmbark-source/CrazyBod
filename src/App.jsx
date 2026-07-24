@@ -5,6 +5,9 @@ import * as THREE from 'three'
 const DAY_LENGTH = 50
 const OVERLOAD_LIMIT = 6
 const SCORE_PER_SECOND = 10
+const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
+const TUTORIAL_FIRST_ID = 'fatigue-0'
+const TUTORIAL_SECOND_ID = 'brainFog-1'
 
 const MICROGAME_SCRIPT = [
   { at: 2.5, kind: 'fatigue' },
@@ -111,38 +114,130 @@ function App() {
   const [dialogueAnswered, setDialogueAnswered] = useState(false)
   const [finalScore, setFinalScore] = useState(0)
   const [completionEffects, setCompletionEffects] = useState([])
+  const [tutorialEnabled, setTutorialEnabled] = useState(() => {
+    try {
+      return window.localStorage.getItem(TUTORIAL_STORAGE_KEY) !== 'true'
+    } catch {
+      return true
+    }
+  })
+  const [tutorialRun, setTutorialRun] = useState(false)
+  const [tutorialStep, setTutorialStep] = useState('none')
   const startTimeRef = useRef(0)
   const spawnedRef = useRef(new Set())
   const resolvedGamesRef = useRef(new Set())
   const completionEffectIdRef = useRef(0)
+  const pauseStartedRef = useRef(null)
+  const pausedDurationRef = useRef(0)
+  const tutorialFirstSeenRef = useRef(false)
+  const tutorialSecondSeenRef = useRef(false)
 
   const score = Math.floor(elapsed * SCORE_PER_SECOND)
   const load = microgames.length
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
+  const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
 
-  const startGame = useCallback(() => {
+  const beginGame = useCallback((withTutorial) => {
     startTimeRef.current = performance.now()
+    pausedDurationRef.current = 0
+    pauseStartedRef.current = null
     spawnedRef.current = new Set()
     resolvedGamesRef.current = new Set()
+    tutorialFirstSeenRef.current = false
+    tutorialSecondSeenRef.current = false
     setElapsed(0)
     setMicrogames([])
     setCompletionEffects([])
     setDialogueOpen(false)
     setDialogueAnswered(false)
     setFinalScore(0)
+    setTutorialRun(withTutorial)
+    setTutorialStep('none')
     setStatus('playing')
   }, [])
 
+  const startGame = useCallback(() => {
+    beginGame(tutorialEnabled)
+  }, [beginGame, tutorialEnabled])
+
+  const startTutorialGame = useCallback(() => {
+    setTutorialEnabled(true)
+    try {
+      window.localStorage.removeItem(TUTORIAL_STORAGE_KEY)
+    } catch {
+      // Local storage is optional; the current run can still use the tutorial.
+    }
+    beginGame(true)
+  }, [beginGame])
+
+  const toggleTutorial = () => {
+    setTutorialEnabled((current) => {
+      const next = !current
+      try {
+        if (next) window.localStorage.removeItem(TUTORIAL_STORAGE_KEY)
+        else window.localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true')
+      } catch {
+        // Keep the in-memory toggle even if storage is unavailable.
+      }
+      return next
+    })
+  }
+
   useEffect(() => {
-    if (status !== 'playing') return undefined
+    const handleTutorialRestart = () => startTutorialGame()
+    window.addEventListener('crazybod:start-tutorial', handleTutorialRestart)
+    return () => window.removeEventListener('crazybod:start-tutorial', handleTutorialRestart)
+  }, [startTutorialGame])
+
+  useEffect(() => {
+    if (status !== 'playing') {
+      pauseStartedRef.current = null
+      return
+    }
+
+    if (tutorialPaused && pauseStartedRef.current === null) {
+      pauseStartedRef.current = performance.now()
+      return
+    }
+
+    if (!tutorialPaused && pauseStartedRef.current !== null) {
+      pausedDurationRef.current += performance.now() - pauseStartedRef.current
+      pauseStartedRef.current = null
+    }
+  }, [status, tutorialPaused])
+
+  useEffect(() => {
+    if (status !== 'playing' || tutorialPaused) return undefined
 
     const timer = window.setInterval(() => {
-      const nextElapsed = Math.min((performance.now() - startTimeRef.current) / 1000, DAY_LENGTH)
+      const nextElapsed = Math.min(
+        (performance.now() - startTimeRef.current - pausedDurationRef.current) / 1000,
+        DAY_LENGTH,
+      )
       setElapsed(nextElapsed)
     }, 100)
 
     return () => window.clearInterval(timer)
-  }, [status])
+  }, [status, tutorialPaused])
+
+  useEffect(() => {
+    if (status !== 'playing' || !tutorialRun) return
+
+    if (!tutorialFirstSeenRef.current && microgames.some((game) => game.id === TUTORIAL_FIRST_ID)) {
+      tutorialFirstSeenRef.current = true
+      setTutorialStep('first')
+      return
+    }
+
+    if (
+      tutorialFirstSeenRef.current
+      && !tutorialSecondSeenRef.current
+      && microgames.some((game) => game.id === TUTORIAL_SECOND_ID)
+    ) {
+      tutorialSecondSeenRef.current = true
+      setTutorialStep('second')
+    }
+  }, [microgames, status, tutorialRun])
 
   useEffect(() => {
     if (status !== 'playing') return
@@ -207,7 +302,14 @@ function App() {
     }
 
     setMicrogames((current) => current.filter((game) => game.id !== id))
-  }, [])
+
+    if (tutorialRun && tutorialStep === 'first' && id === TUTORIAL_FIRST_ID) {
+      setTutorialStep('none')
+    }
+    if (tutorialRun && tutorialStep === 'second' && id === TUTORIAL_SECOND_ID) {
+      setTutorialStep('summary')
+    }
+  }, [tutorialRun, tutorialStep])
 
   const goHome = () => {
     setFinalScore(score)
@@ -219,11 +321,27 @@ function App() {
     setDialogueOpen(false)
   }
 
+  const finishTutorial = () => {
+    try {
+      window.localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true')
+    } catch {
+      // The tutorial still finishes for this session without storage.
+    }
+    setTutorialEnabled(false)
+    setTutorialStep('none')
+  }
+
+  const tutorialTarget = tutorialStep === 'first'
+    ? microgames.find((game) => game.id === TUTORIAL_FIRST_ID)
+    : tutorialStep === 'second'
+      ? microgames.find((game) => game.id === TUTORIAL_SECOND_ID)
+      : null
+
   return (
     <main className={`game-shell load-${Math.min(load, 5)}`}>
       <div className="world-layer">
         <Canvas camera={{ position: [0, 1.65, 5], fov: 67 }} dpr={[1, 1.5]}>
-          <JourneyScene elapsed={elapsed} active={status === 'playing'} />
+          <JourneyScene elapsed={elapsed} active={status === 'playing' && !tutorialPaused} />
         </Canvas>
       </div>
 
@@ -257,10 +375,19 @@ function App() {
                 game={game}
                 index={index}
                 load={load}
+                tutorialTarget={tutorialTarget?.id === game.id}
                 onResolve={resolveMicrogame}
               />
             ))}
           </section>
+
+          {tutorialStep !== 'none' && (
+            <TutorialCallout
+              step={tutorialStep}
+              target={tutorialTarget}
+              onProceed={finishTutorial}
+            />
+          )}
 
           <section className="completion-fx-layer" aria-hidden="true">
             {completionEffects.map((effect) => (
@@ -276,7 +403,7 @@ function App() {
             />
           )}
 
-          <button className="go-home" type="button" onClick={goHome}>
+          <button className="go-home" type="button" onClick={goHome} disabled={tutorialPaused}>
             <span>GO HOME</span>
             <small>cash out {score}</small>
           </button>
@@ -289,6 +416,15 @@ function App() {
             The day moves without waiting. Clear whatever surfaces, stay out for points,
             and go home before everything becomes too much.
           </p>
+          <button
+            className="tutorial-toggle"
+            type="button"
+            aria-pressed={tutorialEnabled}
+            onClick={toggleTutorial}
+          >
+            <span>TUTORIAL</span>
+            <strong>{tutorialEnabled ? 'ON' : 'OFF'}</strong>
+          </button>
           <button type="button" onClick={startGame}>START THE DAY</button>
         </OverlayCard>
       )}
@@ -297,6 +433,52 @@ function App() {
         <EndCard status={status} score={finalScore} onRestart={startGame} />
       )}
     </main>
+  )
+}
+
+function TutorialCallout({ step, target, onProceed }) {
+  if (step === 'summary') {
+    return (
+      <section className="tutorial-layer tutorial-layer-summary" role="dialog" aria-modal="true">
+        <div className="tutorial-callout tutorial-callout-summary">
+          <span>HOW THE DAY WORKS</span>
+          <strong>Keep the screen clear.</strong>
+          <p>
+            More minigames will appear as the day continues. Clear them before six pile up
+            and you become overwhelmed.
+          </p>
+          <button type="button" onClick={onProceed}>PROCEED</button>
+        </div>
+      </section>
+    )
+  }
+
+  const copy = step === 'first'
+    ? {
+        eyebrow: 'FIRST MINIGAME',
+        title: 'Hold to clear it.',
+        body: 'Hold the button or Space until it clears. Release when it tells you to.',
+      }
+    : {
+        eyebrow: 'A DIFFERENT MINIGAME',
+        title: 'This one uses movement.',
+        body: 'Click the box, then use the arrow keys or WASD to reach the exit.',
+      }
+
+  return (
+    <section className={`tutorial-layer tutorial-layer-${step}`} aria-live="polite">
+      <aside
+        className={`tutorial-callout tutorial-callout-${step}`}
+        style={{
+          '--tutorial-left': target?.position.left ?? '50%',
+          '--tutorial-top': target?.position.top ?? '30%',
+        }}
+      >
+        <span>{copy.eyebrow}</span>
+        <strong>{copy.title}</strong>
+        <p>{copy.body}</p>
+      </aside>
+    </section>
   )
 }
 
@@ -395,12 +577,12 @@ function CompletionBurst({ effect }) {
   )
 }
 
-function MicrogameWindow({ game, index, load, onResolve }) {
+function MicrogameWindow({ game, index, load, tutorialTarget, onResolve }) {
   const resolve = useCallback(() => onResolve(game.id), [game.id, onResolve])
 
   return (
     <article
-      className={`microgame microgame-${game.kind}`}
+      className={`microgame microgame-${game.kind}${tutorialTarget ? ' tutorial-target' : ''}`}
       data-game-id={game.id}
       data-game-kind={game.kind}
       style={{

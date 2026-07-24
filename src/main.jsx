@@ -8,6 +8,7 @@ import './completionEffects.css'
 import './endScreens.css'
 import './endScreensCompat.css'
 import './endScreensResponsive.css'
+import './tutorial.css'
 import './microgameEnhancements.js'
 import './endScreens.js'
 
