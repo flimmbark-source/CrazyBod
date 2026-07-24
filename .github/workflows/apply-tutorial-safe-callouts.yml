@@ -1,0 +1,318 @@
+name: Apply tutorial safe callouts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - .github/tutorial-safe-callouts-trigger
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    if: github.head_ref == 'feature/tutorial-safe-callouts'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          show-progress: false
+      - name: Apply tutorial changes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_path = Path('src/App.jsx')
+          app = app_path.read_text()
+
+          old_import = "import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'"
+          new_import = "import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'"
+          if old_import in app:
+              app = app.replace(old_import, new_import, 1)
+
+          second_resolution = """    if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
+                setTutorialStep('summary')
+              }"""
+          home_resolution = """    if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
+                setTutorialStep('home')
+              }"""
+          if second_resolution in app:
+              app = app.replace(second_resolution, home_resolution, 1)
+
+          tutorial_target_anchor = """  const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
+                ? microgames.find((game) => game.tutorialRole === tutorialStep)
+                : null"""
+          tutorial_target_replacement = """  const advanceTutorial = () => {
+                if (tutorialStep === 'home') {
+                  setTutorialStep('summary')
+                  return
+                }
+                finishTutorial()
+              }
+
+              const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
+                ? microgames.find((game) => game.tutorialRole === tutorialStep)
+                : null"""
+          if tutorial_target_anchor in app:
+              app = app.replace(tutorial_target_anchor, tutorial_target_replacement, 1)
+
+          app = app.replace('              onProceed={finishTutorial}', '              onProceed={advanceTutorial}', 1)
+          app = app.replace(
+              '            className="go-home"',
+              "            className={`go-home${tutorialStep === 'home' ? ' tutorial-target tutorial-home-target' : ''}`}",
+              1,
+          )
+
+          tutorial_component = r'''function TutorialCallout\(\{ step, target, onProceed \}\) \{.*?\n\}\n\nfunction OverlayCard'''
+          tutorial_replacement = r'''function TutorialCallout({ step, target, onProceed }) {
+            const calloutRef = useRef(null)
+            const [calloutPosition, setCalloutPosition] = useState({ left: 12, top: 92, direction: 'right' })
+            const targetId = target?.id ?? null
+
+            useLayoutEffect(() => {
+              if (step === 'summary') return undefined
+
+              const positionCallout = () => {
+                const callout = calloutRef.current
+                const targetElement = step === 'home'
+                  ? document.querySelector('.go-home')
+                  : targetId
+                    ? document.querySelector(`[data-game-id="${targetId}"]`)
+                    : null
+                if (!callout || !targetElement) return
+
+                const targetRect = targetElement.getBoundingClientRect()
+                const calloutWidth = callout.offsetWidth
+                const calloutHeight = callout.offsetHeight
+                const viewportWidth = window.innerWidth
+                const viewportHeight = window.innerHeight
+                const edge = 12
+                const gap = 28
+                const centerX = targetRect.left + targetRect.width / 2
+                const centerY = targetRect.top + targetRect.height / 2
+                const clampLeft = (left) => Math.max(edge, Math.min(left, viewportWidth - calloutWidth - edge))
+                const clampTop = (top) => Math.max(edge, Math.min(top, viewportHeight - calloutHeight - edge))
+                const candidates = [
+                  { direction: 'right', left: targetRect.right + gap, top: centerY - calloutHeight / 2 },
+                  { direction: 'left', left: targetRect.left - calloutWidth - gap, top: centerY - calloutHeight / 2 },
+                  { direction: 'below', left: centerX - calloutWidth / 2, top: targetRect.bottom + gap },
+                  { direction: 'above', left: centerX - calloutWidth / 2, top: targetRect.top - calloutHeight - gap },
+                  { direction: 'below', left: edge, top: edge },
+                  { direction: 'above', left: viewportWidth - calloutWidth - edge, top: viewportHeight - calloutHeight - edge },
+                ].map((candidate) => ({
+                  ...candidate,
+                  left: clampLeft(candidate.left),
+                  top: clampTop(candidate.top),
+                }))
+
+                const blockedRects = [
+                  ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
+                  targetRect,
+                ]
+                const candidateRect = (candidate) => ({
+                  left: candidate.left,
+                  top: candidate.top,
+                  right: candidate.left + calloutWidth,
+                  bottom: candidate.top + calloutHeight,
+                })
+                const overlaps = (a, b, margin = 10) => (
+                  a.left < b.right + margin
+                  && a.right > b.left - margin
+                  && a.top < b.bottom + margin
+                  && a.bottom > b.top - margin
+                )
+                const overlapArea = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+                  * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+                const clearCandidate = candidates.find((candidate) => {
+                  const rect = candidateRect(candidate)
+                  return blockedRects.every((blocked) => !overlaps(rect, blocked))
+                })
+                const chosen = clearCandidate ?? candidates.reduce((best, candidate) => {
+                  const rect = candidateRect(candidate)
+                  const score = blockedRects.reduce((total, blocked) => total + overlapArea(rect, blocked), 0)
+                  return score < best.score ? { candidate, score } : best
+                }, { candidate: candidates[0], score: Number.POSITIVE_INFINITY }).candidate
+
+                setCalloutPosition(chosen)
+              }
+
+              const frame = window.requestAnimationFrame(positionCallout)
+              window.addEventListener('resize', positionCallout)
+              return () => {
+                window.cancelAnimationFrame(frame)
+                window.removeEventListener('resize', positionCallout)
+              }
+            }, [step, targetId])
+
+            if (step === 'summary') {
+              return (
+                <section className="tutorial-layer tutorial-layer-summary" role="dialog" aria-modal="true">
+                  <div className="tutorial-callout tutorial-callout-summary">
+                    <span>HOW THE DAY WORKS</span>
+                    <strong>Keep the screen clear.</strong>
+                    <p>
+                      More minigames will appear as the day continues. Clear them before six pile up
+                      and you become overwhelmed.
+                    </p>
+                    <button type="button" onClick={onProceed}>PROCEED</button>
+                  </div>
+                </section>
+              )
+            }
+
+            const copy = step === 'first'
+              ? {
+                  eyebrow: 'FIRST MINIGAME',
+                  title: 'Hold to clear it.',
+                  body: 'Hold the button or Space until it clears. Release when it tells you to.',
+                }
+              : step === 'second'
+                ? {
+                    eyebrow: 'A DIFFERENT MINIGAME',
+                    title: 'This one uses movement.',
+                    body: 'Click the box, then use the arrow keys or WASD to reach the exit.',
+                  }
+                : {
+                    eyebrow: 'WHEN IT IS TOO MUCH',
+                    title: 'Go Home if you feel overwhelmed.',
+                    body: '',
+                  }
+
+            return (
+              <section className={`tutorial-layer tutorial-layer-${step}`} aria-live="polite">
+                <aside
+                  ref={calloutRef}
+                  className={`tutorial-callout tutorial-callout-${step} placement-${calloutPosition.direction}`}
+                  style={{ left: `${calloutPosition.left}px`, top: `${calloutPosition.top}px` }}
+                >
+                  <i className="tutorial-pointer" aria-hidden="true" />
+                  <span>{copy.eyebrow}</span>
+                  <strong>{copy.title}</strong>
+                  {copy.body && <p>{copy.body}</p>}
+                  {step === 'home' && (
+                    <button className="tutorial-next" type="button" onClick={onProceed}>GOT IT</button>
+                  )}
+                </aside>
+              </section>
+            )
+          }
+
+          function OverlayCard'''
+          app, count = re.subn(tutorial_component, tutorial_replacement, app, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('Could not replace TutorialCallout')
+          app_path.write_text(app)
+
+          css_path = Path('src/tutorial.css')
+          css = css_path.read_text()
+          pointer_styles = '''.tutorial-pointer {
+            position: absolute;
+            width: 0;
+            height: 0;
+          }
+
+          .placement-right .tutorial-pointer {
+            left: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-top: 16px solid transparent;
+            border-right: 25px solid #292431;
+            border-bottom: 16px solid transparent;
+          }
+
+          .placement-left .tutorial-pointer {
+            right: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-top: 16px solid transparent;
+            border-bottom: 16px solid transparent;
+            border-left: 25px solid #292431;
+          }
+
+          .placement-above .tutorial-pointer {
+            left: 50%;
+            bottom: -25px;
+            transform: translateX(-50%);
+            border-top: 25px solid #292431;
+            border-right: 16px solid transparent;
+            border-left: 16px solid transparent;
+          }
+
+          .placement-below .tutorial-pointer {
+            left: 50%;
+            top: -25px;
+            transform: translateX(-50%);
+            border-right: 16px solid transparent;
+            border-bottom: 25px solid #292431;
+            border-left: 16px solid transparent;
+          }
+
+          .tutorial-callout-home {
+            pointer-events: auto;
+          }
+
+          .tutorial-next {
+            margin-top: 12px;
+            padding: 8px 14px;
+            border: 3px solid #292431;
+            border-radius: 7px;
+            color: #fff8ef;
+            background: #a7484c;
+            box-shadow: 0 4px 0 #292431;
+            font-weight: 1000;
+            cursor: pointer;
+          }
+
+          .tutorial-next:active {
+            translate: 0 3px;
+            box-shadow: 0 1px 0 #292431;
+          }
+
+          '''
+          css, count = re.subn(
+              r'\.tutorial-callout-first \{.*?(?=\.tutorial-layer-summary \{)',
+              pointer_styles,
+              css,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not replace fixed tutorial positioning')
+
+          disabled_anchor = '''.go-home:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(0.4);
+          }'''
+          disabled_replacement = disabled_anchor + '''
+
+          .go-home.tutorial-home-target:disabled {
+            opacity: 1;
+            filter: none;
+          }'''
+          if disabled_anchor in css:
+              css = css.replace(disabled_anchor, disabled_replacement, 1)
+
+          css, count = re.subn(
+              r'@media \(max-width: 760px\) \{\n  \.tutorial-callout-first,.*?(?=  \.results-actions \{)',
+              '@media (max-width: 760px) {\n  .tutorial-callout { width: min(300px, calc(100vw - 24px)); }\n\n',
+              css,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not update mobile tutorial positioning')
+          css_path.write_text(css)
+          PY
+      - name: Commit tutorial changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx src/tutorial.css
+          git diff --cached --quiet || git commit -m "keep tutorial callouts clear and teach go home"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
