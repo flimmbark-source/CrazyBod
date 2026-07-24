@@ -17,7 +17,7 @@ const PLAYER_PATH = [
   { at: 15.0, position: [0, 1.65, -13.0], look: [0, 1.45, -22], walk: 0, fov: 67 },
   { at: 16, position: [0, 1.65, -17.4], look: [0, 1.48, -26], walk: 0.92, fov: 68 },
 
-  // Walking to the café: meet Mara outside, pause, then enter through the open doorway.
+  // Walking to the café: keep the existing Mara greeting, then enter through the doorway.
   { at: 20, position: [-0.4, 1.65, -37], look: [0, 1.42, -45], walk: 1, fov: 68 },
   { at: 24.2, position: [0, 1.65, -65.5], look: [-1.8, 1.48, -70.8], walk: 1, fov: 68 },
   { at: 25, position: [0, 1.65, -68.2], look: [-2.2, 1.48, -70.9], walk: 0.55, fov: 67 },
@@ -25,18 +25,25 @@ const PLAYER_PATH = [
   { at: 28.8, position: [0, 1.65, -70.8], look: [0, 1.5, -77], walk: 0.6, fov: 67 },
   { at: 29.8, position: [0, 1.65, -70.8], look: [0, 1.5, -80], walk: 0, fov: 67 },
   { at: 31.2, position: [0, 1.65, -79], look: [0, 1.5, -87], walk: 0.82, fov: 67 },
-  { at: 33, position: [-0.8, 1.65, -87], look: [-1, 1.48, -92], walk: 0.25, fov: 66 },
-  { at: 37, position: [-0.8, 1.65, -87.2], look: [-1, 1.45, -92], walk: 0, fov: 65 },
-  { at: 40, position: [1.8, 1.65, -87], look: [4.2, 1.2, -89.5], walk: 0.45, fov: 66 },
-  { at: 43, position: [4.2, 1.65, -87.8], look: [4.2, 1.1, -90], walk: 0.35, fov: 65 },
-  { at: 46, position: [4.2, 1.15, -89.2], look: [0.5, 1.3, -90], walk: 0, fov: 63 },
-  { at: 50, position: [4.2, 1.15, -89.2], look: [0.5, 1.25, -90], walk: 0, fov: 63 },
+
+  // Ordering: turn toward the counter, approach the barista and stop for the order.
+  { at: 33.4, position: [0, 1.65, -85], look: [-1.3, 1.48, -95.15], walk: 0.78, fov: 67 },
+  { at: 35, position: [-0.6, 1.65, -89], look: [-1.3, 1.48, -95.15], walk: 0.45, fov: 65 },
+  { at: 36, position: [-0.6, 1.65, -89], look: [5.7, 1.35, -86.3], walk: 0, fov: 66 },
+
+  // Sitting down: use the aisle beside the table, approach the seat from behind, then lower into it.
+  { at: 40.5, position: [5.7, 1.65, -86.3], look: [5.7, 1.3, -90], walk: 0.74, fov: 66 },
+  { at: 44, position: [5.7, 1.65, -88.25], look: [4.2, 1.25, -90], walk: 0.58, fov: 65 },
+  { at: 46, position: [4.2, 1.65, -88.25], look: [0.5, 1.3, -90], walk: 0.35, fov: 64 },
+  { at: 48, position: [4.2, 1.15, -88.25], look: [0.5, 1.25, -90], walk: 0, fov: 63 },
+  { at: 50, position: [4.2, 1.15, -88.25], look: [0.5, 1.25, -90], walk: 0, fov: 63 },
 ]
 
 const BEDROOM_COLOR = new THREE.Color('#b8a7bb')
 const STREET_COLOR = new THREE.Color('#9eb4c0')
 const CAFE_COLOR = new THREE.Color('#9f7e72')
 const MARA_LOOK = new THREE.Vector3(-2.2, 1.48, -70.9)
+const BARISTA_LOOK = new THREE.Vector3(-1.3, 1.48, -95.15)
 const SHARED_BOX_GEOMETRY = new THREE.BoxGeometry(1, 1, 1)
 
 function clamp01(value) {
@@ -280,7 +287,7 @@ function WalkingNpc({ start, end, duration, offset, color, accent, active, scale
   )
 }
 
-function CameraRig({ elapsed, active, dialogueOpen }) {
+function CameraRig({ elapsed, active, dialogueStage }) {
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
@@ -305,7 +312,10 @@ function CameraRig({ elapsed, active, dialogueOpen }) {
 
     targetPosition.set(sample.position[0] + sway, sample.position[1] + bob, sample.position[2])
     targetLook.set(...sample.look)
-    if (dialogueOpen && elapsed >= 24.5 && elapsed < 29.4) targetLook.lerp(MARA_LOOK, 0.82)
+    if (dialogueStage === 'mara' && elapsed >= 24.5 && elapsed < 29.4) {
+      targetLook.lerp(MARA_LOOK, 0.82)
+    }
+    if (dialogueStage === 'order') targetLook.lerp(BARISTA_LOOK, 0.9)
 
     camera.position.copy(targetPosition)
     smoothedLook.lerp(targetLook, 1 - Math.exp(-delta * 9.5))
@@ -502,8 +512,6 @@ function CafeFacade({ elapsed, active }) {
 }
 
 function CafeInterior({ elapsed, active }) {
-  const chairSlide = smoothstep((elapsed - 40.5) / 3)
-
   return (
     <group>
       <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
@@ -518,8 +526,24 @@ function CafeInterior({ elapsed, active }) {
         <Cylinder position={[-3.9, 3.16, -0.05]} args={[0.18, 0.18, 0.65, 8]} color="#777c83" />
         <Cylinder position={[-3.35, 3.16, -0.05]} args={[0.18, 0.18, 0.65, 8]} color="#777c83" />
         <Box position={[1.9, 2.37, 0]} size={[1.7, 0.65, 0.8]} color="#b48261" opacity={0.88} />
+        <Box position={[2.5, 2.34, 0]} size={[0.52, 0.48, 0.42]} color="#34363e" />
       </group>
 
+      <Label
+        text="ORDER HERE"
+        position={[-1.3, 3.35, -99.96]}
+        size={[3.5, 0.78]}
+        background="#3d4547"
+      />
+      <AnimatedPerson
+        position={[-1.3, 0, -95.15]}
+        rotation={[0, 0, 0]}
+        color="#5f7e82"
+        accent="#3d414a"
+        mode="idle"
+        active={active}
+        phase={1.1}
+      />
 
       <group position={[-4.25, 0, -84.8]}>
         <Table position={[0, 0, 0]} size={[2.2, 0.16, 1.55]} color="#b48261" />
@@ -531,7 +555,6 @@ function CafeInterior({ elapsed, active }) {
 
       <group position={[4.2, 0, -90]}>
         <Table position={[0, 0, 0]} size={[2.55, 0.16, 1.75]} color="#b48261" />
-        <Chair position={[0, 0, 1.75 + chairSlide * 0.45]} rotation={[0, Math.PI, 0]} color="#684c45" />
         <Chair position={[0, 0, -1.6]} color="#684c45" />
         <Cylinder position={[-0.35, 1.18, -0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
         <Cylinder position={[0.35, 1.18, 0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
@@ -576,7 +599,7 @@ function World({ elapsed, active }) {
   )
 }
 
-export function AuthoredJourneyScene({ elapsed, active, dialogueOpen = false }) {
+export function AuthoredJourneyScene({ elapsed, active, dialogueStage = null }) {
   return (
     <>
       <SceneWarmup />
@@ -596,7 +619,7 @@ export function AuthoredJourneyScene({ elapsed, active, dialogueOpen = false }) 
         shadow-camera-near={1}
         shadow-camera-far={45}
       />
-      <CameraRig elapsed={elapsed} active={active} dialogueOpen={dialogueOpen} />
+      <CameraRig elapsed={elapsed} active={active} dialogueStage={dialogueStage} />
       <World elapsed={elapsed} active={active} />
     </>
   )

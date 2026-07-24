@@ -30,13 +30,23 @@ const COMPLETION_SHARDS = [
   { dx: '-126px', dy: '54px', start: '11deg', end: '175deg', width: '28px', height: '32px' },
 ]
 
-const DIALOGUE = {
+const MARA_DIALOGUE = {
   speaker: 'Mara',
   line: 'Hey! You made it. Do you still want to sit by the window?',
   options: [
     'Yeah, the window is good.',
     'Sorry, could you say that again?',
     'Anywhere is fine. I just need to sit.',
+  ],
+}
+
+const ORDER_DIALOGUE = {
+  speaker: 'Barista',
+  line: 'Hi. What can I get started for you?',
+  options: [
+    'A small coffee, please.',
+    'Could I have tea instead?',
+    'Just water for now, thanks.',
   ],
 }
 
@@ -136,6 +146,8 @@ function App() {
   const [microgames, setMicrogames] = useState([])
   const [dialogueOpen, setDialogueOpen] = useState(false)
   const [dialogueAnswered, setDialogueAnswered] = useState(false)
+  const [orderDialogueOpen, setOrderDialogueOpen] = useState(false)
+  const [orderDialogueAnswered, setOrderDialogueAnswered] = useState(false)
   const [finalScore, setFinalScore] = useState(0)
   const [completionEffects, setCompletionEffects] = useState([])
   const [tutorialEnabled, setTutorialEnabled] = useState(() => {
@@ -165,6 +177,8 @@ function App() {
   const load = microgames.length
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
+  const orderingPaused = status === 'playing' && orderDialogueOpen
+  const gameplayPaused = tutorialPaused || orderingPaused
 
   const beginGame = useCallback((withTutorial) => {
     const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0
@@ -182,6 +196,8 @@ function App() {
     setCompletionEffects([])
     setDialogueOpen(false)
     setDialogueAnswered(false)
+    setOrderDialogueOpen(false)
+    setOrderDialogueAnswered(false)
     setFinalScore(0)
     setTutorialRun(withTutorial)
     setTutorialStep('none')
@@ -266,19 +282,19 @@ function App() {
       return
     }
 
-    if (tutorialPaused && pauseStartedRef.current === null) {
+    if (gameplayPaused && pauseStartedRef.current === null) {
       pauseStartedRef.current = performance.now()
       return
     }
 
-    if (!tutorialPaused && pauseStartedRef.current !== null) {
+    if (!gameplayPaused && pauseStartedRef.current !== null) {
       pausedDurationRef.current += performance.now() - pauseStartedRef.current
       pauseStartedRef.current = null
     }
-  }, [status, tutorialPaused])
+  }, [gameplayPaused, status])
 
   useEffect(() => {
-    if (status !== 'playing' || tutorialPaused) return undefined
+    if (status !== 'playing' || gameplayPaused) return undefined
 
     const timer = window.setInterval(() => {
       const nextElapsed = Math.min(
@@ -289,7 +305,7 @@ function App() {
     }, 100)
 
     return () => window.clearInterval(timer)
-  }, [status, tutorialPaused])
+  }, [gameplayPaused, status])
 
   useEffect(() => {
     if (status !== 'playing' || !tutorialRun || tutorialStep !== 'none') return
@@ -316,7 +332,7 @@ function App() {
   }, [elapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
 
   useEffect(() => {
-    if (status !== 'playing' || tutorialPaused || !directorReady) return
+    if (status !== 'playing' || gameplayPaused || !directorReady) return
 
     const director = directorRef.current
     if (director.nextSpawnAt === null) {
@@ -331,12 +347,19 @@ function App() {
       overloadLimit: OVERLOAD_LIMIT,
     })
     batch.kinds.forEach((kind) => spawnMicrogame(kind))
-  }, [directorReady, elapsed, load, spawnMicrogame, status, tutorialPaused])
+  }, [directorReady, elapsed, gameplayPaused, load, spawnMicrogame, status])
 
   useEffect(() => {
     if (status !== 'playing') return
     if (elapsed >= 25 && !dialogueAnswered) setDialogueOpen(true)
   }, [elapsed, status, dialogueAnswered])
+
+  useEffect(() => {
+    if (status !== 'playing') return
+    if (elapsed >= 35 && dialogueAnswered && !orderDialogueAnswered) {
+      setOrderDialogueOpen(true)
+    }
+  }, [dialogueAnswered, elapsed, orderDialogueAnswered, status])
 
   useEffect(() => {
     if (status !== 'playing' || load < OVERLOAD_LIMIT) return
@@ -399,6 +422,11 @@ function App() {
     setDialogueOpen(false)
   }
 
+  const answerOrderDialogue = () => {
+    setOrderDialogueAnswered(true)
+    setOrderDialogueOpen(false)
+  }
+
   const finishTutorial = () => {
     try {
       window.localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true')
@@ -432,9 +460,8 @@ function App() {
         >
           <AuthoredJourneyScene
             elapsed={elapsed}
-            active={status === 'playing' && !tutorialPaused}
-            dialogueOpen={dialogueOpen}
-            dialogueAnswered={dialogueAnswered}
+            active={status === 'playing' && !gameplayPaused}
+            dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
           />
         </Canvas>
       </div>
@@ -501,13 +528,23 @@ function App() {
 
           {dialogueOpen && (
             <DialogueBox
+              dialogue={MARA_DIALOGUE}
               load={load}
               distortion={distortion}
               onAnswer={answerDialogue}
             />
           )}
 
-          <button className="go-home" type="button" onClick={goHome} disabled={tutorialPaused}>
+          {orderDialogueOpen && (
+            <DialogueBox
+              dialogue={ORDER_DIALOGUE}
+              load={load}
+              distortion={distortion}
+              onAnswer={answerOrderDialogue}
+            />
+          )}
+
+          <button className="go-home" type="button" onClick={goHome} disabled={gameplayPaused}>
             <span>GO HOME</span>
             <small>cash out {score}</small>
           </button>
@@ -628,18 +665,18 @@ function EndCard({ status, score, onRestart }) {
   )
 }
 
-function DialogueBox({ load, distortion, onAnswer }) {
+function DialogueBox({ dialogue, load, distortion, onAnswer }) {
   return (
     <section className={`dialogue-box distortion-${distortion}`}>
       <div className="speaker-row">
-        <span className="portrait">M</span>
+        <span className="portrait">{dialogue.speaker.slice(0, 1)}</span>
         <div>
-          <strong>{DIALOGUE.speaker}</strong>
-          <p>{scrambleText(DIALOGUE.line, distortion)}</p>
+          <strong>{dialogue.speaker}</strong>
+          <p>{scrambleText(dialogue.line, distortion)}</p>
         </div>
       </div>
       <div className="dialogue-options">
-        {DIALOGUE.options.map((option, index) => (
+        {dialogue.options.map((option, index) => (
           <button
             key={option}
             type="button"
