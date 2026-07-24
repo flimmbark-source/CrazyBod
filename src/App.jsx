@@ -412,7 +412,7 @@ function App() {
       )}
 
       {status === 'intro' && (
-        <OverlayCard eyebrow="COUNTDOWN" title="CRAZYBOD">
+        <OverlayCard eyebrow="" title="CRAZYBOD">
           <p>
             Try to finish your day. Minigames will pop up, too many on the screen and you'll CRASH.
           </p>
