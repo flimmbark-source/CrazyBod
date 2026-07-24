@@ -633,6 +633,8 @@ function CafeInterior({ elapsed, active }) {
   return (
     <group>
       <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
+      <Box position={[0, 5.48, -87]} size={[14.5, 0.32, 27.5]} color="#4d4146" castShadow={false} receiveShadow={false} />
+<Box position={[0, 5.68, -87]} size={[15.0, 0.12, 28.0]} color="#3e3840" castShadow={false} receiveShadow={false} />
       <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />
       <Box position={[7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />
       <Box position={[0, 2.7, -100.4]} size={[14, 5.4, 0.24]} color="#6f514c" />
