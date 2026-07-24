@@ -1,0 +1,51 @@
+name: Apply cafe roof restoration
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - .github/cafe-roof-trigger
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    if: github.head_ref == 'fix/cafe-ceiling-restoration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          show-progress: false
+      - name: Restore cafe roof
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/world/JourneyScene.jsx')
+          source = path.read_text()
+          anchor = '''    <group>
+      <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
+      <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
+          replacement = '''    <group>
+      <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
+      <Box position={[0, 5.48, -87]} size={[14.5, 0.32, 27.5]} color="#4d4146" castShadow={false} receiveShadow={false} />
+      <Box position={[0, 5.68, -87]} size={[15.0, 0.12, 28.0]} color="#3e3840" castShadow={false} receiveShadow={false} />
+      <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
+          if replacement in source:
+              raise SystemExit(0)
+          if anchor not in source:
+              raise SystemExit('Could not find CafeInterior shell anchor')
+          path.write_text(source.replace(anchor, replacement, 1))
+          PY
+      - name: Commit roof restoration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/world/JourneyScene.jsx
+          git diff --cached --quiet || git commit -m "restore cafe roof"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
