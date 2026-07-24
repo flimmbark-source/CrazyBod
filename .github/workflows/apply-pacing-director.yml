@@ -1,0 +1,30 @@
+name: Apply pacing director
+
+on:
+  push:
+    branches: [feature/pacing-director]
+    paths:
+      - scripts/apply-pacing-director.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/pacing-director
+      - run: node scripts/apply-pacing-director.mjs
+      - name: Commit generated pacing source
+        run: |
+          if git diff --quiet; then
+            echo "No source changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx
+          git commit -m "replace scripted spawns with pacing director"
+          git push origin HEAD:feature/pacing-director
