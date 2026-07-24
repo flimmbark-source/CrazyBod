@@ -17,11 +17,15 @@ const PLAYER_PATH = [
   { at: 15.0, position: [0, 1.65, -13.0], look: [0, 1.45, -22], walk: 0, fov: 67 },
   { at: 16, position: [0, 1.65, -17.4], look: [0, 1.48, -26], walk: 0.92, fov: 68 },
 
-  // Walking to the café and the existing café sequence.
+  // Walking to the café: meet Mara outside, pause, then enter through the open doorway.
   { at: 20, position: [-0.4, 1.65, -37], look: [0, 1.42, -45], walk: 1, fov: 68 },
-  { at: 25, position: [0, 1.65, -68], look: [0, 1.55, -75], walk: 1, fov: 68 },
-  { at: 28, position: [0, 1.65, -77], look: [0, 1.5, -87], walk: 0.65, fov: 67 },
-  { at: 32, position: [-0.8, 1.65, -87], look: [-1, 1.48, -92], walk: 0.25, fov: 66 },
+  { at: 24.2, position: [0, 1.65, -65.5], look: [-1.8, 1.48, -70.8], walk: 1, fov: 68 },
+  { at: 25, position: [0, 1.65, -68.2], look: [-2.2, 1.48, -70.9], walk: 0.55, fov: 67 },
+  { at: 28.1, position: [0, 1.65, -68.2], look: [-2.2, 1.48, -70.9], walk: 0, fov: 66 },
+  { at: 28.8, position: [0, 1.65, -70.8], look: [0, 1.5, -77], walk: 0.6, fov: 67 },
+  { at: 29.8, position: [0, 1.65, -70.8], look: [0, 1.5, -80], walk: 0, fov: 67 },
+  { at: 31.2, position: [0, 1.65, -79], look: [0, 1.5, -87], walk: 0.82, fov: 67 },
+  { at: 33, position: [-0.8, 1.65, -87], look: [-1, 1.48, -92], walk: 0.25, fov: 66 },
   { at: 37, position: [-0.8, 1.65, -87.2], look: [-1, 1.45, -92], walk: 0, fov: 65 },
   { at: 40, position: [1.8, 1.65, -87], look: [4.2, 1.2, -89.5], walk: 0.45, fov: 66 },
   { at: 43, position: [4.2, 1.65, -87.8], look: [4.2, 1.1, -90], walk: 0.35, fov: 65 },
@@ -32,7 +36,7 @@ const PLAYER_PATH = [
 const BEDROOM_COLOR = new THREE.Color('#b8a7bb')
 const STREET_COLOR = new THREE.Color('#9eb4c0')
 const CAFE_COLOR = new THREE.Color('#9f7e72')
-const MARA_LOOK = new THREE.Vector3(-1, 1.45, -92)
+const MARA_LOOK = new THREE.Vector3(-2.2, 1.48, -70.9)
 const SHARED_BOX_GEOMETRY = new THREE.BoxGeometry(1, 1, 1)
 
 function clamp01(value) {
@@ -301,7 +305,7 @@ function CameraRig({ elapsed, active, dialogueOpen }) {
 
     targetPosition.set(sample.position[0] + sway, sample.position[1] + bob, sample.position[2])
     targetLook.set(...sample.look)
-    if (dialogueOpen && elapsed >= 25 && elapsed < 40) targetLook.lerp(MARA_LOOK, 0.72)
+    if (dialogueOpen && elapsed >= 24.5 && elapsed < 29.4) targetLook.lerp(MARA_LOOK, 0.82)
 
     camera.position.copy(targetPosition)
     smoothedLook.lerp(targetLook, 1 - Math.exp(-delta * 9.5))
@@ -390,8 +394,6 @@ function Bedroom({ elapsed }) {
       <Box position={[1.35, 0.04, 1.55]} size={[2.1, 0.08, 2.75]} color="#b57669" />
 
       <group>
-        <Box position={[1.62, 1.9, -2.65]} size={[0.16, 3.8, 2.1]} color="#bfa78f" />
-        <Box position={[2.8, 3.62, -2.65]} size={[2.5, 0.34, 2.1]} color="#bfa78f" />
         <Box position={[2.8, 0.025, -1.75]} size={[2.2, 0.05, 2.55]} color="#b8c0b8" />
         <Box position={[3.1, 0.7, -1.75]} size={[1.45, 1.35, 0.62]} color="#66766f" />
         <Cylinder position={[3.1, 1.44, -1.72]} args={[0.42, 0.34, 0.18, 12]} color="#e2ddd0" castShadow={false} />
@@ -410,10 +412,6 @@ function Bedroom({ elapsed }) {
         <Box position={[1.62, 1.9, -4.0]} size={[1.25, 3.8, 0.2]} color="#b49b86" />
         <Box position={[0, 3.5, -4.0]} size={[2.0, 0.6, 0.2]} color="#b49b86" />
         <Box position={[0, 0.04, -3.85]} size={[2.25, 0.08, 0.75]} color="#725f54" />
-        <mesh position={[0, 1.7, -4.13]} rotation={[0, 0, 0]}>
-          <planeGeometry args={[1.88, 3.35]} />
-          <meshBasicMaterial color="#dce8d5" toneMapped={false} />
-        </mesh>
         <Door
           position={[-0.95, 0, -3.86]}
           color="#9f675b"
@@ -474,24 +472,36 @@ function Street({ active }) {
   )
 }
 
-function CafeFacade({ elapsed }) {
-  const cafeDoorProgress = clamp01((elapsed - 24.5) / 1.6)
+function CafeFacade({ elapsed, active }) {
+  const cafeDoorProgress = clamp01((elapsed - 28.75) / 0.9)
+  const maraMode = elapsed >= 24 && elapsed < 29.2 ? 'wave' : 'idle'
 
   return (
     <group>
-      <Box position={[0, 2.6, -73.6]} size={[14, 5.2, 0.32]} color="#724f46" />
+      <Box position={[-4.15, 2.6, -73.6]} size={[5.7, 5.2, 0.32]} color="#724f46" />
+      <Box position={[4.15, 2.6, -73.6]} size={[5.7, 5.2, 0.32]} color="#724f46" />
+      <Box position={[0, 4.35, -73.6]} size={[2.6, 1.7, 0.32]} color="#724f46" />
       <Box position={[-4.6, 2.25, -73.38]} size={[3.6, 3.6, 0.08]} color="#adc1bf" opacity={0.62} />
       <Box position={[4.6, 2.25, -73.38]} size={[3.6, 3.6, 0.08]} color="#adc1bf" opacity={0.62} />
       <Box position={[0, 4.25, -73.22]} size={[13.8, 0.48, 0.65]} color="#d1a55f" />
       <Label text="CAFÉ" position={[0, 4.38, -72.86]} size={[3.9, 1.08]} />
       <Door position={[-0.95, 0, -73.25]} color="#4f5961" progress={cafeDoorProgress} openAngle={Math.PI * 0.5} />
       <Box position={[0, 0.02, -72.9]} size={[2.6, 0.08, 1.1]} color="#8f725c" />
+
+      <AnimatedPerson
+        position={[-2.2, 0, -70.9]}
+        rotation={[0, Math.PI, 0]}
+        color="#a65d63"
+        accent="#493e4a"
+        mode={maraMode}
+        active={active}
+        phase={0.3}
+      />
     </group>
   )
 }
 
 function CafeInterior({ elapsed, active }) {
-  const maraMode = elapsed >= 25 && elapsed < 31 ? 'wave' : 'idle'
   const chairSlide = smoothstep((elapsed - 40.5) / 3)
 
   return (
@@ -510,15 +520,6 @@ function CafeInterior({ elapsed, active }) {
         <Box position={[1.9, 2.37, 0]} size={[1.7, 0.65, 0.8]} color="#b48261" opacity={0.88} />
       </group>
 
-      <AnimatedPerson
-        position={[-1, 0, -92.1]}
-        rotation={[0, Math.PI, 0]}
-        color="#a65d63"
-        accent="#493e4a"
-        mode={maraMode}
-        active={active}
-        phase={0.3}
-      />
 
       <group position={[-4.25, 0, -84.8]}>
         <Table position={[0, 0, 0]} size={[2.2, 0.16, 1.55]} color="#b48261" />
@@ -568,7 +569,7 @@ function World({ elapsed, active }) {
         <Street active={active && streetVisible} />
       </group>
       <group visible={cafeVisible}>
-        <CafeFacade elapsed={elapsed} />
+        <CafeFacade elapsed={elapsed} active={active && cafeVisible} />
         <CafeInterior elapsed={elapsed} active={active && cafeVisible} />
       </group>
     </group>
