@@ -413,8 +413,7 @@ function App() {
       {status === 'intro' && (
         <OverlayCard eyebrow="COUNTDOWN" title="CRAZYBOD">
           <p>
-            The day moves without waiting. Clear whatever surfaces, stay out for points,
-            and go home before everything becomes too much.
+            Try to finish your day without succumbing. Clear the minigames that pop up without going over the threshold.
           </p>
           <button
             className="tutorial-toggle"
