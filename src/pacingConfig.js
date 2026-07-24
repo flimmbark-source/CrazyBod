@@ -29,7 +29,7 @@ export const PACING_PHASES = [
     id: 'gettingReady',
     start: 5,
     end: 15,
-    interval: [3, 4],
+    interval: [5, 6],
     pairChance: 0.00,
     weights: {
       packingCheck: 4,
@@ -50,7 +50,7 @@ export const PACING_PHASES = [
     id: 'walking',
     start: 15,
     end: 30,
-    interval: [3, 3],
+    interval: [4, 6],
     pairChance: 0.00,
     weights: {
       balance: 4,
@@ -71,8 +71,8 @@ export const PACING_PHASES = [
     id: 'ordering',
     start: 30,
     end: 42,
-    interval: [2, 3],
-    pairChance: 0.15,
+    interval: [2, 4],
+    pairChance: 0.10,
     weights: {
       anxiety: 4,
       taskSwitching: 4,
@@ -94,7 +94,7 @@ export const PACING_PHASES = [
     start: 42,
     end: Number.POSITIVE_INFINITY,
     interval: [2, 3],
-    pairChance: 0.30,
+    pairChance: 0.15,
     weights: {
       fatigue: 3,
       pressurePoint: 3,
