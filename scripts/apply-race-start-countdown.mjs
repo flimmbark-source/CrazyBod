@@ -113,3 +113,5 @@ main = replaceOnce(
   'main stylesheet imports',
 )
 fs.writeFileSync(mainPath, main)
+
+// A source-only nudge triggers the one-time workflow.
