@@ -2,7 +2,7 @@ name: Apply café ordering PR
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
     branches: [main]
     paths:
       - scripts/apply-cafe-ordering-flow.mjs
