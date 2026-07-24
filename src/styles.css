@@ -17,6 +17,8 @@ button { font: inherit; }
   overflow: hidden;
   background: #1a1821;
   isolation: isolate;
+  --microgame-width: clamp(232px, 24vw, 252px);
+  --microgame-height: clamp(184px, 24vh, 202px);
 }
 
 .world-layer { position: absolute; inset: 0; }
@@ -84,10 +86,15 @@ button { font: inherit; }
 .microgame-layer { position: absolute; z-index: 30; inset: 0; pointer-events: none; }
 .microgame {
   position: absolute;
-  width: min(238px, 28vw);
-  min-width: 205px;
-  height: 174px;
+  display: grid;
+  grid-template-rows: 31px minmax(0, 1fr);
+  width: var(--microgame-width);
+  min-width: 0;
+  height: var(--microgame-height);
+  min-height: 0;
   overflow: hidden;
+  contain: layout style;
+  isolation: isolate;
   border: 3px solid #282331;
   border-radius: 11px;
   color: #282331;
@@ -95,28 +102,38 @@ button { font: inherit; }
   box-shadow: 7px 8px 0 rgba(40, 35, 49, 0.72);
   pointer-events: auto;
   transform: rotate(calc((var(--window-index) - 2) * 0.35deg));
-  animation: window-arrive 180ms cubic-bezier(.2,.9,.35,1.2), crowd-jitter var(--jitter-duration) steps(2) infinite;
+  animation: window-arrive 180ms cubic-bezier(.2,.9,.35,1.2);
 }
 
 .microgame-header {
-  height: 29px;
+  min-width: 0;
+  min-height: 31px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 9px;
+  gap: 8px;
+  padding: 0 10px;
   border-bottom: 3px solid #282331;
   color: #fffaf4;
   background: #6b5d76;
   font-size: 10px;
   font-weight: 950;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
 }
+.microgame-header span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .microgame-header i { width: 9px; height: 9px; border-radius: 50%; background: #efcf69; }
 .microgame-discomfort .microgame-header { background: #a45f62; }
 .microgame-anxiety .microgame-header { background: #c46f43; }
 .microgame-brainFog .microgame-header { background: #657c8f; }
 .microgame-fatigue .microgame-header { background: #625d82; }
-.microgame-body { height: calc(100% - 29px); padding: 10px; }
+.microgame-body {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  overflow: hidden;
+  padding: 10px 11px 11px;
+}
+.microgame-body > * { min-width: 0; min-height: 0; }
 
 .discomfort-game, .fatigue-game { height: 100%; display: grid; grid-template-rows: 1fr auto auto; align-items: center; justify-items: center; gap: 7px; }
 .body-shape { position: relative; width: 102px; height: 60px; border: 3px solid #6d4c54; border-radius: 48% 52% 40% 44%; background: #d8a087; }
@@ -236,7 +253,10 @@ button { font: inherit; }
   .hud { inset: 10px 10px auto; }
   .phase-label { display: none; }
   .load-meter { top: 76px; left: 10px; }
-  .microgame { width: 210px; min-width: 0; height: 165px; }
+  .game-shell {
+    --microgame-width: min(220px, 72vw);
+    --microgame-height: 178px;
+  }
   .dialogue-box { width: calc(100% - 20px); bottom: 92px; }
   .dialogue-options { grid-template-columns: 1fr; }
   .go-home { right: 10px; bottom: 10px; }

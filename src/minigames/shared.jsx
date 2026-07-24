@@ -30,7 +30,7 @@ export function useOnceResolve(onResolve) {
   }, [onResolve])
 }
 
-export function useAnimationFrame(callback, active = true) {
+export function useAnimationFrame(callback, active = true, framesPerSecond = 30) {
   const callbackRef = useRef(callback)
   callbackRef.current = callback
 
@@ -38,17 +38,26 @@ export function useAnimationFrame(callback, active = true) {
     if (!active) return undefined
     let frame = 0
     let previous = performance.now()
+    let accumulated = 0
+    const frameInterval = 1000 / Math.max(1, framesPerSecond)
 
     const tick = (now) => {
-      const delta = Math.min(now - previous, 80)
+      const rawDelta = Math.min(now - previous, 80)
       previous = now
-      callbackRef.current(now, delta)
+      accumulated += rawDelta
+
+      if (accumulated >= frameInterval) {
+        const delta = Math.min(accumulated, 80)
+        accumulated %= frameInterval
+        callbackRef.current(now, delta)
+      }
+
       frame = requestAnimationFrame(tick)
     }
 
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [active])
+  }, [active, framesPerSecond])
 }
 
 export function useMicrogameKeys(rootRef, { onKeyDown, onKeyUp, hint }) {
