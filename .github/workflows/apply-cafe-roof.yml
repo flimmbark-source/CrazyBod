@@ -4,8 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
-    paths:
-      - .github/cafe-roof-trigger
 
 permissions:
   contents: write
@@ -13,7 +11,7 @@ permissions:
 
 jobs:
   apply:
-    if: github.head_ref == 'fix/cafe-ceiling-restoration'
+    if: github.head_ref == 'fix/restore-cafe-roof-v2'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -29,13 +27,13 @@ jobs:
           path = Path('src/world/JourneyScene.jsx')
           source = path.read_text()
           anchor = '''    <group>
-      <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
-      <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
+              <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
+              <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
           replacement = '''    <group>
-      <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
-      <Box position={[0, 5.48, -87]} size={[14.5, 0.32, 27.5]} color="#4d4146" castShadow={false} receiveShadow={false} />
-      <Box position={[0, 5.68, -87]} size={[15.0, 0.12, 28.0]} color="#3e3840" castShadow={false} receiveShadow={false} />
-      <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
+              <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
+              <Box position={[0, 5.48, -87]} size={[14.5, 0.32, 27.5]} color="#4d4146" castShadow={false} receiveShadow={false} />
+              <Box position={[0, 5.68, -87]} size={[15.0, 0.12, 28.0]} color="#3e3840" castShadow={false} receiveShadow={false} />
+              <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
           if replacement in source:
               raise SystemExit(0)
           if anchor not in source:
