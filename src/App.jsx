@@ -358,7 +358,7 @@ function DiscomfortGame({ onResolve }) {
         ))}
       </div>
       <button type="button" onClick={shift} style={{ transform: `translateX(${(presses % 3 - 1) * 16}px)` }}>
-        SHIFT
+        ADJUST
       </button>
       <div className="tiny-progress"><i style={{ width: `${(presses / needed) * 100}%` }} /></div>
     </div>
@@ -461,7 +461,9 @@ function FatigueGame({ onResolve }) {
 
   return (
     <div className="fatigue-game">
-      <div className="heavy-lid" style={{ transform: `translateY(${44 - (held / needed) * 44}px)` }} />
+      <div className="fatigue-eye">
+        <div className="heavy-lid" style={{ transform: `translateY(${44 - (held / needed) * 44}px)` }} />
+      </div>
       <button
         type="button"
         onPointerDown={() => { holdingRef.current = true }}
