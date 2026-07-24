@@ -1,0 +1,28 @@
+name: Apply opening path and spawn fixes
+
+on:
+  push:
+    branches: [fix/opening-path-and-spawn-positions]
+    paths:
+      - scripts/apply-opening-and-spawn-fixes.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/opening-path-and-spawn-positions
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/apply-opening-and-spawn-fixes.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx src/world/JourneyScene.jsx
+          git diff --cached --quiet || git commit -m "simplify opening movement and randomize spawn positions"
+          git push
