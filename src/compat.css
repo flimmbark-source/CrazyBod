@@ -1,0 +1,20 @@
+.microgame:nth-child(odd) { transform: rotate(-0.45deg); }
+.microgame:nth-child(even) { transform: rotate(0.45deg); }
+
+.load-0 .microgame,
+.load-1 .microgame,
+.load-2 .microgame,
+.load-3 .microgame { animation-duration: 180ms, 0.5s; }
+.load-4 .microgame { animation-duration: 180ms, 0.34s; }
+.load-5 .microgame { animation-duration: 180ms, 0.22s; }
+
+@keyframes crowd-jitter {
+  0%, 100% { translate: 0 0; }
+  25% { translate: 1px -1px; }
+  50% { translate: -1px 0; }
+  75% { translate: 1px 1px; }
+}
+
+.distortion-2 .dialogue-options button:nth-child(1) { transform: translate(-5px, 0) rotate(-1deg); }
+.distortion-2 .dialogue-options button:nth-child(2) { transform: translate(0, 4px); }
+.distortion-2 .dialogue-options button:nth-child(3) { transform: translate(5px, 0) rotate(1deg); }
