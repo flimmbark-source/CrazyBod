@@ -1,0 +1,34 @@
+name: Apply apartment sealing fix
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - scripts/apply-apartment-seal.mjs
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/apply-apartment-seal.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/world/JourneyScene.jsx
+          git rm -f scripts/apply-apartment-seal.mjs
+          git rm -f .github/workflows/apply-apartment-seal.yml
+          git commit -m "seal apartment wall gaps and remove towel"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
