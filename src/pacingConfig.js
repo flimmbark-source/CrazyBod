@@ -9,7 +9,7 @@ export const PACING_PHASES = [
   {
     id: 'waking',
     start: 0,
-    end: 8,
+    end: 5,
     interval: [4, 6],
     pairChance: 0,
     weights: {
@@ -27,8 +27,8 @@ export const PACING_PHASES = [
   },
   {
     id: 'gettingReady',
-    start: 8,
-    end: 16,
+    start: 5,
+    end: 10,
     interval: [4, 5],
     pairChance: 0,
     weights: {
@@ -48,7 +48,7 @@ export const PACING_PHASES = [
   },
   {
     id: 'walking',
-    start: 16,
+    start: 10,
     end: 25,
     interval: [3, 5],
     pairChance: 0.15,
