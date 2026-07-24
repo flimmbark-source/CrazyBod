@@ -1,0 +1,30 @@
+.bust-tile {
+  --tx: 0vw;
+  --ty: -78vh;
+  --spin: 260deg;
+  animation-name: bust-tile-fly-fixed;
+}
+
+.bust-tile:nth-child(1) { --tx: 0vw; --ty: -78vh; --spin: 280deg; }
+.bust-tile:nth-child(2) { --tx: 38vw; --ty: -66vh; --spin: 390deg; }
+.bust-tile:nth-child(3) { --tx: 70vw; --ty: -35vh; --spin: 510deg; }
+.bust-tile:nth-child(4) { --tx: 80vw; --ty: 8vh; --spin: 620deg; }
+.bust-tile:nth-child(5) { --tx: 65vw; --ty: 52vh; --spin: 740deg; }
+.bust-tile:nth-child(6) { --tx: 34vw; --ty: 76vh; --spin: 850deg; }
+.bust-tile:nth-child(7) { --tx: -8vw; --ty: 80vh; --spin: -280deg; }
+.bust-tile:nth-child(8) { --tx: -44vw; --ty: 68vh; --spin: -390deg; }
+.bust-tile:nth-child(9) { --tx: -75vw; --ty: 36vh; --spin: -510deg; }
+.bust-tile:nth-child(10) { --tx: -82vw; --ty: -8vh; --spin: -620deg; }
+.bust-tile:nth-child(11) { --tx: -62vw; --ty: -55vh; --spin: -740deg; }
+.bust-tile:nth-child(12) { --tx: -30vw; --ty: -76vh; --spin: -850deg; }
+
+@keyframes bust-tile-fly-fixed {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) rotate(calc(var(--tile) * 17deg)) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--spin)) scale(0.55);
+  }
+}
