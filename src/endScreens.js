@@ -147,7 +147,7 @@ function showOverloadBust(result, originalRestartButton) {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   bustTimer = window.setTimeout(
     () => showResults(result, originalRestartButton),
-    reducedMotion ? 650 : 1850,
+    reducedMotion ? 1850 : 2150,
   )
 }
 
@@ -156,19 +156,19 @@ const RESULT_COPY = {
     eyebrow: 'DAY RESULT',
     title: 'OVERLOADED',
     outcome: 'Overloaded',
-    note: 'The day kept moving after your capacity ran out.',
+    note: 'Your capacity ran out.',
   },
   home: {
     eyebrow: 'DAY RESULT',
     title: 'SAFE RETURN',
     outcome: 'Went home',
-    note: 'You chose to stop before the day chose for you.',
+    note: 'You chose to stop.',
   },
   complete: {
     eyebrow: 'DAY RESULT',
     title: 'MADE IT',
     outcome: 'Reached the café',
-    note: 'You stayed out until the route was finished.',
+    note: 'You finished!',
   },
 }
 
