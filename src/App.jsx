@@ -1,42 +1,17 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
+import {
+  createPacingDirector,
+  initializePacingDirector,
+  takeSpawnBatch,
+} from './pacingDirector.js'
 
 const DAY_LENGTH = 50
 const OVERLOAD_LIMIT = 6
 const SCORE_PER_SECOND = 10
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
-const TUTORIAL_FIRST_ID = 'fatigue-0'
-const TUTORIAL_SECOND_ID = 'brainFog-1'
-
-const MICROGAME_SCRIPT = [
-  { at: 2.5, kind: 'fatigue' },
-  { at: 8.5, kind: 'brainFog' },
-  { at: 13, kind: 'discomfort' },
-  { at: 16.5, kind: 'anxiety' },
-  { at: 16.5, kind: 'fatigue' },
-  { at: 20, kind: 'brainFog' },
-  { at: 22.5, kind: 'discomfort' },
-  { at: 22.5, kind: 'anxiety' },
-  { at: 26.5, kind: 'fatigue' },
-  { at: 28.5, kind: 'brainFog' },
-  { at: 30.5, kind: 'discomfort' },
-  { at: 30.5, kind: 'anxiety' },
-  { at: 33, kind: 'fatigue' },
-  { at: 35, kind: 'brainFog' },
-  { at: 35, kind: 'discomfort' },
-  { at: 37, kind: 'anxiety' },
-  { at: 39, kind: 'fatigue' },
-  { at: 39, kind: 'brainFog' },
-  { at: 41, kind: 'discomfort' },
-  { at: 43, kind: 'anxiety' },
-  { at: 43, kind: 'fatigue' },
-  { at: 45, kind: 'brainFog' },
-  { at: 46.5, kind: 'discomfort' },
-  { at: 46.5, kind: 'anxiety' },
-  { at: 48, kind: 'fatigue' },
-  { at: 48, kind: 'brainFog' },
-]
 
 const MICROGAME_NAMES = {
   discomfort: 'DISCOMFORT',
@@ -123,8 +98,11 @@ function App() {
   })
   const [tutorialRun, setTutorialRun] = useState(false)
   const [tutorialStep, setTutorialStep] = useState('none')
+  const [directorReady, setDirectorReady] = useState(false)
   const startTimeRef = useRef(0)
-  const spawnedRef = useRef(new Set())
+  const directorRef = useRef(createPacingDirector())
+  const spawnCounterRef = useRef(0)
+  const microgamesRef = useRef([])
   const resolvedGamesRef = useRef(new Set())
   const completionEffectIdRef = useRef(0)
   const pauseStartedRef = useRef(null)
@@ -138,10 +116,13 @@ function App() {
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
 
   const beginGame = useCallback((withTutorial) => {
+    const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0
     startTimeRef.current = performance.now()
     pausedDurationRef.current = 0
     pauseStartedRef.current = null
-    spawnedRef.current = new Set()
+    directorRef.current = createPacingDirector(seed)
+    spawnCounterRef.current = 0
+    microgamesRef.current = []
     resolvedGamesRef.current = new Set()
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
@@ -153,6 +134,7 @@ function App() {
     setFinalScore(0)
     setTutorialRun(withTutorial)
     setTutorialStep('none')
+    setDirectorReady(!withTutorial)
     setStatus('playing')
   }, [])
 
@@ -182,6 +164,23 @@ function App() {
       return next
     })
   }
+
+  const spawnMicrogame = useCallback((kind, tutorialRole = null) => {
+    const index = spawnCounterRef.current
+    spawnCounterRef.current += 1
+    const game = {
+      id: `${kind}-${directorRef.current.seed}-${index}`,
+      kind,
+      tutorialRole,
+      position: positionFor(index),
+    }
+    setMicrogames((current) => {
+      const next = [...current, game]
+      microgamesRef.current = next
+      return next
+    })
+    return game
+  }, [])
 
   useEffect(() => {
     const handleTutorialRestart = () => startTutorialGame()
@@ -221,47 +220,49 @@ function App() {
   }, [status, tutorialPaused])
 
   useEffect(() => {
-    if (status !== 'playing' || !tutorialRun) return
+    if (status !== 'playing' || !tutorialRun || tutorialStep !== 'none') return
 
-    if (!tutorialFirstSeenRef.current && microgames.some((game) => game.id === TUTORIAL_FIRST_ID)) {
+    const first = TUTORIAL_SEQUENCE[0]
+    const second = TUTORIAL_SEQUENCE[1]
+
+    if (!tutorialFirstSeenRef.current && elapsed >= first.at) {
       tutorialFirstSeenRef.current = true
-      setTutorialStep('first')
+      spawnMicrogame(first.kind, first.role)
+      setTutorialStep(first.role)
       return
     }
 
     if (
       tutorialFirstSeenRef.current
       && !tutorialSecondSeenRef.current
-      && microgames.some((game) => game.id === TUTORIAL_SECOND_ID)
+      && elapsed >= second.at
     ) {
       tutorialSecondSeenRef.current = true
-      setTutorialStep('second')
+      spawnMicrogame(second.kind, second.role)
+      setTutorialStep(second.role)
     }
-  }, [microgames, status, tutorialRun])
+  }, [elapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
+
+  useEffect(() => {
+    if (status !== 'playing' || tutorialPaused || !directorReady) return
+
+    const director = directorRef.current
+    if (director.nextSpawnAt === null) {
+      initializePacingDirector(director, elapsed)
+      return
+    }
+    if (elapsed < director.nextSpawnAt) return
+
+    const batch = takeSpawnBatch(director, {
+      elapsed,
+      activeGames: load,
+      overloadLimit: OVERLOAD_LIMIT,
+    })
+    batch.kinds.forEach((kind) => spawnMicrogame(kind))
+  }, [directorReady, elapsed, load, spawnMicrogame, status, tutorialPaused])
 
   useEffect(() => {
     if (status !== 'playing') return
-
-    const due = MICROGAME_SCRIPT.filter(
-      (event, index) => elapsed >= event.at && !spawnedRef.current.has(index),
-    )
-
-    if (due.length > 0) {
-      setMicrogames((current) => {
-        const next = [...current]
-        for (const event of due) {
-          const scriptIndex = MICROGAME_SCRIPT.indexOf(event)
-          spawnedRef.current.add(scriptIndex)
-          next.push({
-            id: `${event.kind}-${scriptIndex}`,
-            kind: event.kind,
-            position: positionFor(scriptIndex),
-          })
-        }
-        return next
-      })
-    }
-
     if (elapsed >= 25 && !dialogueAnswered) setDialogueOpen(true)
   }, [elapsed, status, dialogueAnswered])
 
@@ -301,12 +302,17 @@ function App() {
       }, 900)
     }
 
-    setMicrogames((current) => current.filter((game) => game.id !== id))
+    const resolvedGame = microgamesRef.current.find((game) => game.id === id)
+    setMicrogames((current) => {
+      const next = current.filter((game) => game.id !== id)
+      microgamesRef.current = next
+      return next
+    })
 
-    if (tutorialRun && tutorialStep === 'first' && id === TUTORIAL_FIRST_ID) {
+    if (tutorialRun && tutorialStep === 'first' && resolvedGame?.tutorialRole === 'first') {
       setTutorialStep('none')
     }
-    if (tutorialRun && tutorialStep === 'second' && id === TUTORIAL_SECOND_ID) {
+    if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
       setTutorialStep('summary')
     }
   }, [tutorialRun, tutorialStep])
@@ -328,14 +334,13 @@ function App() {
       // The tutorial still finishes for this session without storage.
     }
     setTutorialEnabled(false)
+    setDirectorReady(true)
     setTutorialStep('none')
   }
 
-  const tutorialTarget = tutorialStep === 'first'
-    ? microgames.find((game) => game.id === TUTORIAL_FIRST_ID)
-    : tutorialStep === 'second'
-      ? microgames.find((game) => game.id === TUTORIAL_SECOND_ID)
-      : null
+  const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
+    ? microgames.find((game) => game.tutorialRole === tutorialStep)
+    : null
 
   return (
     <main className={`game-shell load-${Math.min(load, 5)}`}>
@@ -584,6 +589,7 @@ function MicrogameWindow({ game, index, load, tutorialTarget, onResolve }) {
       className={`microgame microgame-${game.kind}${tutorialTarget ? ' tutorial-target' : ''}`}
       data-game-id={game.id}
       data-game-kind={game.kind}
+      data-tutorial-role={game.tutorialRole || undefined}
       style={{
         ...game.position,
         '--window-index': index,
