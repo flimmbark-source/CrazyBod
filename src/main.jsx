@@ -5,7 +5,10 @@ import './styles.css'
 import './compat.css'
 import './microgameEnhancements.css'
 import './completionEffects.css'
+import './endScreens.css'
+import './endScreensCompat.css'
 import './microgameEnhancements.js'
+import './endScreens.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
