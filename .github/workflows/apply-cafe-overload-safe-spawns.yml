@@ -19,8 +19,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           show-progress: false
+      - name: Load patch script from main
+        run: |
+          git fetch origin main --depth=1
+          git show origin/main:.github/scripts/apply-cafe-overload-safe-spawns.py > /tmp/apply-cafe-overload-safe-spawns.py
       - name: Apply source changes
-        run: python .github/scripts/apply-cafe-overload-safe-spawns.py
+        run: python /tmp/apply-cafe-overload-safe-spawns.py
       - name: Commit source changes
         run: |
           git config user.name "github-actions[bot]"
