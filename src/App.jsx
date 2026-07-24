@@ -94,15 +94,40 @@ function positionFor(seed, index, existingGames) {
     minimumTop,
     ((viewportHeight - height - 14) / viewportHeight) * 100,
   )
+  const goHomeRect = document.querySelector('.go-home')?.getBoundingClientRect()
+  const reserved = goHomeRect && goHomeRect.width > 0 && goHomeRect.height > 0
+    ? {
+        left: goHomeRect.left - 18,
+        right: goHomeRect.right + 18,
+        top: goHomeRect.top - 18,
+        bottom: goHomeRect.bottom + 18,
+      }
+    : null
   let fallback = { left: minimumLeft, top: minimumTop }
+  let hasSafeFallback = false
 
-  for (let attempt = 0; attempt < 14; attempt += 1) {
+  for (let attempt = 0; attempt < 32; attempt += 1) {
     const left = minimumLeft
       + seededFraction(seed, index * 31 + attempt * 2) * (maximumLeft - minimumLeft)
     const top = minimumTop
       + seededFraction(seed, index * 31 + attempt * 2 + 1) * (maximumTop - minimumTop)
+    const candidateLeft = (left / 100) * viewportWidth
+    const candidateTop = (top / 100) * viewportHeight
+    const candidateRight = candidateLeft + width
+    const candidateBottom = candidateTop + height
+    const clearOfGoHome = !reserved || (
+      candidateRight <= reserved.left
+      || candidateLeft >= reserved.right
+      || candidateBottom <= reserved.top
+      || candidateTop >= reserved.bottom
+    )
+
+    if (!clearOfGoHome) continue
     const candidate = { left, top }
-    fallback = candidate
+    if (!hasSafeFallback) {
+      fallback = candidate
+      hasSafeFallback = true
+    }
 
     const separated = existingGames.every((game) => {
       const previousLeft = Number.parseFloat(game.position.left)
@@ -175,6 +200,9 @@ function App() {
   const score = Math.floor(elapsed * SCORE_PER_SECOND)
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - elapsed))
   const load = microgames.length
+  const overloadRatio = Math.min(1, load / OVERLOAD_LIMIT)
+  const overloadShake = Math.max(0, load - 2) * 0.8
+  const homeShake = Math.max(0, load - 1) * 0.85
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
   const orderingPaused = status === 'playing' && orderDialogueOpen
@@ -490,11 +518,23 @@ function App() {
             </div>
           </header>
 
-          <div className="load-meter" aria-label={`Overload ${load} of ${OVERLOAD_LIMIT}`}>
+          <div
+            className="load-meter"
+            aria-label={`Overload ${load} of ${OVERLOAD_LIMIT}`}
+            style={{
+              '--overload': overloadRatio,
+              '--overload-scale': 1 + overloadRatio * 0.16,
+              '--overload-saturation': 1 + overloadRatio * 0.8,
+              '--overload-contrast': 1 + overloadRatio * 0.14,
+              '--overload-alpha': overloadRatio * 0.72,
+              '--overload-shake': `${overloadShake}px`,
+              '--overload-shake-neg': `${-overloadShake}px`,
+            }}
+          >
             <span>OVERLOAD</span>
             <div className="load-pips">
               {Array.from({ length: OVERLOAD_LIMIT }).map((_, index) => (
-                <i key={index} className={index < load ? 'filled' : ''} />
+                <i key={index} className={index >= OVERLOAD_LIMIT - load ? 'filled' : ''} />
               ))}
             </div>
           </div>
@@ -544,7 +584,18 @@ function App() {
             />
           )}
 
-          <button className="go-home" type="button" onClick={goHome} disabled={gameplayPaused}>
+          <button
+            className="go-home"
+            type="button"
+            onClick={goHome}
+            disabled={gameplayPaused}
+            style={{
+              '--overload': overloadRatio,
+              '--home-scale': 1 + overloadRatio * 0.1,
+              '--home-shake': `${homeShake}px`,
+              '--home-shake-neg': `${-homeShake}px`,
+            }}
+          >
             <span>GO HOME</span>
             <small>cash out {score}</small>
           </button>
