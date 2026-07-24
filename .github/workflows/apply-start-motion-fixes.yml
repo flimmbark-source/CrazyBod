@@ -27,3 +27,5 @@ jobs:
           git add src/App.jsx src/world/JourneyScene.jsx src/minigames/physical.jsx src/minigames.css
           git diff --cached --quiet || git commit -m "start movement immediately and clarify physical minigames"
           git push
+
+# retriggered after the initial workflow did not start
