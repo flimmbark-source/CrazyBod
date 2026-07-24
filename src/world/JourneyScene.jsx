@@ -528,12 +528,67 @@ function Street({ active }) {
   )
 }
 
+function CafeBackdrop() {
+  const buildings = [
+    [-15.5, -82.5, 7.4, 10.5, 7.5, '#59666f'],
+    [-9.4, -91.5, 6.4, 13.2, 8.2, '#6a626d'],
+    [9.8, -87.5, 7.0, 11.4, 7.8, '#58666b'],
+    [16.2, -94.5, 8.8, 15.0, 9.0, '#535e68'],
+  ]
+
+  return (
+    <group>
+      <Box position={[0, -0.65, -94]} size={[46, 0.9, 42]} color="#687263" castShadow={false} receiveShadow />
+
+      {buildings.map(([x, z, width, height, depth, color], index) => (
+        <group key={`cafe-background-building-${index}`}>
+          <Box
+            position={[x, height / 2 - 0.08, z]}
+            size={[width, height, depth]}
+            color={color}
+            castShadow={false}
+            receiveShadow={false}
+          />
+          <Box
+            position={[x, height + 0.12, z]}
+            size={[width + 0.35, 0.24, depth + 0.35]}
+            color="#454f58"
+            castShadow={false}
+            receiveShadow={false}
+          />
+          {[-0.24, 0.24].map((offset, windowIndex) => (
+            <Box
+              key={windowIndex}
+              position={[x + width * offset, height * 0.62, z + depth / 2 + 0.03]}
+              size={[0.72, 0.9, 0.08]}
+              color="#c7c3a4"
+              opacity={0.58}
+              castShadow={false}
+              receiveShadow={false}
+            />
+          ))}
+        </group>
+      ))}
+
+      {[
+        [-11.2, -77.5, 0.9],
+        [11.8, -79.0, 0.82],
+        [-13.5, -101.0, 1.05],
+        [13.8, -103.5, 0.96],
+      ].map(([x, z, scale], index) => (
+        <Tree key={`cafe-background-tree-${index}`} position={[x, 0, z]} scale={scale} />
+      ))}
+    </group>
+  )
+}
+
 function CafeFacade({ elapsed, active }) {
   const cafeDoorProgress = clamp01((elapsed - 28.75) / 0.9)
   const maraMode = elapsed >= 24 && elapsed < 29.2 ? 'wave' : 'idle'
 
   return (
     <group>
+      <CafeBackdrop />
       <Box position={[-4.15, 2.6, -73.6]} size={[5.7, 5.2, 0.32]} color="#724f46" />
       <Box position={[4.15, 2.6, -73.6]} size={[5.7, 5.2, 0.32]} color="#724f46" />
       <Box position={[0, 4.35, -73.6]} size={[2.6, 1.7, 0.32]} color="#724f46" />
