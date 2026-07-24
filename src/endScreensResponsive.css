@@ -1,0 +1,209 @@
+.results-screen {
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.results-card {
+  flex: 0 0 auto;
+  margin-block: auto;
+}
+
+/* Compact based on browser height, not just width, so laptop windows
+   keep the restart button visible without scaling the whole UI down. */
+@media (max-height: 900px) {
+  .results-screen {
+    place-items: start center;
+    padding: 10px 16px;
+  }
+
+  .results-card {
+    width: min(680px, 100%);
+    margin-block: 0;
+    border-width: 3px;
+    border-radius: 14px;
+    box-shadow: 9px 10px 0 rgba(20, 16, 24, 0.8);
+  }
+
+  .results-header {
+    padding: 14px 22px 12px;
+    border-bottom-width: 3px;
+  }
+
+  .results-header span {
+    margin-bottom: 2px;
+    font-size: 8px;
+  }
+
+  .results-header h1 {
+    font-size: clamp(46px, 9vh, 70px);
+    line-height: 0.86;
+  }
+
+  .results-header p {
+    margin-top: 7px;
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .score-ledger {
+    padding: 8px 22px;
+    border-bottom-width: 2px;
+  }
+
+  .score-ledger-row {
+    padding: 4px 0;
+  }
+
+  .score-ledger-row span {
+    font-size: 8px;
+  }
+
+  .score-ledger-row strong {
+    font-size: 20px;
+  }
+
+  .score-ledger-row.total {
+    margin-top: 1px;
+    padding-top: 6px;
+  }
+
+  .score-ledger-row.total span {
+    font-size: 10px;
+  }
+
+  .score-ledger-row.total strong {
+    font-size: clamp(38px, 7vh, 52px);
+  }
+
+  .results-stats {
+    border-bottom-width: 2px;
+  }
+
+  .results-stats div {
+    min-height: 62px;
+    padding: 6px;
+    border-right-width: 2px;
+  }
+
+  .results-stats span {
+    font-size: 7px;
+  }
+
+  .results-stats strong {
+    margin-top: 2px;
+    font-size: 20px;
+  }
+
+  .results-outcome {
+    padding: 9px 20px 6px;
+  }
+
+  .results-outcome span {
+    font-size: 8px;
+  }
+
+  .results-outcome strong {
+    font-size: 20px;
+  }
+
+  .results-outcome small {
+    margin-top: 1px;
+    font-size: 10px;
+  }
+
+  .results-restart {
+    width: calc(100% - 36px);
+    margin: 5px 18px 14px;
+    padding: 10px 16px;
+    box-shadow: 0 4px 0 #292431;
+  }
+}
+
+@media (max-height: 680px) and (min-width: 641px) {
+  .results-screen {
+    padding: 6px 12px;
+  }
+
+  .results-header {
+    padding: 9px 18px 8px;
+  }
+
+  .results-header h1 {
+    font-size: clamp(40px, 8vh, 54px);
+  }
+
+  .results-header p {
+    margin-top: 4px;
+    font-size: 11px;
+  }
+
+  .score-ledger {
+    padding: 5px 18px;
+  }
+
+  .score-ledger-row {
+    padding: 2px 0;
+  }
+
+  .score-ledger-row strong {
+    font-size: 17px;
+  }
+
+  .score-ledger-row.total {
+    padding-top: 3px;
+  }
+
+  .score-ledger-row.total strong {
+    font-size: 36px;
+  }
+
+  .results-stats div {
+    min-height: 49px;
+    padding: 4px;
+  }
+
+  .results-stats strong {
+    font-size: 17px;
+  }
+
+  .results-outcome {
+    grid-template-columns: auto auto 1fr;
+    align-items: baseline;
+    justify-content: center;
+    justify-items: start;
+    column-gap: 10px;
+    padding: 6px 18px;
+  }
+
+  .results-outcome strong,
+  .results-outcome small {
+    margin-top: 0;
+  }
+
+  .results-restart {
+    margin-bottom: 9px;
+    padding-block: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .results-screen {
+    place-items: start center;
+    padding: 8px;
+  }
+
+  .results-card {
+    margin-block: 0;
+  }
+
+  .results-header h1 {
+    font-size: clamp(42px, 16vw, 66px);
+  }
+
+  .results-stats div {
+    min-height: 58px;
+  }
+}
