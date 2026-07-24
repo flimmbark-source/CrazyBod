@@ -5,6 +5,7 @@ on:
     branches: [fix/opening-path-and-spawn-positions]
     paths:
       - scripts/apply-opening-and-spawn-fixes.mjs
+      - .github/workflows/apply-opening-and-spawn-fixes.yml
 
 permissions:
   contents: write
