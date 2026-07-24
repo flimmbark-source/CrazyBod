@@ -53,7 +53,7 @@ export function BalanceGame({ onResolve }) {
     }
 
     const centered = markerRef.current >= 42 && markerRef.current <= 58
-    steadyRef.current = clamp(steadyRef.current + (centered ? delta : -delta * 1.15), 0, 1500)
+    steadyRef.current = clamp(steadyRef.current + (centered ? delta : 0), 0, 1500)
     setMarker(markerRef.current)
     setSteady(steadyRef.current)
     if (steadyRef.current >= 1500) resolve()
