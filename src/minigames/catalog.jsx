@@ -1,6 +1,5 @@
 import {
   BalanceGame,
-  DizzinessGame,
   JointSlipGame,
   MuscleLockGame,
   PressurePointGame,
@@ -11,9 +10,7 @@ import {
 import {
   CheckingGame,
   DirectionLossGame,
-  InterruptedThoughtGame,
   PackingCheckGame,
-  RacingHeartGame,
   TaskSwitchingGame,
   WorkingMemoryGame,
 } from './cognitive.jsx'
@@ -22,8 +19,13 @@ import {
   HeavyEyesGame,
   LightSensitivityGame,
   MicroRestGame,
-  PinsNeedlesGame,
 } from './sensory.jsx'
+import {
+  DizzinessGame,
+  InterruptedThoughtGame,
+  PinsNeedlesGame,
+  RacingHeartGame,
+} from './retuned.jsx'
 
 export const MICROGAME_NAMES = {
   discomfort: 'DISCOMFORT',
