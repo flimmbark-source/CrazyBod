@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './styles.css'
 import './compat.css'
+import './microgameEnhancements.css'
+import './microgameEnhancements.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

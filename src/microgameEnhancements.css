@@ -1,0 +1,86 @@
+.microgame.keyboard-active {
+  z-index: 39;
+  outline: 4px solid #efcf69;
+  outline-offset: 2px;
+  box-shadow: 9px 10px 0 rgba(40, 35, 49, 0.82);
+}
+
+.microgame.keyboard-active .microgame-header i { display: none; }
+.microgame.keyboard-active .microgame-header::after {
+  content: attr(data-key-hint);
+  margin-left: auto;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  opacity: 0.9;
+}
+
+.microgame-discomfort .discomfort-game button {
+  position: relative;
+  z-index: 2;
+  transition: margin-left 90ms ease, margin-right 90ms ease;
+  transform: none !important;
+}
+.microgame-discomfort[data-side="left"] .discomfort-game button { margin-left: -72px; margin-right: 72px; }
+.microgame-discomfort[data-side="right"] .discomfort-game button { margin-left: 72px; margin-right: -72px; }
+.microgame-discomfort[data-side="center"] .discomfort-game button { margin-left: 0; margin-right: 0; }
+.microgame-discomfort[data-variant="alternating"] .body-shape { rotate: -2deg; }
+.microgame-discomfort[data-variant="chase"] .body-shape { border-style: dashed; }
+
+.microgame-anxiety[data-variant="ring"] .anxiety-game button:nth-of-type(1) { left: 50% !important; top: 14% !important; }
+.microgame-anxiety[data-variant="ring"] .anxiety-game button:nth-of-type(2) { left: 82% !important; top: 38% !important; }
+.microgame-anxiety[data-variant="ring"] .anxiety-game button:nth-of-type(3) { left: 70% !important; top: 79% !important; }
+.microgame-anxiety[data-variant="ring"] .anxiety-game button:nth-of-type(4) { left: 30% !important; top: 79% !important; }
+.microgame-anxiety[data-variant="ring"] .anxiety-game button:nth-of-type(5) { left: 18% !important; top: 38% !important; }
+
+.microgame-anxiety[data-variant="zigzag"] .anxiety-game button:nth-of-type(1) { left: 16% !important; top: 20% !important; }
+.microgame-anxiety[data-variant="zigzag"] .anxiety-game button:nth-of-type(2) { left: 78% !important; top: 25% !important; }
+.microgame-anxiety[data-variant="zigzag"] .anxiety-game button:nth-of-type(3) { left: 24% !important; top: 49% !important; }
+.microgame-anxiety[data-variant="zigzag"] .anxiety-game button:nth-of-type(4) { left: 82% !important; top: 63% !important; }
+.microgame-anxiety[data-variant="zigzag"] .anxiety-game button:nth-of-type(5) { left: 38% !important; top: 82% !important; }
+
+.microgame-anxiety[data-variant="corners"] .anxiety-game button:nth-of-type(1) { left: 17% !important; top: 19% !important; }
+.microgame-anxiety[data-variant="corners"] .anxiety-game button:nth-of-type(2) { left: 83% !important; top: 19% !important; }
+.microgame-anxiety[data-variant="corners"] .anxiety-game button:nth-of-type(3) { left: 50% !important; top: 50% !important; }
+.microgame-anxiety[data-variant="corners"] .anxiety-game button:nth-of-type(4) { left: 17% !important; top: 81% !important; }
+.microgame-anxiety[data-variant="corners"] .anxiety-game button:nth-of-type(5) { left: 83% !important; top: 81% !important; }
+
+.microgame-anxiety[data-variant="spiral"] .anxiety-game button:nth-of-type(1) { left: 15% !important; top: 22% !important; }
+.microgame-anxiety[data-variant="spiral"] .anxiety-game button:nth-of-type(2) { left: 78% !important; top: 18% !important; }
+.microgame-anxiety[data-variant="spiral"] .anxiety-game button:nth-of-type(3) { left: 82% !important; top: 76% !important; }
+.microgame-anxiety[data-variant="spiral"] .anxiety-game button:nth-of-type(4) { left: 33% !important; top: 79% !important; }
+.microgame-anxiety[data-variant="spiral"] .anxiety-game button:nth-of-type(5) { left: 49% !important; top: 48% !important; }
+
+.microgame-brainFog .fog-grid { transition: transform 140ms ease; }
+.microgame-brainFog[data-variant="rotate90"] .fog-grid { transform: rotate(90deg); }
+.microgame-brainFog[data-variant="rotate180"] .fog-grid { transform: rotate(180deg); }
+.microgame-brainFog[data-variant="rotate270"] .fog-grid { transform: rotate(270deg); }
+.microgame-brainFog[data-variant="mirror"] .fog-grid { transform: scaleX(-1); }
+
+.fatigue-game .heavy-lid {
+  z-index: 1;
+  pointer-events: none;
+}
+.fatigue-game::before {
+  position: relative;
+  z-index: 0;
+  pointer-events: none;
+}
+.fatigue-game button {
+  position: relative;
+  z-index: 3;
+  isolation: isolate;
+}
+.microgame-fatigue[data-resting="true"] .fatigue-game button {
+  background: #8b6e58;
+  animation: rest-prompt 420ms ease-in-out infinite alternate;
+}
+.microgame-fatigue[data-variant="twoStage"] .heavy-lid { border-radius: 0 0 42% 42%; }
+.microgame-fatigue[data-variant="breathing"] .heavy-lid { animation: fatigue-breathe 1.2s ease-in-out infinite alternate; }
+
+@keyframes rest-prompt {
+  to { scale: 1.05; }
+}
+
+@keyframes fatigue-breathe {
+  to { opacity: 0.72; }
+}
