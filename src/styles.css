@@ -261,3 +261,15 @@ button { font: inherit; }
   .dialogue-options { grid-template-columns: 1fr; }
   .go-home { right: 10px; bottom: 10px; }
 }
+
+
+/* Build the gameplay chrome during Ready? so START! does not mount a full UI tree. */
+.status-countdown .hud,
+.status-countdown .load-meter,
+.status-countdown .microgame-layer,
+.status-countdown .completion-fx-layer,
+.status-countdown .dialogue-box,
+.status-countdown .go-home {
+  visibility: hidden;
+  pointer-events: none;
+}

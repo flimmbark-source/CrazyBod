@@ -415,11 +415,11 @@ function App() {
     : null
 
   return (
-    <main className={`game-shell load-${Math.min(load, 5)}`}>
+    <main className={`game-shell status-${status} load-${Math.min(load, 5)}`}>
       <div className="world-layer">
         <Canvas
           shadows="basic"
-          camera={{ position: [0.25, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }}
+          camera={{ position: [0.55, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }}
           dpr={[1, 1.25]}
           gl={{
             antialias: false,
@@ -449,7 +449,7 @@ function App() {
         </section>
       )}
 
-      {status === 'playing' && (
+      {['countdown', 'playing'].includes(status) && (
         <>
           <header className="hud">
             <div className="hud-panel">
