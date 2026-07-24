@@ -56,13 +56,27 @@
 .microgame-brainFog[data-variant="rotate270"] .fog-grid { transform: rotate(270deg); }
 .microgame-brainFog[data-variant="mirror"] .fog-grid { transform: scaleX(-1); }
 
-.fatigue-game .heavy-lid {
-  z-index: 1;
-  pointer-events: none;
+.fatigue-game {
+  grid-template-rows: 57px auto auto;
+  gap: 6px;
+  overflow: visible;
 }
-.fatigue-game::before {
+.fatigue-game::before { content: none; }
+.fatigue-eye {
   position: relative;
-  z-index: 0;
+  width: 104px;
+  height: 55px;
+  overflow: hidden;
+  border: 4px solid #433f59;
+  border-radius: 50%;
+  background: #d8cbbd;
+}
+.fatigue-eye .heavy-lid {
+  top: -44px;
+  left: 4px;
+  right: 4px;
+  height: 52px;
+  z-index: 1;
   pointer-events: none;
 }
 .fatigue-game button {
@@ -74,8 +88,8 @@
   background: #8b6e58;
   animation: rest-prompt 420ms ease-in-out infinite alternate;
 }
-.microgame-fatigue[data-variant="twoStage"] .heavy-lid { border-radius: 0 0 42% 42%; }
-.microgame-fatigue[data-variant="breathing"] .heavy-lid { animation: fatigue-breathe 1.2s ease-in-out infinite alternate; }
+.microgame-fatigue[data-variant="twoStage"] .fatigue-eye .heavy-lid { border-radius: 0 0 42% 42%; }
+.microgame-fatigue[data-variant="breathing"] .fatigue-eye .heavy-lid { animation: fatigue-breathe 1.2s ease-in-out infinite alternate; }
 
 @keyframes rest-prompt {
   to { scale: 1.05; }
