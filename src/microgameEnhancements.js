@@ -64,7 +64,7 @@ function setupDiscomfort(windowElement, variant) {
     if (variant === 'alternating') {
       const side = step % 2 === 0 ? 'left' : 'right'
       windowElement.dataset.side = side
-      button.textContent = side === 'left' ? 'LEFT  [A]' : 'RIGHT  [D]'
+      button.textContent = side === 'left' ? '[A]' : '[D]'
       setHint(windowElement, 'A / D')
       return
     }
@@ -79,7 +79,7 @@ function setupDiscomfort(windowElement, variant) {
     }
 
     windowElement.dataset.side = 'center'
-    button.textContent = 'ADJUST'
+    button.textContent = 'SPACE'
     setHint(windowElement, 'SPACE')
   }
 
@@ -170,7 +170,7 @@ function setupFatigue(windowElement, variant) {
   let waitingForRelease = false
 
   const showHoldLabel = () => {
-    button.textContent = checkpointIndex > 0 ? 'HOLD AGAIN' : 'HOLD'
+    button.textContent = checkpointIndex > 0 ? 'HOLD AGAIN' : 'SPACE'
   }
 
   const releaseForCheckpoint = () => {

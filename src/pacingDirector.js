@@ -49,17 +49,6 @@ function drawKind(director, phase, excludedKinds = []) {
   return kind
 }
 
-function adjustedDelay(director, phase, activeGames, overloadLimit) {
-  let delay = randomBetween(director.random, phase.interval)
-  const [targetMinimum, targetMaximum] = phase.targetLoad
-
-  if (activeGames < targetMinimum) delay *= 0.85
-  if (activeGames > targetMaximum) delay *= 1.35
-  if (activeGames >= overloadLimit - 1) delay *= 1.15
-
-  return delay
-}
-
 export function createPacingDirector(seed = Date.now()) {
   return {
     seed,
@@ -74,26 +63,23 @@ export function initializePacingDirector(director, elapsed = 0) {
   director.nextSpawnAt = elapsed + randomBetween(director.random, OPENING_INTERVAL)
 }
 
-export function takeSpawnBatch(director, { elapsed, activeGames, overloadLimit }) {
+function nextDelay(director, phase) {
+  return randomBetween(director.random, phase.interval)
+}
+
+export function takeSpawnBatch(director, { elapsed }) {
   const phase = pacingPhaseFor(elapsed)
-  const [, targetMaximum] = phase.targetLoad
-  const pairAllowed = (
-    activeGames < targetMaximum
-    && activeGames <= overloadLimit - 3
-    && director.random() < phase.pairChance
-  )
 
   const firstKind = drawKind(director, phase)
   const kinds = [firstKind]
-  if (pairAllowed) kinds.push(drawKind(director, phase, [firstKind]))
 
-  const projectedLoad = activeGames + kinds.length
-  director.nextSpawnAt = elapsed + adjustedDelay(
-    director,
-    phase,
-    projectedLoad,
-    overloadLimit,
-  )
+  const pairSpawned = director.random() < phase.pairChance
+
+  if (pairSpawned) {
+    kinds.push(drawKind(director, phase, [firstKind]))
+  }
+
+  director.nextSpawnAt = elapsed + nextDelay(director, phase)
 
   return {
     kinds,
