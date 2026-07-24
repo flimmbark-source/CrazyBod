@@ -466,6 +466,14 @@ function App() {
     setTutorialStep('none')
   }
 
+  const advanceTutorial = () => {
+  if (tutorialStep === 'home') {
+    setTutorialStep('summary')
+    return
+  }
+  finishTutorial()
+}
+
   const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
     ? microgames.find((game) => game.tutorialRole === tutorialStep)
     : null
