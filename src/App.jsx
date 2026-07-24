@@ -418,7 +418,7 @@ function App() {
       {status === 'intro' && (
         <OverlayCard eyebrow="COUNTDOWN" title="CRAZYBOD">
           <p>
-            Try to finish your day without succumbing. Clear the minigames that pop up without going over the threshold.
+            Try to finish your day. Minigames will pop up, too many on the screen and you'll CRASH.
           </p>
           <button
             className="tutorial-toggle"
