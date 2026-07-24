@@ -4,6 +4,7 @@ import App from './App.jsx'
 import './styles.css'
 import './compat.css'
 import './microgameEnhancements.css'
+import './completionEffects.css'
 import './microgameEnhancements.js'
 
 createRoot(document.getElementById('root')).render(
