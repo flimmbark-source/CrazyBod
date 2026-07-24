@@ -1,0 +1,28 @@
+name: Apply start motion and minigame fixes
+
+on:
+  push:
+    branches: [fix/start-motion-and-minigame-feedback]
+    paths:
+      - scripts/apply-start-motion-fixes.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/start-motion-and-minigame-feedback
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/apply-start-motion-fixes.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx src/world/JourneyScene.jsx src/minigames/physical.jsx src/minigames.css
+          git diff --cached --quiet || git commit -m "start movement immediately and clarify physical minigames"
+          git push
