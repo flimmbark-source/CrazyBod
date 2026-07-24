@@ -28,24 +28,13 @@ jobs:
           path = Path('src/world/JourneyScene.jsx')
           source = path.read_text()
 
-          room_shell = '''      <Box position={[-3.86, 0.15, -1]} size={[0.12, 0.28, 13.7]} color="#876c62" />
-      <Box position={[3.86, 0.15, -1]} size={[0.12, 0.28, 13.7]} color="#876c62" />'''
-          sealed_room_shell = '''      <Box position={[-3.86, 0.15, -1]} size={[0.12, 0.28, 13.7]} color="#876c62" />
-      <Box position={[3.86, 0.15, -1]} size={[0.12, 0.28, 13.7]} color="#876c62" />
-
-      {/* Close the wide bedroom around the narrower entry hall. */}
-      <Box position={[-3.1, 2.2, -6.36]} size={[1.8, 4.4, 0.2]} color="#c8b49a" />
-      <Box position={[3.1, 2.2, -6.36]} size={[1.8, 4.4, 0.2]} color="#c8b49a" />
-      <Box position={[0, 4.05, -6.36]} size={[4.4, 0.6, 0.2]} color="#c8b49a" castShadow={false} />'''
-
           bathroom = '''      <group>
         <Box position={[2.8, 0.025, -1.75]} size={[2.2, 0.05, 2.55]} color="#b8c0b8" />
         <Box position={[3.1, 0.7, -1.75]} size={[1.45, 1.35, 0.62]} color="#66766f" />
         <Cylinder position={[3.1, 1.44, -1.72]} args={[0.42, 0.34, 0.18, 12]} color="#e2ddd0" castShadow={false} />
         <Cylinder position={[3.1, 1.73, -1.72]} args={[0.045, 0.055, 0.42, 8]} color="#777c83" castShadow={false} />
         <Box position={[3.1, 2.42, -1.41]} size={[1.4, 1.08, 0.07]} color="#9bb5bb" opacity={0.72} castShadow={false} />
-        <Box position={[2.15, 1.76, -2.62]} size={[0.58, 0.1, 0.08]} color="#564c4d" />
-        <Box position={[2.15, 1.48, -2.57]} size={[0.5, 0.52, 0.05]} color="#c98670" />
+
       </group>'''
           sealed_bathroom = '''      <group>
         {/* Give the open bathroom nook a real back wall while keeping its player-facing side open. */}
@@ -57,18 +46,14 @@ jobs:
         <Box position={[3.1, 2.42, -2.0]} size={[1.4, 1.08, 0.07]} color="#9bb5bb" opacity={0.72} castShadow={false} />
       </group>'''
 
-          if room_shell not in source:
-              raise SystemExit('Could not find bedroom shell anchor')
           if bathroom not in source:
-              raise SystemExit('Could not find bathroom fixture block')
+              raise SystemExit('Could not find current bathroom fixture block')
 
-          source = source.replace(room_shell, sealed_room_shell, 1)
-          source = source.replace(bathroom, sealed_bathroom, 1)
-          path.write_text(source)
+          path.write_text(source.replace(bathroom, sealed_bathroom, 1))
           PY
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/world/JourneyScene.jsx
-          git diff --cached --quiet || git commit -m "seal apartment shell and remove floating towel"
+          git diff --cached --quiet || git commit -m "finish sealing bathroom nook"
           git push origin HEAD:fix/seal-house-shell
