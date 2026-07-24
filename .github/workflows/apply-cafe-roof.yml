@@ -26,19 +26,14 @@ jobs:
 
           path = Path('src/world/JourneyScene.jsx')
           source = path.read_text()
-          anchor = '''    <group>
-              <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
-              <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
-          replacement = '''    <group>
-              <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
-              <Box position={[0, 5.48, -87]} size={[14.5, 0.32, 27.5]} color="#4d4146" castShadow={false} receiveShadow={false} />
-              <Box position={[0, 5.68, -87]} size={[15.0, 0.12, 28.0]} color="#3e3840" castShadow={false} receiveShadow={false} />
-              <Box position={[-7, 2.7, -87]} size={[0.24, 5.4, 27]} color="#704f49" />'''
-          if replacement in source:
+          floor = '      <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />'
+          roof = '''      <Box position={[0, 5.48, -87]} size={[14.5, 0.32, 27.5]} color="#4d4146" castShadow={false} receiveShadow={false} />
+          <Box position={[0, 5.68, -87]} size={[15.0, 0.12, 28.0]} color="#3e3840" castShadow={false} receiveShadow={false} />'''
+          if roof in source:
               raise SystemExit(0)
-          if anchor not in source:
-              raise SystemExit('Could not find CafeInterior shell anchor')
-          path.write_text(source.replace(anchor, replacement, 1))
+          if floor not in source:
+              raise SystemExit('Could not find cafe floor')
+          path.write_text(source.replace(floor, floor + '\n' + roof, 1))
           PY
       - name: Commit roof restoration
         run: |
