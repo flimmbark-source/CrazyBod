@@ -1,0 +1,30 @@
+name: Apply first-run tutorial
+
+on:
+  push:
+    branches: [feature/first-run-tutorial]
+    paths:
+      - scripts/apply-first-run-tutorial.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/first-run-tutorial
+      - run: node scripts/apply-first-run-tutorial.mjs
+      - name: Commit generated tutorial source
+        run: |
+          if git diff --quiet; then
+            echo "No source changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx src/main.jsx src/endScreens.js
+          git commit -m "implement first-run tutorial flow"
+          git push origin HEAD:feature/first-run-tutorial
