@@ -455,6 +455,48 @@ function Street({ active }) {
 
   return (
     <group>
+      {/* Ground the full exterior set so the street no longer floats over empty space. */}
+      <Box position={[3.25, -0.64, -49]} size={[42, 0.92, 86]} color="#717a67" castShadow={false} receiveShadow />
+      <Box position={[-10.2, -0.12, -47]} size={[15.6, 0.16, 76]} color="#7f8b70" castShadow={false} />
+      <Box position={[16.2, -0.13, -47]} size={[16.2, 0.16, 76]} color="#6d7965" castShadow={false} />
+
+      {/* A cheap distant skyline closes the gaps behind the existing street façades. */}
+      {[
+        [-14.2, -21, 7.2, 8.4, 7.2, '#64717a'],
+        [-15.1, -36, 8.4, 11.6, 8.2, '#59666f'],
+        [-13.8, -52, 7.0, 9.2, 7.4, '#6b7178'],
+        [-15.4, -68, 9.2, 13.4, 8.4, '#535f69'],
+        [18.1, -23, 7.4, 9.8, 7.0, '#6b6672'],
+        [19.4, -39, 8.6, 12.8, 8.0, '#59616c'],
+        [18.2, -55, 7.3, 9.5, 7.0, '#66716d'],
+        [20.0, -70, 9.6, 14.2, 8.6, '#525d67'],
+      ].map(([x, z, width, height, depth, color], index) => (
+        <Box
+          key={`distant-building-${index}`}
+          position={[x, height / 2 - 0.08, z]}
+          size={[width, height, depth]}
+          color={color}
+          castShadow={false}
+          receiveShadow={false}
+        />
+      ))}
+
+      {/* Sparse foliage breaks up the skyline without adding lights or animated systems. */}
+      {[
+        [-10.3, -17, 0.82],
+        [-11.2, -29, 0.92],
+        [-10.5, -43, 0.78],
+        [-11.4, -57, 0.98],
+        [-10.1, -70, 0.88],
+        [15.5, -18, 0.84],
+        [16.1, -31, 0.96],
+        [15.3, -46, 0.8],
+        [16.4, -59, 1.0],
+        [15.0, -71, 0.9],
+      ].map(([x, z, scale], index) => (
+        <Tree key={`background-tree-${index}`} position={[x, 0, z]} scale={scale} />
+      ))}
+
       <Box position={[0, -0.14, -43]} size={[4.8, 0.24, 56]} color="#b39d87" />
       <Box position={[5.1, -0.22, -43]} size={[5.3, 0.16, 56]} color="#656872" />
       <Box position={[2.52, -0.04, -43]} size={[0.18, 0.24, 56]} color="#d8c1a6" />
