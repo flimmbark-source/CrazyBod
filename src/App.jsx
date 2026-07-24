@@ -42,8 +42,8 @@ const DIALOGUE = {
 
 function getPhase(elapsed) {
   if (elapsed < 5) return 'WAKING UP'
-  if (elapsed < 10) return 'GETTING READY'
-  if (elapsed < 25) return 'WALKING TO THE CAFÉ'
+  if (elapsed < 15) return 'GETTING READY'
+  if (elapsed < 30) return 'WALKING TO THE CAFÉ'
   if (elapsed < 42) return 'ORDERING'
   return 'SITTING DOWN'
 }
