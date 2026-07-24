@@ -530,10 +530,14 @@ function Street({ active }) {
 
 function CafeBackdrop() {
   const buildings = [
-    [-15.5, -82.5, 7.4, 10.5, 7.5, '#59666f'],
-    [-9.4, -91.5, 6.4, 13.2, 8.2, '#6a626d'],
-    [9.8, -87.5, 7.0, 11.4, 7.8, '#58666b'],
-    [16.2, -94.5, 8.8, 15.0, 9.0, '#535e68'],
+    [-10.6, -77.0, 6.8, 8.6, 7.2, '#68717a'],
+    [10.8, -77.4, 7.0, 9.2, 7.4, '#6c6670'],
+    [-17.2, -82.5, 7.8, 11.5, 8.0, '#59666f'],
+    [17.5, -83.0, 8.2, 12.5, 8.4, '#535e68'],
+    [-11.8, -94.0, 7.0, 13.2, 8.2, '#6a626d'],
+    [11.9, -94.5, 7.4, 12.0, 8.0, '#58666b'],
+    [-2.5, -108.0, 9.0, 15.0, 8.5, '#55616b'],
+    [7.5, -109.5, 7.2, 11.6, 7.8, '#65716e'],
   ]
 
   return (
@@ -596,8 +600,21 @@ function CafeFacade({ elapsed, active }) {
       <Box position={[4.6, 2.25, -73.38]} size={[3.6, 3.6, 0.08]} color="#adc1bf" opacity={0.62} />
       <Box position={[0, 4.25, -73.22]} size={[13.8, 0.48, 0.65]} color="#d1a55f" />
       <Label text="CAFÉ" position={[0, 4.38, -72.86]} size={[3.9, 1.08]} />
-      <Door position={[-0.95, 0, -73.25]} color="#4f5961" progress={cafeDoorProgress} openAngle={Math.PI * 0.5} />
-      <Box position={[0, 0.02, -72.9]} size={[2.6, 0.08, 1.1]} color="#8f725c" />
+      <Box position={[-1.28, 1.82, -74.55]} size={[0.18, 3.64, 2.5]} color="#654740" />
+      <Box position={[1.28, 1.82, -74.55]} size={[0.18, 3.64, 2.5]} color="#654740" />
+      <Box position={[0, 3.55, -74.55]} size={[2.72, 0.2, 2.5]} color="#654740" castShadow={false} />
+      <Box position={[-1.28, 1.82, -73.38]} size={[0.18, 3.64, 0.5]} color="#4f3a38" />
+      <Box position={[1.28, 1.82, -73.38]} size={[0.18, 3.64, 0.5]} color="#4f3a38" />
+      <Box position={[0, 3.55, -73.38]} size={[2.72, 0.2, 0.5]} color="#4f3a38" />
+      <Door
+        position={[-1.26, 0, -73.18]}
+        color="#4f5961"
+        progress={cafeDoorProgress}
+        openAngle={Math.PI * 0.5}
+        width={2.52}
+        height={3.45}
+      />
+      <Box position={[0, 0.02, -73.55]} size={[2.6, 0.08, 2.4]} color="#8f725c" />
 
       <AnimatedPerson
         position={[-2.2, 0, -70.9]}
