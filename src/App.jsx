@@ -419,7 +419,7 @@ function App() {
       <div className="world-layer">
         <Canvas
           shadows="basic"
-          camera={{ position: [-1.8, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }}
+          camera={{ position: [0.25, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }}
           dpr={[1, 1.25]}
           gl={{
             antialias: false,

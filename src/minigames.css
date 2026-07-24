@@ -561,3 +561,17 @@
   .interrupted-game.wrong,
   .heart-game.miss { animation: none; }
 }
+
+
+/* Joint Slip socket feedback */
+.joint-socket.filled {
+  border-style: solid;
+  background: rgba(155, 185, 144, 0.52);
+}
+.joint-piece.socketed,
+.joint-piece.socketed:disabled {
+  opacity: 1;
+  background: #9bb990 !important;
+  box-shadow: 0 0 0 5px rgba(155, 185, 144, 0.3), 0 3px 0 #302b38;
+  cursor: default;
+}

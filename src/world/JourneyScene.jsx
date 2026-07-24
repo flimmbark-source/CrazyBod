@@ -3,15 +3,14 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 const PLAYER_PATH = [
-  // Waking up: already standing beside the bed, then walk straight to the bathroom turn.
-  { at: 0, position: [-1.8, 1.65, 3.1], look: [-1.8, 1.45, -3.5], walk: 0, fov: 68 },
-  { at: 1, position: [-1.8, 1.65, 3.1], look: [-1.8, 1.45, -3.5], walk: 0, fov: 68 },
-  { at: 4.5, position: [-1.8, 1.65, -1.0], look: [-1.8, 1.45, -5.2], walk: 0.82, fov: 68 },
-  { at: 5.2, position: [-1.8, 1.65, -1.0], look: [-1.8, 1.45, -5.2], walk: 0, fov: 68 },
-  { at: 7.4, position: [-1.8, 1.65, -1.0], look: [2.65, 1.4, -1.7], walk: 0, fov: 67 },
+  // Waking up: start beside the bed and move immediately when START! appears.
+  { at: 0, position: [0.25, 1.65, 3.1], look: [0.25, 1.45, -3.5], walk: 0.82, fov: 68 },
+  { at: 4.5, position: [0.25, 1.65, -1.0], look: [0.25, 1.45, -5.2], walk: 0.82, fov: 68 },
+  { at: 5.2, position: [0.25, 1.65, -1.0], look: [0.25, 1.45, -5.2], walk: 0, fov: 68 },
+  { at: 7.4, position: [0.25, 1.65, -1.0], look: [2.65, 1.4, -1.7], walk: 0, fov: 67 },
 
-  // Getting ready: turn away from the bathroom, walk to the door, and wait for it to open.
-  { at: 8, position: [-1.8, 1.65, -1.0], look: [0, 1.45, -10], walk: 0, fov: 67 },
+  // Getting ready: turn toward the apartment door, walk to it, and wait for it to open.
+  { at: 8, position: [0.25, 1.65, -1.0], look: [0, 1.45, -10], walk: 0, fov: 67 },
   { at: 12.4, position: [0, 1.65, -10.8], look: [-0.95, 1.45, -14.7], walk: 0.88, fov: 67 },
   { at: 13.6, position: [-0.75, 1.65, -13.0], look: [-0.95, 1.45, -17.5], walk: 0.45, fov: 67 },
   { at: 15.1, position: [-0.75, 1.65, -13.0], look: [-0.95, 1.45, -18.5], walk: 0, fov: 67 },
@@ -52,13 +51,14 @@ function samplePlayerPath(elapsed) {
   const previous = PLAYER_PATH[upperIndex - 1]
   const next = PLAYER_PATH[upperIndex]
   const span = Math.max(0.001, next.at - previous.at)
-  const mix = smoothstep((elapsed - previous.at) / span)
+  const progress = clamp01((elapsed - previous.at) / span)
+  const lookMix = smoothstep(progress)
 
   return {
-    position: previous.position.map((value, index) => THREE.MathUtils.lerp(value, next.position[index], mix)),
-    look: previous.look.map((value, index) => THREE.MathUtils.lerp(value, next.look[index], mix)),
-    walk: THREE.MathUtils.lerp(previous.walk, next.walk, mix),
-    fov: THREE.MathUtils.lerp(previous.fov, next.fov, mix),
+    position: previous.position.map((value, index) => THREE.MathUtils.lerp(value, next.position[index], progress)),
+    look: previous.look.map((value, index) => THREE.MathUtils.lerp(value, next.look[index], lookMix)),
+    walk: THREE.MathUtils.lerp(previous.walk, next.walk, progress),
+    fov: THREE.MathUtils.lerp(previous.fov, next.fov, lookMix),
   }
 }
 
@@ -280,10 +280,20 @@ function CameraRig({ elapsed, active, dialogueOpen }) {
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
   const gaitTimeRef = useRef(0)
+  const cameraElapsedRef = useRef(0)
 
   useFrame(({ camera }, delta) => {
-    if (active) gaitTimeRef.current += delta
-    const sample = samplePlayerPath(elapsed)
+    if (active) {
+      gaitTimeRef.current += delta
+      cameraElapsedRef.current += delta
+      if (Math.abs(cameraElapsedRef.current - elapsed) > 0.18) {
+        cameraElapsedRef.current = elapsed
+      }
+    } else {
+      cameraElapsedRef.current = elapsed
+    }
+
+    const sample = samplePlayerPath(cameraElapsedRef.current)
     const gait = gaitTimeRef.current
     const bob = active ? Math.sin(gait * 10.5) * 0.035 * sample.walk : 0
     const sway = active ? Math.sin(gait * 5.25) * 0.022 * sample.walk : 0
@@ -292,13 +302,11 @@ function CameraRig({ elapsed, active, dialogueOpen }) {
     targetLook.set(...sample.look)
     if (dialogueOpen && elapsed >= 25 && elapsed < 40) targetLook.lerp(MARA_LOOK, 0.72)
 
-    const positionMix = 1 - Math.exp(-delta * 5.2)
-    const lookMix = 1 - Math.exp(-delta * 6.4)
-    camera.position.lerp(targetPosition, positionMix)
-    smoothedLook.lerp(targetLook, lookMix)
+    camera.position.copy(targetPosition)
+    smoothedLook.lerp(targetLook, 1 - Math.exp(-delta * 8.5))
     camera.lookAt(smoothedLook)
 
-    const nextFov = THREE.MathUtils.lerp(camera.fov, sample.fov, 1 - Math.exp(-delta * 4))
+    const nextFov = THREE.MathUtils.lerp(camera.fov, sample.fov, 1 - Math.exp(-delta * 5))
     if (Math.abs(nextFov - camera.fov) > 0.01) {
       camera.fov = nextFov
       camera.updateProjectionMatrix()

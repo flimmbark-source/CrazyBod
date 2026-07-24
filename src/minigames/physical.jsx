@@ -11,6 +11,7 @@ import {
 export function BalanceGame({ onResolve }) {
   const rootRef = useRef(null)
   const markerRef = useRef(50)
+  const velocityRef = useRef(0)
   const heldRef = useRef(0)
   const steadyRef = useRef(0)
   const [marker, setMarker] = useState(50)
@@ -34,10 +35,25 @@ export function BalanceGame({ onResolve }) {
   })
 
   useAnimationFrame((now, delta) => {
-    const drift = Math.sin(now / 410) * 0.08
-    markerRef.current = clamp(markerRef.current + drift + heldRef.current * delta * 0.055, 4, 96)
-    const centered = markerRef.current >= 43 && markerRef.current <= 57
-    steadyRef.current = clamp(steadyRef.current + (centered ? delta : -delta * 0.9), 0, 1500)
+    const externalForce = (
+      Math.sin(now / 260) * 0.00050
+      + Math.sin(now / 95 + 1.8) * 0.00030
+      + Math.sign(Math.sin(now / 620) || 1) * 0.00020
+    )
+    const controlForce = heldRef.current * 0.00095
+
+    velocityRef.current += (externalForce + controlForce) * delta
+    velocityRef.current *= Math.pow(0.9, delta / 16.67)
+    velocityRef.current = clamp(velocityRef.current, -0.095, 0.095)
+    markerRef.current += velocityRef.current * delta
+
+    if (markerRef.current <= 4 || markerRef.current >= 96) {
+      markerRef.current = clamp(markerRef.current, 4, 96)
+      velocityRef.current *= -0.65
+    }
+
+    const centered = markerRef.current >= 42 && markerRef.current <= 58
+    steadyRef.current = clamp(steadyRef.current + (centered ? delta : -delta * 1.15), 0, 1500)
     setMarker(markerRef.current)
     setSteady(steadyRef.current)
     if (steadyRef.current >= 1500) resolve()
@@ -48,7 +64,7 @@ export function BalanceGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame balance-game">
-      <small>KEEP IT CENTERED</small>
+      <small>FIGHT THE PULL. KEEP IT CENTERED.</small>
       <div className="balance-track">
         <i className="balance-zone" />
         <b style={{ left: `${marker}%` }} />
@@ -114,46 +130,66 @@ export function JointSlipGame({ onResolve }) {
   const settledRef = useRef(0)
   const [position, setPosition] = useState(positionRef.current)
   const [settled, setSettled] = useState(0)
+  const [socketed, setSocketed] = useState(false)
   const resolve = useOnceResolve(onResolve)
 
   useAnimationFrame((_, delta) => {
     const distance = Math.hypot(positionRef.current.x - 76, positionRef.current.y - 48)
-    settledRef.current = clamp(settledRef.current + (draggingRef.current && distance < 11 ? delta : -delta), 0, 900)
+    const inSocket = distance < 15
+    settledRef.current = clamp(settledRef.current + (inSocket ? delta : -delta * 1.5), 0, 700)
     setSettled(settledRef.current)
-    if (settledRef.current >= 900) resolve()
+    if (settledRef.current >= 700) resolve()
   })
 
   const start = (event) => {
+    if (socketed) return
     draggingRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
   }
+
   const move = (event) => {
     if (!draggingRef.current) return
     const rect = rootRef.current.querySelector('.joint-field').getBoundingClientRect()
-    positionRef.current = {
+    const next = {
       x: clamp(((event.clientX - rect.left) / rect.width) * 100, 8, 92),
       y: clamp(((event.clientY - rect.top) / rect.height) * 100, 12, 88),
     }
+    const distance = Math.hypot(next.x - 76, next.y - 48)
+
+    if (distance < 15) {
+      positionRef.current = { x: 76, y: 48 }
+      draggingRef.current = false
+      setSocketed(true)
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+    } else {
+      positionRef.current = next
+    }
+
     setPosition(positionRef.current)
   }
+
   const stop = () => { draggingRef.current = false }
 
   return (
     <div ref={rootRef} className="new-minigame joint-game">
-      <small>DRAG IT BACK. HOLD.</small>
+      <small>DRAG INTO THE DOTTED CIRCLE</small>
       <div className="joint-field">
-        <i className="joint-socket" />
+        <i className={socketed ? 'joint-socket filled' : 'joint-socket'} />
         <button
           type="button"
-          className="joint-piece"
+          className={socketed ? 'joint-piece socketed' : 'joint-piece'}
           style={{ left: `${position.x}%`, top: `${position.y}%` }}
           onPointerDown={start}
           onPointerMove={move}
           onPointerUp={stop}
           onPointerCancel={stop}
+          disabled={socketed}
+          aria-label="Drag the loose circle into the dotted circle"
         />
       </div>
-      <Progress value={(settled / 900) * 100} />
+      <Progress value={(settled / 700) * 100} />
     </div>
   )
 }
