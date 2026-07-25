@@ -34,7 +34,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'rehearse',
-    name: 'Reherse Lines',
+    name: 'Reherse Lines (+5s)',
     tagline: '',
     category: 'preparation',
     palette: PALETTES.preparation,
