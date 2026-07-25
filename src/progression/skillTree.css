@@ -156,6 +156,18 @@
 .tree-node-available {
   border-color: #f6c75b;
   box-shadow: 0 0 0 3px rgba(246, 199, 91, 0.16);
+  animation: tree-node-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes tree-node-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(246, 199, 91, 0.14); }
+  50% { box-shadow: 0 0 0 5px rgba(246, 199, 91, 0.28); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-node-available { animation: none; }
+  .tree-node:hover:not(:disabled),
+  .tree-node:focus-visible { transform: translate(-50%, -50%); }
 }
 
 .tree-node-unaffordable {
