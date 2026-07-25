@@ -26,8 +26,8 @@ unlocks, where banked score buys techniques:
   the run on success, or spawns two extra minigames on failure.
 - **Run Through the Plan** — a scheduled sequence that staggers the next pair
   spawns.
-- **Hold It Together** — holds back, once per run, the game that would fill the
-  last slot.
+- **Hold It Together** — automatically targets the next remaining minigame after
+  the active one is cleared.
 - **Run on Adrenaline** — pauses new spawns for six seconds at one below
   capacity.
 - **Suppress Visible Distress** — an emergency Space-mash that suppresses half of
@@ -39,7 +39,7 @@ original first-run state.
 
 ## Controls
 
-Click a microgame window to make it the active keyboard target. The highlighted window is the only microgame that receives keyboard input.
+Click a microgame window to make it the active keyboard target. The highlighted window is the only microgame that receives keyboard input. With **Hold It Together** enabled, clearing the active window automatically selects the next remaining minigame.
 
 - **Discomfort:** follow the current adjustment prompt using the mouse, `A` / `D`, arrow keys, or `Space` depending on the variation.
 - **Anxiety:** click the active pulse targets.
