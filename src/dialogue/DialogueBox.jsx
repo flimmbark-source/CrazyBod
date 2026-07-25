@@ -21,6 +21,8 @@ export default function DialogueBox({
   ariaLabel,
   beforeOptions = null,
   afterOptions = null,
+  getOptionProps = null,
+  renderOption = null,
 }) {
   const classes = ['dialogue-box', `distortion-${distortion}`, className]
     .filter(Boolean)
@@ -42,16 +44,31 @@ export default function DialogueBox({
       </div>
       {beforeOptions}
       <div className="dialogue-options">
-        {dialogue.options.map((option, index) => (
-          <button
-            key={`${option}-${index}`}
-            type="button"
-            style={{ '--option-index': index, '--load': load }}
-            onClick={() => onAnswer(index)}
-          >
-            {scrambleText(option, distortion >= 3 ? 2 : distortion - 1)}
-          </button>
-        ))}
+        {dialogue.options.map((option, index) => {
+          const optionProps = getOptionProps?.(option, index) ?? {}
+          const optionStyle = {
+            '--option-index': index,
+            '--load': load,
+            ...optionProps.style,
+          }
+
+          return (
+            <button
+              key={option.key ?? `${option}-${index}`}
+              type="button"
+              {...optionProps}
+              style={optionStyle}
+              onClick={(event) => {
+                optionProps.onClick?.(event)
+                if (!event.defaultPrevented) onAnswer(index)
+              }}
+            >
+              {renderOption
+                ? renderOption(option, index)
+                : scrambleText(String(option), distortion >= 3 ? 2 : distortion - 1)}
+            </button>
+          )
+        })}
       </div>
       {afterOptions}
     </section>
