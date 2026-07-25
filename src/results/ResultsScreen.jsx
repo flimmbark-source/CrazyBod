@@ -93,10 +93,9 @@ function HomeReturn({ capacity, activeAtEnd }) {
   return (
     <section className="home-return-stage" role="status" aria-live="polite">
       <div className="home-hush" />
-      <div className="home-rings" />
-      <div className="home-tiles" aria-hidden="true">
-        {Array.from({ length: 12 }).map((_, index) => (
-          <i key={index} className="home-tile" style={{ '--tile': index }} />
+      <div className="home-rings" aria-hidden="true">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <i key={index} className="home-ring" style={{ '--ring': index }} />
         ))}
       </div>
       <div className="home-copy">
