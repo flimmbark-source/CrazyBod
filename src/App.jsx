@@ -9,10 +9,16 @@ import {
   initializePacingDirector,
   takeSpawnBatch,
 } from './pacingDirector.js'
+import {
+  DAY_LENGTH,
+  SCORE_PER_SECOND,
+  OVERLOAD_SCORE_MULTIPLIER,
+  phaseLabel,
+  scoreForElapsed,
+} from './config/gameConfig.js'
+import ResultsScreen from './results/ResultsScreen.jsx'
 
-const DAY_LENGTH = 50
 const OVERLOAD_LIMIT = 6
-const SCORE_PER_SECOND = 10
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 const READY_CUE_MS = 1150
 const START_CUE_MS = 650
@@ -51,11 +57,7 @@ const ORDER_DIALOGUE = {
 }
 
 function getPhase(elapsed) {
-  if (elapsed < 5) return 'WAKING UP'
-  if (elapsed < 15) return 'GETTING READY'
-  if (elapsed < 30) return 'WALKING TO THE CAFÉ'
-  if (elapsed < 42) return 'ORDERING'
-  return 'SITTING DOWN'
+  return phaseLabel(elapsed)
 }
 
 function seededFraction(seed, value) {
@@ -173,7 +175,7 @@ function App() {
   const [dialogueAnswered, setDialogueAnswered] = useState(false)
   const [orderDialogueOpen, setOrderDialogueOpen] = useState(false)
   const [orderDialogueAnswered, setOrderDialogueAnswered] = useState(false)
-  const [finalScore, setFinalScore] = useState(0)
+  const [result, setResult] = useState(null)
   const [completionEffects, setCompletionEffects] = useState([])
   const [tutorialEnabled, setTutorialEnabled] = useState(() => {
     try {
@@ -196,8 +198,14 @@ function App() {
   const pausedDurationRef = useRef(0)
   const tutorialFirstSeenRef = useRef(false)
   const tutorialSecondSeenRef = useRef(false)
+  const elapsedRef = useRef(0)
+  const clearedCountRef = useRef(0)
+  const peakLoadRef = useRef(0)
+  const spawnedCountRef = useRef(0)
+  const suppressedCountRef = useRef(0)
+  const runFinishedRef = useRef(false)
 
-  const score = Math.floor(elapsed * SCORE_PER_SECOND)
+  const score = scoreForElapsed(elapsed)
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - elapsed))
   const load = microgames.length
   const overloadRatio = Math.min(1, load / OVERLOAD_LIMIT)
@@ -219,6 +227,12 @@ function App() {
     resolvedGamesRef.current = new Set()
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
+    elapsedRef.current = 0
+    clearedCountRef.current = 0
+    peakLoadRef.current = 0
+    spawnedCountRef.current = 0
+    suppressedCountRef.current = 0
+    runFinishedRef.current = false
     setElapsed(0)
     setMicrogames([])
     setCompletionEffects([])
@@ -226,7 +240,7 @@ function App() {
     setDialogueAnswered(false)
     setOrderDialogueOpen(false)
     setOrderDialogueAnswered(false)
-    setFinalScore(0)
+    setResult(null)
     setTutorialRun(withTutorial)
     setTutorialStep('none')
     setDirectorReady(!withTutorial)
@@ -284,6 +298,7 @@ function App() {
   const spawnMicrogame = useCallback((kind, tutorialRole = null) => {
     const index = spawnCounterRef.current
     spawnCounterRef.current += 1
+    spawnedCountRef.current += 1
     const game = {
       id: `${kind}-${directorRef.current.seed}-${index}`,
       kind,
@@ -390,21 +405,62 @@ function App() {
   }, [dialogueAnswered, elapsed, orderDialogueAnswered, status])
 
   useEffect(() => {
+    elapsedRef.current = elapsed
+  }, [elapsed])
+
+  useEffect(() => {
+    if (status !== 'playing') return
+    peakLoadRef.current = Math.max(peakLoadRef.current, load)
+  }, [load, status])
+
+  // One authoritative end-of-run transaction. Builds the result from real run
+  // data (not from rendered DOM), so it survives unscored technique time.
+  const finishRun = useCallback((outcome) => {
+    if (runFinishedRef.current) return
+    runFinishedRef.current = true
+
+    const dayElapsed = Math.min(DAY_LENGTH, elapsedRef.current)
+    const rawScore = scoreForElapsed(dayElapsed)
+    const capacity = OVERLOAD_LIMIT
+    const finalScore = outcome === 'overload'
+      ? Math.floor(rawScore * OVERLOAD_SCORE_MULTIPLIER)
+      : rawScore
+    const activeAtEnd = outcome === 'overload' ? capacity : microgamesRef.current.length
+    const cleared = clearedCountRef.current
+    const peakLoad = Math.max(peakLoadRef.current, outcome === 'overload' ? capacity : 0)
+
+    setResult({
+      runId: `${directorRef.current.seed}`,
+      outcome,
+      rawScore,
+      finalScore,
+      penalty: Math.max(0, rawScore - finalScore),
+      dayElapsed,
+      runElapsed: elapsedRef.current,
+      clearedCount: cleared,
+      suppressedCount: suppressedCountRef.current,
+      peakLoad,
+      capacity,
+      activeAtEnd,
+      appeared: Math.max(spawnedCountRef.current, cleared + activeAtEnd),
+    })
+    setStatus(outcome)
+  }, [])
+
+  useEffect(() => {
     if (status !== 'playing' || load < OVERLOAD_LIMIT) return
-    const penalizedScore = Math.floor(score * 0.25)
-    setFinalScore(penalizedScore)
-    setStatus('overload')
-  }, [load, score, status])
+    finishRun('overload')
+  }, [load, status, finishRun])
 
   useEffect(() => {
     if (status !== 'playing' || elapsed < DAY_LENGTH) return
-    setFinalScore(score)
-    setStatus('complete')
-  }, [elapsed, score, status])
+    finishRun('complete')
+  }, [elapsed, status, finishRun])
 
   const resolveMicrogame = useCallback((id) => {
     if (resolvedGamesRef.current.has(id)) return
     resolvedGamesRef.current.add(id)
+    clearedCountRef.current += 1
 
     const gameElement = document.querySelector(`[data-game-id="${id}"]`)
     const rect = gameElement?.getBoundingClientRect()
@@ -441,8 +497,7 @@ function App() {
   }, [tutorialRun, tutorialStep])
 
   const goHome = () => {
-    setFinalScore(score)
-    setStatus('home')
+    finishRun('home')
   }
 
   const answerDialogue = () => {
@@ -628,8 +683,13 @@ function App() {
         </OverlayCard>
       )}
 
-      {!['intro', 'countdown', 'playing'].includes(status) && (
-        <EndCard status={status} score={finalScore} onRestart={startGame} />
+      {result && !['intro', 'countdown', 'playing'].includes(status) && (
+        <ResultsScreen
+          result={result}
+          capacity={result.capacity}
+          onRestart={startGame}
+          onTutorial={startTutorialGame}
+        />
       )}
     </main>
   )
@@ -777,37 +837,6 @@ function OverlayCard({ eyebrow, title, children }) {
         {children}
       </section>
     </div>
-  )
-}
-
-function EndCard({ status, score, onRestart }) {
-  const copy = {
-    home: {
-      eyebrow: 'YOU WENT HOME',
-      title: 'ENOUGH FOR TODAY',
-      body: 'You kept what you had. The rest of the day can wait.',
-    },
-    overload: {
-      eyebrow: 'OVERLOAD',
-      title: 'EVERYTHING AT ONCE',
-      body: 'The day ended for you. Most of the score slipped away with it.',
-    },
-    complete: {
-      eyebrow: 'DESTINATION REACHED',
-      title: 'YOU MADE IT',
-      body: 'You got to the café, ordered, and finally sat down.',
-    },
-  }[status]
-
-  return (
-    <OverlayCard eyebrow={copy.eyebrow} title={copy.title}>
-      <p>{copy.body}</p>
-      <div className="final-score">
-        <span>SCORE</span>
-        <strong>{score}</strong>
-      </div>
-      <button type="button" onClick={onRestart}>TRY ANOTHER DAY</button>
-    </OverlayCard>
   )
 }
 

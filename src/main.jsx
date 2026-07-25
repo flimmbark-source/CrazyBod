@@ -14,7 +14,6 @@ import './minigames.css'
 import './startSequence.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
-import './endScreens.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
