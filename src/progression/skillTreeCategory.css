@@ -1,0 +1,138 @@
+/* Final category-colour and scale pass. The palette values come from the same
+   muted blue, gold, purple and red families used throughout CrazyBod. */
+
+.tree-node {
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border-width: 3px;
+}
+
+.tree-node-root {
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+}
+
+.tree-node-rim { inset: 6px; }
+
+.tree-node .tree-node-glyph,
+.tree-node svg {
+  width: 22px;
+  height: 22px;
+}
+
+.tree-node:not(.tree-node-hidden) {
+  color: var(--node-light);
+  border-color: var(--node-dark);
+  background:
+    radial-gradient(circle at 35% 28%, var(--node-light) 0 9%, transparent 10%),
+    linear-gradient(155deg, var(--node-accent), var(--node-dark));
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--node-dark) 78%, #15111c),
+    0 12px 20px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 2px rgba(255, 250, 244, 0.14);
+}
+
+.tree-node-enabled:not(.tree-node-hidden) {
+  filter: saturate(1.05) brightness(1.06);
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--node-dark) 78%, #15111c),
+    0 0 20px color-mix(in srgb, var(--node-accent) 62%, transparent),
+    inset 0 0 0 2px rgba(255, 250, 244, 0.2);
+}
+
+.tree-node-available:not(.tree-node-hidden) {
+  animation: category-node-pulse 1.8s ease-in-out infinite;
+}
+
+.tree-node-disabled:not(.tree-node-hidden) {
+  filter: saturate(0.42) brightness(0.76);
+}
+
+.tree-node-unaffordable:not(.tree-node-hidden) {
+  filter: saturate(0.22) brightness(0.58);
+}
+
+.tree-node:not(.tree-node-hidden) .tree-node-label {
+  top: calc(100% + 12px);
+  border-color: var(--node-dark);
+}
+
+.tree-node.is-active::after {
+  inset: -9px;
+  border-color: var(--node-light, rgba(255, 248, 239, 0.64));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-accent, #f6c75b) 30%, transparent);
+}
+
+.skill-tree-inspector .inspector-icon {
+  color: var(--node-light);
+  background: var(--node-accent);
+}
+
+.skill-tree-inspector .inspector-kicker,
+.skill-tree-inspector .inspector-cost-row strong {
+  color: var(--node-dark);
+}
+
+@keyframes category-node-pulse {
+  0%, 100% {
+    box-shadow:
+      0 6px 0 color-mix(in srgb, var(--node-dark) 78%, #15111c),
+      0 0 14px color-mix(in srgb, var(--node-accent) 38%, transparent),
+      inset 0 0 0 2px rgba(255, 250, 244, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 6px 0 color-mix(in srgb, var(--node-dark) 78%, #15111c),
+      0 0 26px color-mix(in srgb, var(--node-accent) 72%, transparent),
+      inset 0 0 0 2px rgba(255, 250, 244, 0.24);
+  }
+}
+
+@media (max-width: 1050px) {
+  .tree-node {
+    width: 50px;
+    height: 50px;
+    margin: -25px 0 0 -25px;
+  }
+
+  .tree-node-root {
+    width: 58px;
+    height: 58px;
+    margin: -29px 0 0 -29px;
+  }
+
+  .tree-node .tree-node-glyph,
+  .tree-node svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  .tree-node {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+  }
+
+  .tree-node-root {
+    width: 52px;
+    height: 52px;
+    margin: -26px 0 0 -26px;
+  }
+
+  .tree-node .tree-node-glyph,
+  .tree-node svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .tree-node-rim { inset: 5px; }
+  .tree-node.is-active::after { inset: -7px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-node-available:not(.tree-node-hidden) { animation: none; }
+}
