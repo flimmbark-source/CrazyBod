@@ -18,10 +18,10 @@ import {
 } from './config/gameConfig.js'
 import ResultsScreen from './results/ResultsScreen.jsx'
 import { useProgression } from './progression/useProgression.js'
+import { computeCapacity } from './progression/progressionStore.js'
 import SkillTreeScreen from './progression/SkillTreeScreen.jsx'
 import SkillTreeUnlock from './progression/SkillTreeUnlock.jsx'
 
-const OVERLOAD_LIMIT = 6
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 const READY_CUE_MS = 1150
 const START_CUE_MS = 650
@@ -203,7 +203,9 @@ function App() {
   const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
   const [firstUnlockPending, setFirstUnlockPending] = useState(false)
   const [treeFirstView, setTreeFirstView] = useState(false)
+  const [runCapacityBonus, setRunCapacityBonus] = useState(0)
   const prevUnlockedRef = useRef(progression.treeUnlocked)
+  const capacityRef = useRef(0)
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
   const microgamesRef = useRef([])
@@ -226,8 +228,12 @@ function App() {
   const score = scoreForElapsed(dayElapsed)
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
   const currentPhaseId = phaseFor(dayElapsed).id
+  // Capacity is derived from the enabled skill nodes plus any per-run bonus
+  // (e.g. a successful rehearsal). First run with nothing enabled is 5.
+  const capacity = computeCapacity(progression.enabledNodeIds, runCapacityBonus)
+  capacityRef.current = capacity
   const load = microgames.length
-  const overloadRatio = Math.min(1, load / OVERLOAD_LIMIT)
+  const overloadRatio = Math.min(1, load / capacity)
   const overloadShake = Math.max(0, load - 2) * 0.8
   const homeShake = Math.max(0, load - 1) * 0.85
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
@@ -267,6 +273,7 @@ function App() {
     setSpawnElapsed(0)
     setRunElapsed(0)
     setActiveTechnique(null)
+    setRunCapacityBonus(0)
     setMicrogames([])
     setCompletionEffects([])
     setDialogueOpen(false)
@@ -450,7 +457,7 @@ function App() {
 
     const finishedDay = Math.min(DAY_LENGTH, dayElapsedRef.current)
     const rawScore = scoreForElapsed(finishedDay)
-    const capacity = OVERLOAD_LIMIT
+    const capacity = capacityRef.current
     const finalScore = outcome === 'overload'
       ? Math.floor(rawScore * OVERLOAD_SCORE_MULTIPLIER)
       : rawScore
@@ -508,9 +515,9 @@ function App() {
   }, [resetFull])
 
   useEffect(() => {
-    if (status !== 'playing' || load < OVERLOAD_LIMIT) return
+    if (status !== 'playing' || load < capacity) return
     finishRun('overload')
-  }, [load, status, finishRun])
+  }, [load, status, capacity, finishRun])
 
   useEffect(() => {
     if (status !== 'playing' || dayElapsed < DAY_LENGTH) return
@@ -643,7 +650,7 @@ function App() {
 
           <div
             className="load-meter"
-            aria-label={`Overload ${load} of ${OVERLOAD_LIMIT}`}
+            aria-label={`Overload ${load} of ${capacity}`}
             style={{
               '--overload': overloadRatio,
               '--overload-scale': 1 + overloadRatio * 0.16,
@@ -656,8 +663,8 @@ function App() {
           >
             <span>OVERLOAD</span>
             <div className="load-pips">
-              {Array.from({ length: OVERLOAD_LIMIT }).map((_, index) => (
-                <i key={index} className={index >= OVERLOAD_LIMIT - load ? 'filled' : ''} />
+              {Array.from({ length: capacity }).map((_, index) => (
+                <i key={index} className={index >= capacity - load ? 'filled' : ''} />
               ))}
             </div>
           </div>
