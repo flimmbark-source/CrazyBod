@@ -127,7 +127,10 @@
   border-color: var(--node-dark);
   background: transparent;
   filter: none;
-  opacity: 0.56;
+}
+
+.tree-node-disabled svg {
+  opacity: 0.46;
 }
 
 .tree-node-available {
