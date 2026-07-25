@@ -1,0 +1,105 @@
+name: Apply autotarget and skill tree fixes
+
+on:
+  push:
+    branches:
+      - fix/autotarget-skill-tree-intro
+    paths:
+      - .github/workflows/apply-autotarget-skill-tree-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/autotarget-skill-tree-intro
+          fetch-depth: 0
+
+      - name: Apply exact edits
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"Expected exactly one match in {path}, found {count}: {old[:80]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/microgameEnhancements.js",
+              "function autotargetEnabled() {\n  try {\n    const raw = window.localStorage.getItem(PROGRESSION_STORAGE_KEY)\n    if (!raw) return false\n    const progression = JSON.parse(raw)\n    const enabled = Array.isArray(progression?.enabledNodeIds)\n      ? progression.enabledNodeIds\n      : []\n    // `hold` is accepted here only so an older save works before the migrated\n    // progression state has been written back to localStorage.\n    return enabled.includes('autotarget') || enabled.includes('hold')\n  } catch {\n    return false\n  }\n}",
+              "function autotargetEnabled() {\n  return autoTargetEnabled\n}",
+          )
+
+          replace_once(
+              "src/microgameEnhancements.js",
+              "    if (activeGameWasRemoved && clearEffectWasAdded && autotargetEnabled()) {\n      queueMicrotask(autotargetNextMicrogame)\n    }",
+              "    if (activeGameWasRemoved && autotargetEnabled()) {\n      queueMicrotask(autotargetNextMicrogame)\n    }",
+          )
+
+          replace_once(
+              "src/App.jsx",
+              "import SkillTreeUnlock from './progression/SkillTreeUnlock.jsx'\n",
+              "",
+          )
+
+          replace_once(
+              "src/App.jsx",
+              "  // Hold It Together: while enabled during a run, clearing the focused\n  // minigame autotargets the next one for the keyboard.\n  useEffect(() => {\n    const on = status === 'playing' && progression.enabledNodeIds.includes('hold')\n    setAutoTargetEnabled(on)\n    return () => setAutoTargetEnabled(false)\n  }, [status, progression.enabledNodeIds])",
+              "  // Auto Target: while enabled during a run, clearing the focused\n  // minigame moves keyboard focus to the next one on screen.\n  useEffect(() => {\n    const on = status === 'playing' && progression.enabledNodeIds.includes('autotarget')\n    setAutoTargetEnabled(on)\n    return () => setAutoTargetEnabled(false)\n  }, [status, progression.enabledNodeIds])",
+          )
+
+          replace_once(
+              "src/App.jsx",
+              "      {['overload', 'home', 'complete'].includes(status) && result && (\n        firstUnlockPending ? (\n          <SkillTreeUnlock\n            finalScore={result.finalScore}\n            bank={progression.bank}\n            onOpenTree={() => openSkillTree(true)}\n          />\n        ) : (\n          <ResultsScreen\n            result={result}\n            capacity={result.capacity}\n            banked={progression.treeUnlocked ? progression.bank : null}\n            onRestart={startGame}\n            onTutorial={startTutorialGame}\n            onSkillTree={progression.treeUnlocked ? () => openSkillTree(false) : undefined}\n          />\n        )\n      )}",
+              "      {['overload', 'home', 'complete'].includes(status) && result && (\n        <ResultsScreen\n          result={result}\n          capacity={result.capacity}\n          banked={progression.treeUnlocked ? progression.bank : null}\n          onRestart={startGame}\n          onTutorial={startTutorialGame}\n          onSkillTree={progression.treeUnlocked\n            ? () => openSkillTree(firstUnlockPending)\n            : undefined}\n          emphasizeSkillTree={firstUnlockPending}\n        />\n      )}",
+          )
+
+          replace_once(
+              "src/results/ResultsScreen.jsx",
+              "function ResultsCard({ result, capacity, banked, onRestart, onTutorial, onSkillTree }) {",
+              "function ResultsCard({\n  result,\n  capacity,\n  banked,\n  onRestart,\n  onTutorial,\n  onSkillTree,\n  emphasizeSkillTree,\n}) {",
+          )
+
+          replace_once(
+              "src/results/ResultsScreen.jsx",
+              "            <button className=\"results-skill-tree\" type=\"button\" onClick={onSkillTree}>\n              SKILL TREE\n            </button>",
+              "            <button\n              className={`results-skill-tree${emphasizeSkillTree ? ' is-new' : ''}`}\n              type=\"button\"\n              onClick={onSkillTree}\n            >\n              SKILL TREE\n            </button>",
+          )
+
+          replace_once(
+              "src/results/ResultsScreen.jsx",
+              "  onTutorial,\n  onSkillTree,\n}) {",
+              "  onTutorial,\n  onSkillTree,\n  emphasizeSkillTree = false,\n}) {",
+          )
+
+          replace_once(
+              "src/results/ResultsScreen.jsx",
+              "          onTutorial={onTutorial}\n          onSkillTree={onSkillTree}\n        />",
+              "          onTutorial={onTutorial}\n          onSkillTree={onSkillTree}\n          emphasizeSkillTree={emphasizeSkillTree}\n        />",
+          )
+
+          css = Path("src/results/resultsCleanup.css")
+          text = css.read_text()
+          marker = ".results-skill-tree {\n  color: #292431;\n  background: #efc957;\n}\n"
+          addition = marker + "\n.results-skill-tree.is-new {\n  animation: skill-tree-throb 1.15s ease-in-out infinite;\n}\n\n@keyframes skill-tree-throb {\n  0%,\n  100% {\n    transform: scale(1);\n    box-shadow: 0 5px 0 #292431;\n  }\n\n  50% {\n    transform: scale(1.055);\n    box-shadow:\n      0 5px 0 #292431,\n      0 0 0 7px rgba(239, 201, 87, 0.3);\n  }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .results-skill-tree.is-new {\n    animation: none;\n    outline: 5px solid rgba(239, 201, 87, 0.55);\n    outline-offset: 4px;\n  }\n}\n"
+          if text.count(marker) != 1:
+              raise RuntimeError("Expected one skill tree CSS marker")
+          css.write_text(text.replace(marker, addition, 1))
+
+          Path(".github/workflows/apply-autotarget-skill-tree-fix.yml").unlink()
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx src/microgameEnhancements.js src/results/ResultsScreen.jsx src/results/resultsCleanup.css .github/workflows/apply-autotarget-skill-tree-fix.yml
+          git commit -m "Fix autotarget and replace skill tree intro"
+          git push origin HEAD:fix/autotarget-skill-tree-intro
