@@ -99,9 +99,7 @@ function HomeReturn({ capacity, activeAtEnd }) {
         ))}
       </div>
       <div className="home-copy">
-        <span>CAPACITY</span>
         <strong>WENT HOME</strong>
-        <em>YOU CHOSE TO STOP</em>
       </div>
       <div
         className="home-meter"

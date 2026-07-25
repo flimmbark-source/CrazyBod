@@ -93,7 +93,7 @@ export const PACING_PHASES = [
     id: 'sitting',
     start: 42,
     end: Number.POSITIVE_INFINITY,
-    interval: [1, 2],
+    interval: [2, 2],
     pairChance: 0.20,
     weights: {
       fatigue: 3,
