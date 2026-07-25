@@ -117,6 +117,50 @@
   color: rgba(255, 248, 239, 0.4);
 }
 
+/* Cost badge under buyable / too-expensive tiles, so the price is visible
+   without hovering. */
+.tree-node-cost {
+  position: absolute;
+  bottom: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: #1b1720;
+  background: #f6c75b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tree-node-unaffordable .tree-node-cost {
+  background: #5a5168;
+  color: rgba(255, 248, 239, 0.75);
+}
+
+/* Denied-click feedback: a red shake when you cannot afford the node. */
+.tree-node.is-denied {
+  animation: tree-node-deny 0.42s ease;
+}
+
+.tree-node.is-denied,
+.tree-node.is-denied .tree-node-cost {
+  background: #b8474f;
+  border-color: #ff8f97;
+  color: #fff;
+}
+
+@keyframes tree-node-deny {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
 /* Selection ring, echoing the reference's focused node. */
 .tree-node.is-active::after {
   content: '';

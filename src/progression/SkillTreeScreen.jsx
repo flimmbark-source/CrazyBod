@@ -100,6 +100,7 @@ export default function SkillTreeScreen({
   onResetFull,
 }) {
   const [activeId, setActiveId] = useState(null)
+  const [deniedId, setDeniedId] = useState(null)
   const active = activeId ? SKILL_TREE_NODES_BY_ID[activeId] : null
   const activeVisible = active && isRevealed(progression, active.id) ? active : null
 
@@ -107,6 +108,11 @@ export default function SkillTreeScreen({
     if (state === 'hidden') return
     if (state === 'enabled' || state === 'disabled') onToggle(node.id, state === 'disabled')
     else if (state === 'available') onPurchase(node.id)
+    else if (state === 'unaffordable') {
+      // Give feedback instead of silently ignoring the click.
+      setDeniedId(node.id)
+      window.setTimeout(() => setDeniedId((id) => (id === node.id ? null : id)), 480)
+    }
   }
 
   return (
@@ -131,11 +137,12 @@ export default function SkillTreeScreen({
         {SKILL_TREE_NODES.map((node) => {
           const state = nodeState(progression, node)
           const affordable = state === 'available'
+          const showCost = state === 'available' || state === 'unaffordable'
           return (
             <button
               key={node.id}
               type="button"
-              className={`tree-node tree-node-${state}${activeId === node.id ? ' is-active' : ''}`}
+              className={`tree-node tree-node-${state}${activeId === node.id ? ' is-active' : ''}${deniedId === node.id ? ' is-denied' : ''}`}
               style={{ left: `${node.x}%`, top: `${node.y}%` }}
               onClick={() => clickNode(node, state)}
               onMouseEnter={() => setActiveId(node.id)}
@@ -157,6 +164,7 @@ export default function SkillTreeScreen({
               <span className="tree-node-glyph">
                 {state === 'hidden' ? <span className="tree-node-lock">?</span> : <NodeIcon icon={node.icon} />}
               </span>
+              {showCost && <span className="tree-node-cost">{node.cost}</span>}
             </button>
           )
         })}
