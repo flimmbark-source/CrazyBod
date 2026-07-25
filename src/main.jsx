@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './styles.css'
@@ -13,8 +12,4 @@ import './skillTree.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+createRoot(document.getElementById('root')).render(<App />)
