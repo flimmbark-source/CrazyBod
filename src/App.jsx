@@ -17,6 +17,9 @@ import {
   scoreForElapsed,
 } from './config/gameConfig.js'
 import ResultsScreen from './results/ResultsScreen.jsx'
+import { useProgression } from './progression/useProgression.js'
+import SkillTreeScreen from './progression/SkillTreeScreen.jsx'
+import SkillTreeUnlock from './progression/SkillTreeUnlock.jsx'
 
 const OVERLOAD_LIMIT = 6
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
@@ -197,6 +200,10 @@ function App() {
   const [tutorialStep, setTutorialStep] = useState('none')
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
+  const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
+  const [firstUnlockPending, setFirstUnlockPending] = useState(false)
+  const [treeFirstView, setTreeFirstView] = useState(false)
+  const prevUnlockedRef = useRef(progression.treeUnlocked)
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
   const microgamesRef = useRef([])
@@ -469,6 +476,37 @@ function App() {
     setStatus(outcome)
   }, [])
 
+  // Bank the finished run exactly once. depositRun is idempotent by runId, so
+  // re-running this effect (e.g. under StrictMode) cannot double-deposit.
+  useEffect(() => {
+    if (!result) return
+    depositRun({ runId: result.runId, finalScore: result.finalScore })
+  }, [result, depositRun])
+
+  // Detect the first-ever unlock so the first-run flow can route into the tree.
+  useEffect(() => {
+    if (progression.treeUnlocked && !prevUnlockedRef.current) {
+      setFirstUnlockPending(true)
+    }
+    prevUnlockedRef.current = progression.treeUnlocked
+  }, [progression.treeUnlocked])
+
+  const openSkillTree = useCallback((firstView = false) => {
+    setFirstUnlockPending(false)
+    setTreeFirstView(firstView)
+    setStatus('skillTree')
+  }, [])
+
+  const exitToTitle = useCallback(() => {
+    setTreeFirstView(false)
+    setStatus('intro')
+  }, [])
+
+  const handleResetFull = useCallback(() => {
+    resetFull()
+    setTutorialEnabled(true)
+  }, [resetFull])
+
   useEffect(() => {
     if (status !== 'playing' || load < OVERLOAD_LIMIT) return
     finishRun('overload')
@@ -702,16 +740,44 @@ function App() {
             <strong>{tutorialEnabled ? 'ON' : 'OFF'}</strong>
           </button>
           <button type="button" onClick={startGame}>START THE DAY</button>
+          {progression.treeUnlocked && (
+            <button type="button" className="title-skill-tree" onClick={() => openSkillTree(false)}>
+              SKILL TREE
+            </button>
+          )}
         </OverlayCard>
       )}
 
-      {result && !['intro', 'countdown', 'playing'].includes(status) && (
-        <ResultsScreen
-          result={result}
-          capacity={result.capacity}
-          onRestart={startGame}
-          onTutorial={startTutorialGame}
+      {status === 'skillTree' && (
+        <SkillTreeScreen
+          progression={progression}
+          firstUnlock={treeFirstView}
+          onStartDay={startGame}
+          onExit={exitToTitle}
+          onPurchase={purchaseNode}
+          onToggle={toggleNode}
+          onResetTree={resetTree}
+          onResetFull={handleResetFull}
         />
+      )}
+
+      {['overload', 'home', 'complete'].includes(status) && result && (
+        firstUnlockPending ? (
+          <SkillTreeUnlock
+            finalScore={result.finalScore}
+            bank={progression.bank}
+            onOpenTree={() => openSkillTree(true)}
+          />
+        ) : (
+          <ResultsScreen
+            result={result}
+            capacity={result.capacity}
+            banked={progression.treeUnlocked ? progression.bank : null}
+            onRestart={startGame}
+            onTutorial={startTutorialGame}
+            onSkillTree={progression.treeUnlocked ? () => openSkillTree(false) : undefined}
+          />
+        )
       )}
     </main>
   )

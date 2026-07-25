@@ -1,0 +1,325 @@
+.skill-tree-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 10px;
+  padding: 18px clamp(14px, 4vw, 48px) 18px;
+  color: #fff8ef;
+  background:
+    radial-gradient(circle at 20% -10%, rgba(246, 199, 91, 0.14), transparent 42%),
+    #1b1720;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+.skill-tree-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.skill-tree-eyebrow {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: #f6c75b;
+}
+
+.skill-tree-header h1 {
+  margin: 2px 0 0;
+  font-size: clamp(22px, 4vw, 34px);
+  letter-spacing: 0.04em;
+}
+
+.skill-tree-bank {
+  text-align: right;
+  padding: 6px 14px;
+  border: 1px solid rgba(246, 199, 91, 0.4);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.skill-tree-bank span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  opacity: 0.7;
+}
+
+.skill-tree-bank strong {
+  font-size: 26px;
+  color: #f6c75b;
+}
+
+.skill-tree-canvas {
+  position: relative;
+  min-height: 0;
+  border: 1px solid rgba(255, 248, 239, 0.09);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18));
+  overflow: hidden;
+}
+
+.skill-tree-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.skill-tree-edges line {
+  stroke-width: 2;
+}
+
+.skill-tree-edges .edge-dim {
+  stroke: rgba(255, 248, 239, 0.16);
+  stroke-dasharray: 4 6;
+}
+
+.skill-tree-edges .edge-active {
+  stroke: rgba(246, 199, 91, 0.6);
+}
+
+.tree-node-anchor {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.tree-node {
+  position: relative;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: clamp(118px, 15vw, 156px);
+  min-height: 62px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 248, 239, 0.2);
+  background: rgba(30, 26, 38, 0.92);
+  color: #fff8ef;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.tree-node:hover:not(:disabled),
+.tree-node:focus-visible {
+  transform: translate(-50%, -50%) scale(1.04);
+  outline: none;
+}
+
+.tree-node-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.15;
+}
+
+.tree-node-tagline {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  opacity: 0.68;
+}
+
+.tree-node-cost {
+  margin-top: 2px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1b1720;
+  background: #f6c75b;
+}
+
+.tree-node-toggle {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+/* States */
+.tree-node-hidden {
+  cursor: default;
+  border-style: dashed;
+  border-color: rgba(255, 248, 239, 0.14);
+  background: rgba(20, 17, 26, 0.7);
+  color: rgba(255, 248, 239, 0.4);
+}
+
+.tree-node-available {
+  border-color: #f6c75b;
+  box-shadow: 0 0 0 3px rgba(246, 199, 91, 0.16);
+}
+
+.tree-node-unaffordable {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.tree-node-unaffordable .tree-node-cost {
+  background: #6b5a44;
+  color: #e9d4a6;
+}
+
+.tree-node-enabled {
+  border-color: #7fd6a0;
+  box-shadow: 0 0 0 3px rgba(127, 214, 160, 0.18);
+}
+
+.tree-node-enabled .tree-node-toggle {
+  color: #7fd6a0;
+}
+
+.tree-node-disabled {
+  border-color: rgba(255, 248, 239, 0.3);
+  opacity: 0.72;
+}
+
+.tree-node-disabled .tree-node-toggle {
+  color: rgba(255, 248, 239, 0.5);
+}
+
+.skill-tree-detail {
+  min-height: 62px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.skill-tree-detail strong {
+  display: block;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #f6c75b;
+}
+
+.skill-tree-detail p {
+  margin: 4px 0 2px;
+  font-size: 13px;
+}
+
+.skill-tree-detail small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.skill-tree-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.skill-tree-actions button {
+  padding: 11px 20px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.skill-tree-start {
+  background: #f6c75b;
+  color: #1b1720;
+}
+
+.skill-tree-back {
+  background: rgba(255, 248, 239, 0.12);
+  color: #fff8ef;
+}
+
+.skill-tree-resets {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.skill-tree-reset {
+  background: rgba(255, 248, 239, 0.08);
+  color: rgba(255, 248, 239, 0.75);
+  font-size: 12px;
+}
+
+.skill-tree-reset.danger {
+  color: #f2a2a2;
+}
+
+.reset-confirm {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.reset-confirm-yes {
+  background: #b8474f !important;
+  color: #fff !important;
+}
+
+.reset-confirm-no {
+  background: rgba(255, 248, 239, 0.12) !important;
+  color: #fff8ef !important;
+}
+
+/* First-run unlock + banked readouts reuse the results styling */
+.results-bank,
+.unlock-bank {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin: 4px 0 2px;
+  text-align: center;
+}
+
+.results-bank span,
+.unlock-bank span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  opacity: 0.7;
+}
+
+.results-bank strong,
+.unlock-bank strong {
+  font-size: 22px;
+  color: #f6c75b;
+}
+
+.results-skill-tree {
+  background: #f6c75b;
+  color: #1b1720;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.title-skill-tree {
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .skill-tree-screen {
+    grid-template-rows: auto 1fr auto auto;
+  }
+  .tree-node {
+    width: clamp(96px, 30vw, 130px);
+    min-height: 54px;
+    padding: 8px 9px;
+  }
+  .skill-tree-resets {
+    margin-left: 0;
+    width: 100%;
+  }
+}
