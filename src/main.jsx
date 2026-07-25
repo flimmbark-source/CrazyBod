@@ -16,7 +16,6 @@ import './progression/skillTree.css'
 import './progression/skillTreeTweaks.css'
 import './techniques/techniques.css'
 import './microgameEnhancements.js'
-import './holdAutotarget.js'
 import './tutorialFocusGuide.js'
 
 createRoot(document.getElementById('root')).render(
