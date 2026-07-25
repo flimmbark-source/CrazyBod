@@ -29,7 +29,7 @@ export const PACING_PHASES = [
     id: 'gettingReady',
     start: 5,
     end: 15,
-    interval: [4, 5],
+    interval: [5, 6],
     pairChance: 0.00,
     weights: {
       packingCheck: 4,

@@ -71,9 +71,9 @@ export const SKILL_TREE_NODES = [
     effect: {
       techniqueId: 'plan',
       triggerDay: 13.1,
-      addedSeconds: 4,
+      addedSeconds: 8,
       staggerPairs: 2,
-      staggerDelaySeconds: 3,
+      staggerDelaySeconds: 0.5,
     },
   },
   {
