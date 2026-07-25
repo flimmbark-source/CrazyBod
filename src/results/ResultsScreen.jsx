@@ -113,7 +113,15 @@ function HomeReturn({ capacity, activeAtEnd }) {
   )
 }
 
-function ResultsCard({ result, capacity, banked, onRestart, onTutorial, onSkillTree }) {
+function ResultsCard({
+  result,
+  capacity,
+  banked,
+  onRestart,
+  onTutorial,
+  onSkillTree,
+  emphasizeSkillTree,
+}) {
   const copy = RESULT_COPY[result.outcome]
   const actionClass = `results-actions${onSkillTree ? ' has-skill-tree' : ''}`
 
@@ -133,7 +141,11 @@ function ResultsCard({ result, capacity, banked, onRestart, onTutorial, onSkillT
             TRY ANOTHER DAY
           </button>
           {onSkillTree && (
-            <button className="results-skill-tree" type="button" onClick={onSkillTree}>
+            <button
+              className={`results-skill-tree${emphasizeSkillTree ? ' is-new' : ''}`}
+              type="button"
+              onClick={onSkillTree}
+            >
               SKILL TREE
             </button>
           )}
@@ -153,6 +165,7 @@ export default function ResultsScreen({
   onRestart,
   onTutorial,
   onSkillTree,
+  emphasizeSkillTree = false,
 }) {
   const isOverload = result.outcome === 'overload'
   const isHome = result.outcome === 'home'
@@ -189,6 +202,7 @@ export default function ResultsScreen({
           onRestart={onRestart}
           onTutorial={onTutorial}
           onSkillTree={onSkillTree}
+          emphasizeSkillTree={emphasizeSkillTree}
         />
       )}
     </div>

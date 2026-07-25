@@ -59,19 +59,7 @@ function setActive(windowElement) {
 }
 
 function autotargetEnabled() {
-  try {
-    const raw = window.localStorage.getItem(PROGRESSION_STORAGE_KEY)
-    if (!raw) return false
-    const progression = JSON.parse(raw)
-    const enabled = Array.isArray(progression?.enabledNodeIds)
-      ? progression.enabledNodeIds
-      : []
-    // `hold` is accepted here only so an older save works before the migrated
-    // progression state has been written back to localStorage.
-    return enabled.includes('autotarget') || enabled.includes('hold')
-  } catch {
-    return false
-  }
+  return autoTargetEnabled
 }
 
 function autotargetNextMicrogame() {
@@ -334,7 +322,7 @@ const rootObserver = new MutationObserver((records) => {
     activeWindow.__crazyBodCleanup?.()
     setActive(null)
 
-    if (activeGameWasRemoved && clearEffectWasAdded && autotargetEnabled()) {
+    if (activeGameWasRemoved && autotargetEnabled()) {
       queueMicrotask(autotargetNextMicrogame)
     }
   }

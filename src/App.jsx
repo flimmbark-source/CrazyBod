@@ -33,7 +33,6 @@ import ResultsScreen from './results/ResultsScreen.jsx'
 import { useProgression } from './progression/useProgression.js'
 import { computeCapacity } from './progression/progressionStore.js'
 import SkillTreeScreen from './progression/SkillTreeScreen.jsx'
-import SkillTreeUnlock from './progression/SkillTreeUnlock.jsx'
 
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 const READY_CUE_MS = 1150
@@ -636,10 +635,10 @@ function App() {
     setActiveTechnique(null)
   }, [])
 
-  // Hold It Together: while enabled during a run, clearing the focused
-  // minigame autotargets the next one for the keyboard.
+  // Auto Target: while enabled during a run, clearing the focused
+  // minigame moves keyboard focus to the next one on screen.
   useEffect(() => {
-    const on = status === 'playing' && progression.enabledNodeIds.includes('hold')
+    const on = status === 'playing' && progression.enabledNodeIds.includes('autotarget')
     setAutoTargetEnabled(on)
     return () => setAutoTargetEnabled(false)
   }, [status, progression.enabledNodeIds])
@@ -973,22 +972,17 @@ function App() {
       )}
 
       {['overload', 'home', 'complete'].includes(status) && result && (
-        firstUnlockPending ? (
-          <SkillTreeUnlock
-            finalScore={result.finalScore}
-            bank={progression.bank}
-            onOpenTree={() => openSkillTree(true)}
-          />
-        ) : (
-          <ResultsScreen
-            result={result}
-            capacity={result.capacity}
-            banked={progression.treeUnlocked ? progression.bank : null}
-            onRestart={startGame}
-            onTutorial={startTutorialGame}
-            onSkillTree={progression.treeUnlocked ? () => openSkillTree(false) : undefined}
-          />
-        )
+        <ResultsScreen
+          result={result}
+          capacity={result.capacity}
+          banked={progression.treeUnlocked ? progression.bank : null}
+          onRestart={startGame}
+          onTutorial={startTutorialGame}
+          onSkillTree={progression.treeUnlocked
+            ? () => openSkillTree(firstUnlockPending)
+            : undefined}
+          emphasizeSkillTree={firstUnlockPending}
+        />
       )}
     </main>
   )

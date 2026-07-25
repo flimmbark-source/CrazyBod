@@ -121,6 +121,33 @@
   background: #efc957;
 }
 
+.results-skill-tree.is-new {
+  animation: skill-tree-throb 1.15s ease-in-out infinite;
+}
+
+@keyframes skill-tree-throb {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 5px 0 #292431;
+  }
+
+  50% {
+    transform: scale(1.055);
+    box-shadow:
+      0 5px 0 #292431,
+      0 0 0 7px rgba(239, 201, 87, 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results-skill-tree.is-new {
+    animation: none;
+    outline: 5px solid rgba(239, 201, 87, 0.55);
+    outline-offset: 4px;
+  }
+}
+
 .results-actions:not(.has-skill-tree) .results-restart {
   grid-column: 1 / -1;
 }
