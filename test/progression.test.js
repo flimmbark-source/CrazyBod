@@ -21,7 +21,7 @@ import { STARTING_NODE_ID, getNode } from '../src/progression/skillTreeConfig.js
 const COST = {
   thisIsNormal: getNode('thisIsNormal').cost,
   rehearse: getNode('rehearse').cost,
-  hold: getNode('hold').cost,
+  autotarget: getNode('autotarget').cost,
   plan: getNode('plan').cost,
   adrenaline: getNode('adrenaline').cost,
   suppress: getNode('suppress').cost,
@@ -35,10 +35,21 @@ test('default state reveals only the starting node', () => {
 })
 
 test('migrate normalises junk and always reveals the starting node', () => {
-  const state = migrateProgression({ bank: -5, purchasedNodeIds: ['bogus', 'hold'], revealedNodeIds: null })
+  const state = migrateProgression({ bank: -5, purchasedNodeIds: ['bogus', 'autotarget'], revealedNodeIds: null })
   assert.equal(state.bank, 0)
-  assert.deepEqual(state.purchasedNodeIds, ['hold'])
+  assert.deepEqual(state.purchasedNodeIds, ['autotarget'])
   assert.ok(state.revealedNodeIds.includes(STARTING_NODE_ID))
+})
+
+test('migrate preserves the legacy Hold It Together purchase and enabled state', () => {
+  const state = migrateProgression({
+    purchasedNodeIds: ['hold'],
+    revealedNodeIds: ['hold'],
+    enabledNodeIds: ['hold'],
+  })
+  assert.deepEqual(state.purchasedNodeIds, ['autotarget'])
+  assert.ok(state.revealedNodeIds.includes('autotarget'))
+  assert.deepEqual(state.enabledNodeIds, ['autotarget'])
 })
 
 test('base capacity is 5 with nothing enabled', () => {
@@ -69,7 +80,7 @@ test('purchase subtracts exact cost, auto-enables, reveals children', () => {
   assert.ok(isPurchased(state, 'thisIsNormal'))
   assert.ok(isEnabled(state, 'thisIsNormal'))
   assert.ok(isRevealed(state, 'rehearse'))
-  assert.ok(isRevealed(state, 'hold'))
+  assert.ok(isRevealed(state, 'autotarget'))
   assert.equal(isRevealed(state, 'plan'), false) // grandchild not yet revealed
 })
 
@@ -82,13 +93,13 @@ test('purchase is rejected when invalid (no state change)', () => {
 test('toggle does not alter ownership or descendants', () => {
   let state = { ...defaultProgression(), bank: 1000 }
   state = purchaseNode(state, 'thisIsNormal')
-  state = purchaseNode(state, 'hold')
+  state = purchaseNode(state, 'autotarget')
   // Disable the parent.
   state = toggleNode(state, 'thisIsNormal', false)
   assert.equal(isEnabled(state, 'thisIsNormal'), false)
   assert.ok(isPurchased(state, 'thisIsNormal')) // still owned
-  assert.ok(isPurchased(state, 'hold')) // child still owned
-  assert.ok(isEnabled(state, 'hold')) // child still enabled
+  assert.ok(isPurchased(state, 'autotarget')) // child still owned
+  assert.ok(isEnabled(state, 'autotarget')) // child still enabled
   // Capacity dropped to 5 because This Is Normal is disabled.
   assert.equal(computeCapacity(state.enabledNodeIds), 5)
 })

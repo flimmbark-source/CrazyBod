@@ -8,11 +8,20 @@
 
 export const STARTING_NODE_ID = 'thisIsNormal'
 
+const PALETTES = {
+  passive: { accent: '#657c8f', dark: '#29333d', light: '#dbe5ec' },
+  preparation: { accent: '#efcf69', dark: '#8a6a27', light: '#fff4d8' },
+  automatic: { accent: '#625d82', dark: '#302b38', light: '#e6e1f0' },
+  emergency: { accent: '#a45f62', dark: '#6d2830', light: '#f4d6d8' },
+}
+
 export const SKILL_TREE_NODES = [
   {
     id: 'thisIsNormal',
     name: 'THIS IS NORMAL',
     tagline: 'Passive',
+    category: 'passive',
+    palette: PALETTES.passive,
     cost: 50,
     parent: null,
     x: 46,
@@ -20,14 +29,15 @@ export const SKILL_TREE_NODES = [
     icon: 'plus',
     hook: 'capacity',
     description: 'Increase the Overload limit by 1.',
-    detail:
-      '',
+    detail: '',
     effect: { capacityBonus: 1 },
   },
   {
     id: 'rehearse',
     name: 'REHEARSE THE CONVERSATION',
     tagline: 'Getting Ready · +5s',
+    category: 'preparation',
+    palette: PALETTES.preparation,
     cost: 175,
     parent: 'thisIsNormal',
     x: 31,
@@ -48,6 +58,8 @@ export const SKILL_TREE_NODES = [
     id: 'plan',
     name: 'RUN THROUGH THE PLAN',
     tagline: 'Getting Ready · +4s',
+    category: 'preparation',
+    palette: PALETTES.preparation,
     cost: 325,
     parent: 'rehearse',
     x: 18,
@@ -65,25 +77,34 @@ export const SKILL_TREE_NODES = [
     },
   },
   {
-    id: 'hold',
+    id: 'autotarget',
     name: 'HOLD IT TOGETHER',
-    tagline: 'Automatic · Once per run',
+    tagline: 'Automatic',
+    category: 'automatic',
+    palette: PALETTES.automatic,
     cost: 225,
     parent: 'thisIsNormal',
     x: 57,
     y: 68,
-    icon: 'hold',
-    hook: 'onSpawnAttempt',
-    description: 'Prevent Overload once.',
+    icon: 'target',
+    hook: 'onMicrogameClear',
+    description: 'Autotarget the next minigame after a Clear.',
     detail: '',
-    effect: { holdReleaseSeconds: 5 },
+    effect: {
+      autotargetAfterClear: true,
+      // App.jsx still performs a legacy getNode('hold') lookup. A zero value
+      // keeps that lookup safe without restoring the rejected spawn delay.
+      holdReleaseSeconds: 0,
+    },
   },
   {
     id: 'adrenaline',
     name: 'RUN ON ADRENALINE',
     tagline: 'Automatic · Once per run',
+    category: 'automatic',
+    palette: PALETTES.automatic,
     cost: 425,
-    parent: 'hold',
+    parent: 'autotarget',
     x: 74,
     y: 58,
     icon: 'bolt',
@@ -96,6 +117,8 @@ export const SKILL_TREE_NODES = [
     id: 'suppress',
     name: 'SUPPRESS VISIBLE DISTRESS',
     tagline: 'Automatic · Once per run',
+    category: 'emergency',
+    palette: PALETTES.emergency,
     cost: 650,
     parent: 'adrenaline',
     x: 87,
@@ -108,9 +131,16 @@ export const SKILL_TREE_NODES = [
   },
 ]
 
-export const SKILL_TREE_NODES_BY_ID = Object.fromEntries(
+const nodesById = Object.fromEntries(
   SKILL_TREE_NODES.map((node) => [node.id, node]),
 )
+
+// Compatibility only: old App code still asks for `hold`, while progression
+// migration rewrites saved ownership and activation to `autotarget`.
+export const SKILL_TREE_NODES_BY_ID = {
+  ...nodesById,
+  hold: nodesById.autotarget,
+}
 
 export function getNode(nodeId) {
   return SKILL_TREE_NODES_BY_ID[nodeId] ?? null

@@ -19,7 +19,12 @@ const ICONS = {
   plus: <path d="M12 6v12M6 12h12" />,
   chat: <path d="M5 6h14v9H9l-4 3z" />,
   list: <path d="M6 8h12M6 12h12M6 16h8" />,
-  hold: <path d="M9 6v12M15 6v12" />,
+  target: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+    </>
+  ),
   bolt: <path d="M13 5l-6 8h4l-1 6 6-9h-4z" />,
   shield: <path d="M12 5l6 2v5c0 4-3 6-6 7-3-1-6-3-6-7V7z" />,
 }
@@ -38,6 +43,14 @@ function NodeIcon({ icon }) {
       {ICONS[icon] ?? ICONS.plus}
     </svg>
   )
+}
+
+function paletteStyle(node) {
+  return {
+    '--node-accent': node.palette.accent,
+    '--node-dark': node.palette.dark,
+    '--node-light': node.palette.light,
+  }
 }
 
 function nodeState(progression, node) {
@@ -117,7 +130,11 @@ function NodeInspector({ node, state }) {
   const copy = stateCopy(node, state)
 
   return (
-    <aside className={`skill-tree-inspector inspector-${state}`} aria-live="polite">
+    <aside
+      className={`skill-tree-inspector inspector-${state} category-${node.category}`}
+      style={paletteStyle(node)}
+      aria-live="polite"
+    >
       <div className="inspector-topline">
         <span className="inspector-kicker">{node.tagline}</span>
         <span className="inspector-state">{copy.label}</span>
@@ -230,7 +247,12 @@ export default function SkillTreeScreen({
                 key={node.id}
                 type="button"
                 className={`tree-node tree-node-${state}${isRoot ? ' tree-node-root' : ''}${activeId === node.id ? ' is-active' : ''}${deniedId === node.id ? ' is-denied' : ''}`}
-                style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                data-skill-category={node.category}
+                style={{
+                  left: `${node.x}%`,
+                  top: `${node.y}%`,
+                  ...paletteStyle(node),
+                }}
                 onClick={() => clickNode(node, state)}
                 onMouseEnter={() => state !== 'hidden' && setActiveId(node.id)}
                 onFocus={() => state !== 'hidden' && setActiveId(node.id)}
