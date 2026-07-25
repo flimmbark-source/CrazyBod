@@ -199,6 +199,7 @@ export default function SkillTreeScreen({
                 }}
                 onClick={() => clickNode(node, state)}
                 onMouseEnter={() => state !== 'hidden' && setActiveId(node.id)}
+                onMouseLeave={() => setActiveId(null)}
                 onFocus={() => state !== 'hidden' && setActiveId(node.id)}
                 disabled={state === 'hidden'}
                 aria-label={
