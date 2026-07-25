@@ -1,4 +1,5 @@
-.dialogue-box.rehearsal-dialogue {
+.dialogue-box.rehearsal-dialogue,
+.dialogue-box.plan-dialogue {
   z-index: 150;
 }
 
@@ -51,8 +52,63 @@
   background: #efcf69;
 }
 
+.plan-dialogue .dialogue-options button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  text-align: left;
+}
+
+.plan-dialogue .dialogue-options button em {
+  display: inline-grid;
+  flex: 0 0 22px;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #282331;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 900;
+  background: #d7cdbf;
+}
+
+.plan-dialogue .dialogue-options button.plan-option-placed {
+  opacity: 0.68;
+  cursor: default;
+  background: #e7ddcf;
+}
+
+.plan-dialogue .dialogue-options button.plan-option-placed em {
+  background: #efcf69;
+}
+
+.plan-dialogue .dialogue-options button.plan-option-wrong {
+  animation: plan-option-wrong-flash 340ms ease-out;
+}
+
+@keyframes plan-option-wrong-flash {
+  0%, 100% {
+    color: #282331;
+    background: #fffaf4;
+    box-shadow: none;
+  }
+  25%, 65% {
+    color: #fffaf4;
+    background: #c93f49;
+    box-shadow: 0 0 0 3px rgba(201, 63, 73, 0.28);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rehearsal-dialogue-meter i {
     transition: none;
+  }
+
+  .plan-dialogue .dialogue-options button.plan-option-wrong {
+    animation-duration: 1ms;
+    background: #c93f49;
+    color: #fffaf4;
   }
 }
