@@ -155,21 +155,22 @@ const RESULT_COPY = {
   overload: {
     eyebrow: 'DAY RESULT',
     title: 'OVERLOADED',
-    outcome: 'Overloaded',
-    note: 'Your capacity ran out.',
   },
   home: {
     eyebrow: 'DAY RESULT',
     title: 'SAFE RETURN',
-    outcome: 'Went home',
-    note: 'You chose to stop.',
   },
   complete: {
     eyebrow: 'DAY RESULT',
     title: 'MADE IT',
-    outcome: 'Reached the café',
-    note: 'You finished!',
   },
+}
+
+function resultSummary(result) {
+  const duration = `${result.seconds.toFixed(1)} seconds`
+  if (result.outcome === 'overload') return `Your capacity ran out after ${duration}.`
+  if (result.outcome === 'home') return `You chose to stop after ${duration}.`
+  return `You reached the café in ${duration}.`
 }
 
 function scoreLedger(result) {
@@ -199,22 +200,15 @@ function showResults(result, originalRestartButton) {
         <header class="results-header">
           <span>${copy.eyebrow}</span>
           <h1 id="results-title">${copy.title}</h1>
-          <p>${copy.note}</p>
+          <p>${resultSummary(result)}</p>
         </header>
 
         ${scoreLedger(result)}
 
-        <div class="results-stats">
-          <div><span>TIME OUT</span><strong>${result.seconds.toFixed(1)}s</strong></div>
-          <div><span>CLEARED</span><strong>${result.solved}</strong></div>
-          <div><span>PEAK LOAD</span><strong>${result.peakLoad}/${OVERLOAD_LIMIT}</strong></div>
+        <div class="results-stats" aria-label="Run summary">
+          <div><span>CLEARED</span><strong>${result.solved} OF ${result.appeared}</strong></div>
           <div><span>LEFT ACTIVE</span><strong>${result.activeAtEnd}</strong></div>
-        </div>
-
-        <div class="results-outcome">
-          <span>OUTCOME</span>
-          <strong>${copy.outcome}</strong>
-          <small>${result.appeared} demands appeared</small>
+          <div><span>PEAK LOAD</span><strong>${result.peakLoad}/${OVERLOAD_LIMIT}</strong></div>
         </div>
 
         <div class="results-actions">
