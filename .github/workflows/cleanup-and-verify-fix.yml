@@ -1,0 +1,63 @@
+name: Cleanup and verify autotarget fix
+
+on:
+  push:
+    branches:
+      - fix/autotarget-skill-tree-intro
+    paths:
+      - .github/workflows/cleanup-and-verify-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/autotarget-skill-tree-intro
+          fetch-depth: 0
+
+      - name: Remove stale code
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("src/microgameEnhancements.js")
+          text = path.read_text()
+
+          old_import = "import { PROGRESSION_STORAGE_KEY } from './progression/progressionStore.js'\n\n"
+          if text.count(old_import) != 1:
+              raise RuntimeError("Expected the stale progression import exactly once")
+          text = text.replace(old_import, "", 1)
+
+          old_declaration = "  let clearEffectWasAdded = false\n\n"
+          if text.count(old_declaration) != 1:
+              raise RuntimeError("Expected clearEffectWasAdded declaration exactly once")
+          text = text.replace(old_declaration, "", 1)
+
+          old_added_check = "      if (node.matches('.completion-burst') || node.querySelector?.('.completion-burst')) {\n        clearEffectWasAdded = true\n      }\n"
+          if text.count(old_added_check) != 1:
+              raise RuntimeError("Expected completion burst tracking block exactly once")
+          text = text.replace(old_added_check, "", 1)
+
+          path.write_text(text)
+          Path(".github/workflows/cleanup-and-verify-fix.yml").unlink()
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/microgameEnhancements.js .github/workflows/cleanup-and-verify-fix.yml
+          git commit -m "Clean up autotarget state handling"
+          git push origin HEAD:fix/autotarget-skill-tree-intro
