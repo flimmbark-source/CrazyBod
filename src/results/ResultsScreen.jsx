@@ -10,7 +10,7 @@ const RESULT_COPY = {
   },
   home: {
     eyebrow: 'DAY RESULT',
-    title: 'SAFE RETURN',
+    title: 'RETURNED HOME',
   },
   complete: {
     eyebrow: 'DAY RESULT',
@@ -28,9 +28,9 @@ function prefersReducedMotion() {
 
 function resultSummary(result) {
   const duration = `${result.dayElapsed.toFixed(1)} seconds`
-  if (result.outcome === 'overload') return `Your capacity ran out after ${duration}.`
-  if (result.outcome === 'home') return `You chose to stop after ${duration}.`
-  return `You reached the café after ${duration}.`
+  if (result.outcome === 'overload') return `after ${duration}.`
+  if (result.outcome === 'home') return `after ${duration}.`
+  return `after ${duration}.`
 }
 
 function ScoreLedger({ result, banked }) {
@@ -127,22 +127,6 @@ function ResultsCard({ result, capacity, banked, onRestart, onTutorial, onSkillT
         </header>
 
         <ScoreLedger result={result} banked={banked} />
-
-        <div className="results-stats" aria-label="Run summary">
-          <div>
-            <span>CLEARED</span>
-            <strong>{result.clearedCount} OF {result.appeared}</strong>
-            {result.suppressedCount > 0 && <small>{result.suppressedCount} SUPPRESSED</small>}
-          </div>
-          <div>
-            <span>LEFT ACTIVE</span>
-            <strong>{result.activeAtEnd}</strong>
-          </div>
-          <div>
-            <span>PEAK LOAD</span>
-            <strong>{result.peakLoad}/{capacity}</strong>
-          </div>
-        </div>
 
         <div className={actionClass}>
           <button className="results-restart" type="button" onClick={onRestart}>
