@@ -1,0 +1,623 @@
+Locked implementation contract
+
+Progression
+
+The first run begins with 5 capacity.
+
+The first run’s final score is deposited into the persistent bank.
+
+The skill tree unlocks after that first result and opens automatically.
+
+Later result screens offer both Skill Tree and Try Another Day.
+
+The title screen shows Skill Tree only after progression exists.
+
+Purchases subtract from the bank.
+
+Overload banks the penalized final score.
+
+Going home banks the cashed-out score.
+
+Purchased nodes are permanently owned.
+
+Purchased nodes become enabled immediately.
+
+Purchased nodes can later be toggled independently.
+
+Disabling a parent does not disable or unpurchase its children. Prerequisites concern ownership, not activation.
+
+No refunds currently exist.
+
+Reset behavior
+
+Reset Skill Tree
+
+Clears purchased nodes.
+
+Clears enabled nodes.
+
+Resets revealed nodes to only the starting node.
+
+Keeps the tree unlocked.
+
+Keeps the current score bank.
+
+Does not refund anything previously spent.
+
+Reset Full Save
+
+Clears bank, tree, reveal state, enabled state, run history and unlock state.
+
+Returns the game to the original first-run condition.
+
+I would include tutorial completion in a full reset, since otherwise it is not actually a full save reset.
+
+Initial tree and exact prototype costs
+
+NORMAL
+
+Cost: 50 · Passive
+
+Increase the Overload limit by 1.
+
+REHEARSE
+
+Cost: 175 · Getting Ready · Adds 5 sec
+
+Complete the rehearsal to gain +1 Overload limit for the rest of the run.
+
+A wrong answer or timeout spawns 2 minigames.
+
+HOLD
+
+Cost: 225 · Automatic · Once per run
+
+The first minigame that would fill the last open Overload slot is held back.
+
+It spawns when a slot opens or after 5 seconds.
+
+PLAN
+
+Cost: 325 · Getting Ready · Adds 4 sec
+
+Complete the sequence to stagger the next 2 double spawns.
+
+The second minigame spawns 3 seconds later.
+
+ADRENALINE
+
+Cost: 425 · Automatic · Once per run
+
+At 1 below the Overload limit, stop new minigames from spawning for 6 seconds.
+
+Active minigames stay on screen.
+
+SUPPRESS
+
+Cost: 650 · Automatic · Once per run
+
+When you would Overload, mash Space to suppress half of the active minigames.
+
+Suppressed minigames do not count as cleared.
+
+Architectural refactor
+
+The largest efficiency improvement is to stop building progression around the current enhanced end-screen script.
+
+At present, React renders an EndCard, but endScreens.js observes the DOM, hides that card, derives results from rendered elements and creates a second result screen outside React.
+
+It also infers time from score, which stops working the moment unscored technique time exists.
+
+Trying to attach score deposits, tree unlocks and navigation to that observer would create two competing owners of the run result. The efficient path is to move the enhanced results into React and retire the imperative observer.
+
+Proposed modules
+
+src/
+  config/
+    gameConfig.js
+  progression/
+    progressionStore.js
+    skillTreeConfig.js
+    SkillTreeScreen.jsx
+    SkillTreeUnlock.jsx
+  results/
+    ResultsScreen.jsx
+  techniques/
+    RehearsalTechnique.jsx
+    SuppressionTechnique.jsx
+    techniqueEngine.js
+  App.jsx
+  pacingDirector.js
+
+This is enough separation without rewriting the entire project into a large architecture.
+
+One authoritative game configuration
+
+gameConfig.js should own:
+
+export const DAY_LENGTH = 50
+export const SCORE_PER_SECOND = 10
+export const BASE_OVERLOAD_LIMIT = 5
+
+export const PHASES = [
+  { id: 'waking', label: 'WAKING UP', start: 0, end: 5 },
+  { id: 'gettingReady', label: 'GETTING READY', start: 5, end: 15 },
+  { id: 'walking', label: 'WALKING TO THE CAFÉ', start: 15, end: 30 },
+  { id: 'ordering', label: 'ORDERING', start: 30, end: 42 },
+  { id: 'sitting', label: 'SITTING DOWN', start: 42, end: 50 },
+]
+
+Capacity and score constants are currently duplicated between the main game and the external result script.
+
+That duplication must disappear before capacity becomes dynamic.
+
+Persistence model
+
+Use a versioned local-storage object:
+
+{
+  version: 1,
+
+  bank: 0,
+  treeUnlocked: false,
+
+  purchasedNodeIds: [],
+  revealedNodeIds: [],
+  enabledNodeIds: [],
+
+  completedRuns: 0,
+  highScore: 0,
+  lastBankedRunId: null
+}
+
+lastBankedRunId prevents accidental duplicate deposits.
+
+The tutorial currently uses a separate local-storage key, so storage is already part of the game’s behavior.
+
+Purchase transaction
+
+function purchaseNode(nodeId) {
+  // Validate node exists.
+  // Validate it is revealed.
+  // Validate it is not already purchased.
+  // Validate bank >= cost.
+
+  // Subtract cost.
+  // Add to purchased.
+  // Add to enabled.
+  // Reveal children.
+  // Persist once.
+}
+
+Purchased children remain available even when a prerequisite node is disabled.
+
+Result transaction
+
+All outcomes should pass through one React function:
+
+finishRun({
+  outcome,
+  rawScore,
+  finalScore,
+  dayElapsed,
+  runElapsed,
+  clearedCount,
+  suppressedCount,
+  peakLoad,
+})
+
+That function:
+
+ends the run;
+
+constructs the result;
+
+deposits finalScore;
+
+increments completed runs;
+
+updates high score;
+
+persists the result exactly once;
+
+decides whether the tree unlock flow is required.
+
+No score banking should happen from a render effect.
+
+Screen flow
+
+First run
+
+TITLE
+  ↓
+FIRST RUN AT 5 CAPACITY
+  ↓
+RESULTS
+  ↓
+DEPOSIT FINAL SCORE
+  ↓
+SKILL TREE UNLOCKED
+  ↓
+SKILL TREE OPENS
+  ↓
+PURCHASE OR START NEXT RUN
+
+This interprets “automatically open after the first result” as a first-run exception. The player reaches the tree automatically but can immediately start another run from it without purchasing anything.
+
+Later runs
+
+RESULTS
+  ├── SKILL TREE
+  └── TRY ANOTHER DAY
+
+Title screen
+
+Before progress:
+
+START THE DAY
+TUTORIAL
+
+After progress:
+
+START THE DAY
+SKILL TREE
+TUTORIAL
+
+Timing refactor
+
+The current elapsed value controls score, phase, completion, world movement and pacing.  The pacing director also derives its current phase from that same value.
+
+Split it into:
+
+runElapsed
+dayElapsed
+activeTechnique
+
+Use explicit subsystem flags:
+
+const dayAdvancing =
+  status === 'playing'
+  && !tutorialPaused
+  && !orderDialogueOpen
+  && !activeTechnique?.pausesDay
+
+const spawningEnabled =
+  status === 'playing'
+  && directorReady
+  && !tutorialPaused
+  && !orderDialogueOpen
+  && !activeTechnique?.pausesSpawns
+
+Rehearsal state
+
+runElapsed       advances
+dayElapsed       pauses
+score            pauses
+world path       pauses
+spawn timer      advances
+minigame input   remains active
+
+Suppression state
+
+runElapsed       advances
+dayElapsed       pauses
+score            pauses
+world path       pauses
+spawn timer      pauses
+Space            routed to squeeze
+other input      remains active
+
+Normal dialogue
+
+The current café ordering dialogue pauses gameplay. That existing behavior can remain separate from techniques rather than being forced into the same pause definition.
+
+Pacing refactor
+
+Change the pacing call from:
+
+takeSpawnBatch(director, { elapsed })
+
+to:
+
+takeSpawnBatch(director, {
+  spawnElapsed: runElapsed,
+  phaseId: currentPhase.id,
+})
+
+Then:
+
+runElapsed controls whether another spawn is due;
+
+phaseId controls the weights, interval and pair chance.
+
+Delayed games from Hold It Together or Run Through the Plan should enter a small pending-spawn queue:
+
+pendingSpawns = [
+  {
+    kind: 'brainFog',
+    releaseAt: runElapsed + 3,
+    releaseCondition: 'time',
+  }
+]
+
+This avoids adding separate timers throughout the components.
+
+Effect engine
+
+Do not hardcode every skill directly into App.jsx.
+
+The first version only needs a few event boundaries:
+
+computeCapacity(enabledNodes, runBonuses)
+
+onTechniqueTrigger(context)
+
+onSpawnAttempt(batch, context)
+
+onLoadChanged(context)
+
+onBeforeOverload(context)
+
+Node categories map cleanly:
+
+Node
+
+Hook
+
+This Is Normal
+
+computeCapacity
+
+Rehearse the Conversation
+
+scheduled technique trigger
+
+Run Through the Plan
+
+scheduled technique trigger plus onSpawnAttempt
+
+Hold It Together
+
+onSpawnAttempt
+
+Run on Adrenaline
+
+onLoadChanged
+
+Suppress Visible Distress
+
+onBeforeOverload
+
+This is enough extensibility without building a generic scripting language.
+
+Efficient implementation sequence
+
+Commit 1: Pure configuration and tests
+
+Centralize phases, capacity and score constants.
+
+Create skill-tree configuration.
+
+Add progression schema.
+
+Add Node’s built-in test runner rather than a new testing dependency.
+
+The project currently has only dev, build and preview scripts.
+
+Add:
+
+"test": "node --test"
+
+Test pure progression and phase functions first.
+
+Commit 2: React-owned results
+
+Rebuild the enhanced result screen as React.
+
+Remove the endScreens.js side-effect import.
+
+Preserve current presentation and statistics.
+
+Pass real result data instead of reading DOM text.
+
+Verify all three outcomes before proceeding.
+
+Commit 3: Split the clocks without techniques
+
+Introduce runElapsed and dayElapsed.
+
+Refactor pacing to receive time and phase separately.
+
+Keep both clocks advancing together.
+
+Confirm the game behaves identically except that first-run capacity is now 5.
+
+This validation boundary catches timing regressions before the tree complicates them.
+
+Commit 4: Persistence and tree UI
+
+Implement bank deposit.
+
+Implement unlock state.
+
+Implement six-node config.
+
+Implement hidden, available, unaffordable, purchased and disabled visuals.
+
+Implement purchasing and toggling.
+
+Implement reset actions.
+
+Add title-screen access.
+
+Use fixed authored node coordinates. A layout library would be unnecessary overhead for six nodes and would make responsive behavior harder to control.
+
+Commit 5: This Is Normal
+
+Calculate capacity from enabled nodes.
+
+Update overload logic, meter pips, accessibility text and result statistics.
+
+Verify:
+
+first run capacity 5;
+
+purchased and enabled capacity 6;
+
+disabled capacity 5.
+
+This completes the first full progression loop.
+
+Commit 6: Rehearse the Conversation
+
+Add scheduled trigger at configurable 7.35.
+
+Add mixed correct/free-response prompt support.
+
+Pause day progression but continue spawning.
+
+Keep minigames interactive.
+
+Success grants run capacity after completion.
+
+Failure requests an immediate two-game spawn.
+
+Track technique success and failure in the run result internally.
+
+This validates the hardest timing requirement.
+
+Commit 7: Spawn-control nodes
+
+Add pending-spawn queue.
+
+Implement Hold It Together.
+
+Implement Run Through the Plan.
+
+Implement Run on Adrenaline.
+
+Test their stacking order explicitly.
+
+Commit 8: Suppress Visible Distress
+
+Intercept overload before status changes.
+
+Add squeeze state and Space capture.
+
+Pause day and spawning.
+
+Preserve other input.
+
+Randomly suppress half of the remaining games.
+
+Track suppressed separately from cleared.
+
+Resume safely.
+
+Commit 9: Cleanup and presentation
+
+Remove obsolete end-screen scripts.
+
+Remove duplicated constants.
+
+Add tree animations and responsive styling.
+
+Add reset confirmations.
+
+Audit keyboard and mobile behavior.
+
+Run build and complete manual run matrix.
+
+Required test matrix
+
+Progression
+
+Final score deposits once.
+
+Overload deposits penalized score.
+
+Going home deposits full cashed-out score.
+
+Purchase subtracts exact cost.
+
+Purchase auto-enables.
+
+Purchase reveals children.
+
+Toggle does not alter ownership or descendants.
+
+Tree reset does not refund.
+
+Full reset returns to first-run state.
+
+Capacity
+
+First run: 5.
+
+This Is Normal enabled: 6.
+
+Rehearsal success: 7 for that run.
+
+Rehearsal failure: remains 6 and spawns two.
+
+Disabling This Is Normal: 5 on the next run.
+
+Timing
+
+Normal play advances both clocks.
+
+Rehearsal advances only run time.
+
+Spawning continues during rehearsal.
+
+Suppression advances run time but pauses day and spawning.
+
+Maximum score remains 500 regardless of added technique time.
+
+Journey completion still occurs at dayElapsed = 50.
+
+Suppression
+
+Intercepts overload once.
+
+Requires 12 presses.
+
+Removes half of current active games.
+
+Leaves the correct rounded-down remainder.
+
+Does not increment cleared count.
+
+Cannot activate twice.
+
+Ordinary overload occurs normally after it is spent.
+
+Contradiction audit
+
+The plan preserves the established constraints:
+
+No skill changes individual minigame difficulty.
+
+Added scheduled time is unscored.
+
+Scheduled techniques pause phase progression.
+
+Spawning continues during rehearsal.
+
+Spawning pauses during suppression.
+
+Suppression requires player input.
+
+Purchased nodes start enabled but remain toggleable.
+
+Toggling does not destroy purchase or reveal state.
+
+The tree presents itself as an actual game skill tree.
+
+The first run is meaningfully harder because capacity begins at 5.
+
+The starting node restores the capacity previously treated as normal.
+
+Recognition is produced by the accumulating system, not explanatory menu copy.
+
+The only content still missing is final dialogue wording, final animation art and later-tree nodes. None of those should delay the refactor or the first playable branch.
