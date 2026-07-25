@@ -88,8 +88,8 @@ export const SKILL_TREE_NODES = [
     y: 58,
     icon: 'bolt',
     hook: 'onLoadChanged',
-    description: '+6s Spawn delay (10%)',
-    detail: '10% to pause spawning for 6 seconds.',
+    description: '10% chance to pause spawning for 6 seconds.',
+    detail: '',
     effect: { belowLimit: 1, pauseSeconds: 6 },
   },
   {

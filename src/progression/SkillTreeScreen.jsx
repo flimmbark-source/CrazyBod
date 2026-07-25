@@ -263,7 +263,6 @@ export default function SkillTreeScreen({
       </div>
 
       <div className="skill-tree-bank" aria-live="polite">
-        <span className="bank-label">BANKED</span>
         <span className="bank-gem" aria-hidden="true" />
         <strong>{progression.bank}</strong>
         {firstUnlock && <em className="bank-unlocked">UNLOCKED</em>}
