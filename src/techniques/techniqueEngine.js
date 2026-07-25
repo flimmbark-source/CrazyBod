@@ -26,8 +26,25 @@ export const REHEARSAL_SEQUENCE = {
   ],
 }
 
+// Run Through the Plan: put the morning's steps back in order. `order` is the
+// intended chronological position; the component presents them shuffled.
+export const PLAN_SEQUENCE = {
+  steps: [
+    { label: 'Keys', order: 0 },
+    { label: 'Wallet', order: 1 },
+    { label: 'Phone', order: 2 },
+    { label: 'Door', order: 3 },
+  ],
+}
+
 export function scoredPromptCount(prompts) {
   return prompts.filter((prompt) => prompt.correctOption !== null).length
+}
+
+// A scheduled technique (rehearsal or plan) succeeds only when it finished
+// within its window with nothing done wrong.
+export function scheduledSucceeded({ finished, wrong }) {
+  return finished && !wrong
 }
 
 // A rehearsal succeeds only if every scored prompt was answered correctly and

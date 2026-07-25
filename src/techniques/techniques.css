@@ -101,6 +101,79 @@
   background: #f6c75b;
 }
 
+.plan-box {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 150;
+  width: min(460px, calc(100vw - 28px));
+  padding: 14px 16px 14px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(127, 176, 246, 0.55);
+  background: rgba(27, 23, 32, 0.96);
+  color: #fff8ef;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  animation: rehearsal-in 180ms ease-out;
+}
+
+.plan-box .rehearsal-head span { color: #9ec2f6; }
+.plan-box .rehearsal-timer i { background: #9ec2f6; }
+
+.plan-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 248, 239, 0.18);
+  background: rgba(255, 248, 239, 0.06);
+  color: #fff8ef;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 110ms ease, border-color 110ms ease;
+}
+
+.plan-step em {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 248, 239, 0.14);
+  color: #fff8ef;
+}
+
+.plan-step:hover:not(:disabled),
+.plan-step:focus-visible {
+  background: rgba(158, 194, 246, 0.18);
+  border-color: rgba(158, 194, 246, 0.6);
+  outline: none;
+}
+
+.plan-step.placed {
+  border-color: rgba(158, 194, 246, 0.7);
+  opacity: 0.72;
+  cursor: default;
+}
+
+.plan-step.placed em {
+  background: #9ec2f6;
+  color: #1b1720;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .rehearsal-box { animation: none; }
+  .rehearsal-box,
+  .plan-box { animation: none; }
 }

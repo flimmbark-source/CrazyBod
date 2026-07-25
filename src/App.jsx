@@ -11,7 +11,13 @@ import {
   drawSpawnKinds,
 } from './pacingDirector.js'
 import RehearsalTechnique from './techniques/RehearsalTechnique.jsx'
-import { REHEARSAL_SEQUENCE, rehearsalSucceeded } from './techniques/techniqueEngine.js'
+import PlanTechnique from './techniques/PlanTechnique.jsx'
+import {
+  REHEARSAL_SEQUENCE,
+  PLAN_SEQUENCE,
+  rehearsalSucceeded,
+  scheduledSucceeded,
+} from './techniques/techniqueEngine.js'
 import { getNode } from './progression/skillTreeConfig.js'
 import {
   DAY_LENGTH,
@@ -208,9 +214,16 @@ function App() {
   const [firstUnlockPending, setFirstUnlockPending] = useState(false)
   const [treeFirstView, setTreeFirstView] = useState(false)
   const [runCapacityBonus, setRunCapacityBonus] = useState(0)
+  const [spawnPaused, setSpawnPaused] = useState(false)
   const prevUnlockedRef = useRef(progression.treeUnlocked)
   const capacityRef = useRef(0)
   const rehearsalFiredRef = useRef(false)
+  const planFiredRef = useRef(false)
+  const holdUsedRef = useRef(false)
+  const adrenalineFiredRef = useRef(false)
+  const planStaggerRemainingRef = useRef(0)
+  const pendingSpawnsRef = useRef([])
+  const enabledNodesRef = useRef(progression.enabledNodeIds)
   const techniqueOutcomesRef = useRef({})
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
@@ -238,6 +251,7 @@ function App() {
   // (e.g. a successful rehearsal). First run with nothing enabled is 5.
   const capacity = computeCapacity(progression.enabledNodeIds, runCapacityBonus)
   capacityRef.current = capacity
+  enabledNodesRef.current = progression.enabledNodeIds
   const load = microgames.length
   const overloadRatio = Math.min(1, load / capacity)
   const overloadShake = Math.max(0, load - 2) * 0.8
@@ -256,6 +270,7 @@ function App() {
     && directorReady
     && !tutorialPaused
     && !orderingPaused
+    && !spawnPaused
     && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
@@ -267,6 +282,11 @@ function App() {
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
     rehearsalFiredRef.current = false
+    planFiredRef.current = false
+    holdUsedRef.current = false
+    adrenalineFiredRef.current = false
+    planStaggerRemainingRef.current = 0
+    pendingSpawnsRef.current = []
     techniqueOutcomesRef.current = {}
     lastTickRef.current = 0
     dayElapsedRef.current = 0
@@ -282,6 +302,7 @@ function App() {
     setRunElapsed(0)
     setActiveTechnique(null)
     setRunCapacityBonus(0)
+    setSpawnPaused(false)
     setMicrogames([])
     setCompletionEffects([])
     setDialogueOpen(false)
@@ -358,6 +379,49 @@ function App() {
     })
     return game
   }, [])
+
+  // Route director spawns through the spawn-control hooks. A game is either
+  // placed now or pushed onto the pending queue for later release.
+  const requestSpawns = useCallback((entries) => {
+    const enabled = enabledNodesRef.current
+    const holdEnabled = enabled.includes('hold')
+    const planActive = planStaggerRemainingRef.current > 0
+    const planDelay = getNode('plan').effect.staggerDelaySeconds ?? 3
+    const holdSeconds = getNode('hold').effect.holdReleaseSeconds ?? 5
+    let staggeredThisBatch = false
+
+    entries.forEach((entry) => {
+      // Run Through the Plan: delay the second game of the next pair spawns.
+      if (planActive && entry.slot === 'pair') {
+        pendingSpawnsRef.current.push({
+          kind: entry.kind,
+          releaseAt: spawnElapsedRef.current + planDelay,
+          releaseCondition: 'time',
+        })
+        staggeredThisBatch = true
+        return
+      }
+      // Hold It Together: hold the first game that would fill the last slot.
+      if (
+        holdEnabled
+        && !holdUsedRef.current
+        && microgamesRef.current.length === capacityRef.current - 1
+      ) {
+        holdUsedRef.current = true
+        pendingSpawnsRef.current.push({
+          kind: entry.kind,
+          releaseAt: spawnElapsedRef.current + holdSeconds,
+          releaseCondition: 'slotOrTime',
+        })
+        return
+      }
+      spawnMicrogame(entry.kind)
+    })
+
+    if (staggeredThisBatch && planStaggerRemainingRef.current > 0) {
+      planStaggerRemainingRef.current -= 1
+    }
+  }, [spawnMicrogame])
 
   useEffect(() => {
     const handleTutorialRestart = () => startTutorialGame()
@@ -437,8 +501,31 @@ function App() {
       spawnElapsed,
       phaseId: currentPhaseId,
     })
-    batch.kinds.forEach(({ kind }) => spawnMicrogame(kind))
-  }, [spawningEnabled, spawnElapsed, currentPhaseId, spawnMicrogame])
+    requestSpawns(batch.kinds)
+  }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns])
+
+  // Release pending (held or staggered) spawns when their condition is met.
+  useEffect(() => {
+    if (status !== 'playing' || spawnPaused) return
+    const queue = pendingSpawnsRef.current
+    if (queue.length === 0) return
+
+    const now = spawnElapsedRef.current
+    const curLoad = microgamesRef.current.length
+    const cap = capacityRef.current
+    const ready = []
+    const rest = []
+    for (const item of queue) {
+      const timeUp = now >= item.releaseAt
+      const slotOpen = item.releaseCondition === 'slotOrTime' && curLoad < cap - 1
+      const release = item.releaseCondition === 'time' ? timeUp : timeUp || slotOpen
+      ;(release ? ready : rest).push(item)
+    }
+    if (ready.length) {
+      pendingSpawnsRef.current = rest
+      ready.forEach((item) => spawnMicrogame(item.kind))
+    }
+  }, [spawnElapsed, load, status, spawnPaused, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
@@ -548,6 +635,42 @@ function App() {
     }
     setActiveTechnique(null)
   }, [spawnMicrogame])
+
+  // Run Through the Plan: scheduled technique that staggers the next pairs.
+  useEffect(() => {
+    if (status !== 'playing' || activeTechnique || planFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('plan')) return
+    if (dayElapsed < getNode('plan').effect.triggerDay) return
+    planFiredRef.current = true
+    setActiveTechnique({ id: 'plan', pausesDay: true, pausesSpawns: false })
+  }, [status, activeTechnique, dayElapsed, progression.enabledNodeIds])
+
+  const completePlan = useCallback((outcome) => {
+    const node = getNode('plan')
+    const success = scheduledSucceeded(outcome)
+    techniqueOutcomesRef.current.plan = success ? 'success' : 'failure'
+    if (success) planStaggerRemainingRef.current = node.effect.staggerPairs ?? 2
+    setActiveTechnique(null)
+  }, [])
+
+  // Run on Adrenaline: pause new spawns for a window when load reaches one
+  // below capacity. Day and score keep going; existing minigames stay.
+  useEffect(() => {
+    if (status !== 'playing' || adrenalineFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('adrenaline')) return
+    const belowLimit = getNode('adrenaline').effect.belowLimit ?? 1
+    if (load < capacity - belowLimit) return
+    adrenalineFiredRef.current = true
+    techniqueOutcomesRef.current.adrenaline = 'used'
+    setSpawnPaused(true)
+  }, [load, capacity, status, progression.enabledNodeIds])
+
+  useEffect(() => {
+    if (!spawnPaused) return undefined
+    const seconds = getNode('adrenaline').effect.pauseSeconds ?? 6
+    const id = window.setTimeout(() => setSpawnPaused(false), seconds * 1000)
+    return () => window.clearTimeout(id)
+  }, [spawnPaused])
 
   useEffect(() => {
     if (status !== 'playing' || load < capacity) return
@@ -754,6 +877,14 @@ function App() {
               prompts={REHEARSAL_SEQUENCE.prompts}
               timeLimitSeconds={getNode('rehearse').effect.addedSeconds}
               onComplete={completeRehearsal}
+            />
+          )}
+
+          {activeTechnique?.id === 'plan' && (
+            <PlanTechnique
+              steps={PLAN_SEQUENCE.steps}
+              timeLimitSeconds={getNode('plan').effect.addedSeconds}
+              onComplete={completePlan}
             />
           )}
 
