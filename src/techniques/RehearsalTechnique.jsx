@@ -1,16 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import DialogueBox from '../dialogue/DialogueBox.jsx'
+import '../dialogue/rehearsalDialogue.css'
 import { scoredPromptCount } from './techniqueEngine.js'
 
-// The rehearsal dialogue. It pauses the day (the parent sets activeTechnique
-// with pausesDay) but leaves minigames interactive — this panel only captures
-// its own pointer area, never the whole screen.
+// The rehearsal dialogue pauses the day (the parent sets activeTechnique with
+// pausesDay) but leaves minigames interactive. It uses the same dialogue box as
+// the rest of the game and only captures pointer input inside the box itself.
 //
 // Every answer advances the sequence. A wrong answer to a scored prompt marks
 // the run failed but does not stop it. Success requires finishing every prompt
 // with no wrong scored answers before the window expires; running out of time
 // is a timeout failure.
-export default function RehearsalTechnique({ prompts, timeLimitSeconds, onComplete }) {
+export default function RehearsalTechnique({
+  prompts,
+  timeLimitSeconds,
+  load = 0,
+  distortion = 0,
+  onComplete,
+}) {
   const [index, setIndex] = useState(0)
   const [remaining, setRemaining] = useState(timeLimitSeconds)
   const wrongRef = useRef(0)
@@ -53,47 +61,35 @@ export default function RehearsalTechnique({ prompts, timeLimitSeconds, onComple
   }
 
   const timeRatio = Math.max(0, Math.min(1, remaining / timeLimitSeconds))
+  const dialogue = {
+    speaker: 'Rehearse',
+    line: prompt.line,
+    options: prompt.options,
+  }
 
   return (
-    <section
-      className="dialogue-box rehearsal-dialogue"
-      role="dialog"
-      aria-label="Rehearse the conversation"
-      aria-live="polite"
-    >
-      <div className="speaker-row">
-        <span className="portrait">R</span>
-        <div>
-          <div className="rehearsal-head">
-            <strong>REHEARSE</strong>
-            <span>{remaining.toFixed(1)}s</span>
+    <DialogueBox
+      dialogue={dialogue}
+      load={load}
+      distortion={distortion}
+      onAnswer={answer}
+      className="rehearsal-dialogue"
+      ariaLabel="Rehearse the conversation"
+      beforeOptions={(
+        <div className="rehearsal-dialogue-clock" aria-label={`${remaining.toFixed(1)} seconds remaining`}>
+          <div className="rehearsal-dialogue-meter" aria-hidden="true">
+            <i style={{ transform: `scaleX(${timeRatio})` }} />
           </div>
-          <p>{prompt.line}</p>
+          <strong>{remaining.toFixed(1)}s</strong>
         </div>
-      </div>
-
-      <div className="rehearsal-timer">
-        <i style={{ transform: `scaleX(${timeRatio})` }} />
-      </div>
-
-      <div className="dialogue-options">
-        {prompt.options.map((option, optionIndex) => (
-          <button
-            key={option}
-            type="button"
-            style={{ '--option-index': optionIndex, '--load': 0 }}
-            onClick={() => answer(optionIndex)}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
-
-      <div className="rehearsal-progress" aria-hidden="true">
-        {prompts.map((_, promptIndex) => (
-          <i key={promptIndex} className={promptIndex <= index ? 'done' : ''} />
-        ))}
-      </div>
-    </section>
+      )}
+      afterOptions={(
+        <div className="rehearsal-dialogue-progress" aria-hidden="true">
+          {prompts.map((_, promptIndex) => (
+            <i key={promptIndex} className={promptIndex <= index ? 'done' : ''} />
+          ))}
+        </div>
+      )}
+    />
   )
 }
