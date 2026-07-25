@@ -28,6 +28,8 @@ unlocks, where banked score buys techniques:
   spawns.
 - **Hold It Together** — automatically targets the next remaining minigame after
   the active one is cleared.
+- **Hold It Together** — after you clear a minigame, the keyboard automatically
+  targets the next one, so a run plays without re-clicking each window.
 - **Run on Adrenaline** — pauses new spawns for six seconds at one below
   capacity.
 - **Suppress Visible Distress** — an emergency Space-mash that suppresses half of

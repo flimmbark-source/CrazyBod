@@ -10,6 +10,14 @@ const VARIANTS = {
 const bags = new Map()
 let activeWindow = null
 let syntheticPointerRelease = false
+let autoTargetEnabled = false
+
+// Hold It Together: when on, clearing the focused minigame hands the keyboard
+// to the next one on screen instead of dropping focus, so a run can be played
+// without re-clicking each window.
+export function setAutoTargetEnabled(enabled) {
+  autoTargetEnabled = enabled
+}
 
 function shuffled(values) {
   const next = [...values]
