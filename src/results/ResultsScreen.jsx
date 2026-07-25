@@ -89,6 +89,30 @@ function OverloadBust({ capacity }) {
   )
 }
 
+function HomeReturn({ capacity, activeAtEnd }) {
+  return (
+    <section className="home-return-stage" role="status" aria-live="polite">
+      <div className="home-hush" />
+      <div className="home-rings" aria-hidden="true">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <i key={index} className="home-ring" style={{ '--ring': index }} />
+        ))}
+      </div>
+      <div className="home-copy">
+        <strong>WENT HOME</strong>
+      </div>
+      <div
+        className="home-meter"
+        aria-label={`Went home with ${activeAtEnd} of ${capacity} capacity occupied`}
+      >
+        {Array.from({ length: capacity }).map((_, index) => (
+          <i key={index} className={index < activeAtEnd ? 'filled' : ''} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function ResultsCard({ result, capacity, banked, onRestart, onTutorial, onSkillTree }) {
   const copy = RESULT_COPY[result.outcome]
   const actionClass = `results-actions${onSkillTree ? ' has-skill-tree' : ''}`
@@ -147,17 +171,23 @@ export default function ResultsScreen({
   onSkillTree,
 }) {
   const isOverload = result.outcome === 'overload'
-  const [phase, setPhase] = useState(isOverload ? 'bust' : 'results')
+  const isHome = result.outcome === 'home'
+  const [phase, setPhase] = useState(isOverload ? 'bust' : isHome ? 'home' : 'results')
 
   useEffect(() => {
-    if (phase !== 'bust') return undefined
-    const duration = prefersReducedMotion() ? 1850 : 2150
+    if (phase !== 'bust' && phase !== 'home') return undefined
+
+    const reducedMotion = prefersReducedMotion()
+    const duration = phase === 'bust'
+      ? (reducedMotion ? 1850 : 2150)
+      : (reducedMotion ? 1500 : 2200)
     const timer = window.setTimeout(() => setPhase('results'), duration)
     return () => window.clearTimeout(timer)
   }, [phase])
 
   const rootClass = useMemo(() => {
     if (phase === 'bust') return 'end-sequence-root showing-bust'
+    if (phase === 'home') return 'end-sequence-root showing-home'
     return `end-sequence-root showing-results outcome-${result.outcome}`
   }, [phase, result.outcome])
 
@@ -165,6 +195,8 @@ export default function ResultsScreen({
     <div className={rootClass}>
       {phase === 'bust' ? (
         <OverloadBust capacity={capacity} />
+      ) : phase === 'home' ? (
+        <HomeReturn capacity={capacity} activeAtEnd={result.activeAtEnd} />
       ) : (
         <ResultsCard
           result={result}
