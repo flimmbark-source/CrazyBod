@@ -143,8 +143,8 @@
 
 .tree-node-unaffordable {
   color: var(--node-light);
-  border-color: var(--node-dark);
-  background: transparent;
+  border-color: rgb(255, 199, 15);
+  background: rgba(252, 157, 33, 0.954);
   filter: none;
   opacity: 0.34;
 }
@@ -152,7 +152,7 @@
 .tree-node-hidden {
   color: rgba(255, 250, 244, 0.28);
   border: 2px solid rgba(255, 250, 244, 0.16);
-  background: transparent;
+  background: rgba(255, 250, 244, 0.28);
   box-shadow: none;
   opacity: 1;
 }

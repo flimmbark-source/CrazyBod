@@ -51,7 +51,7 @@ export const PACING_PHASES = [
     start: 15,
     end: 30,
     interval: [2, 3],
-    pairChance: 0.00,
+    pairChance: 0.20,
     weights: {
       balance: 4,
       tremor: 3,
@@ -72,7 +72,7 @@ export const PACING_PHASES = [
     start: 30,
     end: 42,
     interval: [2, 3],
-    pairChance: 0.10,
+    pairChance: 0.20,
     weights: {
       anxiety: 4,
       taskSwitching: 4,
@@ -93,8 +93,8 @@ export const PACING_PHASES = [
     id: 'sitting',
     start: 42,
     end: Number.POSITIVE_INFINITY,
-    interval: [2, 3],
-    pairChance: 0.15,
+    interval: [1, 3],
+    pairChance: 0.20,
     weights: {
       fatigue: 3,
       pressurePoint: 3,

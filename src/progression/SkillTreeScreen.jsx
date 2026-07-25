@@ -63,10 +63,10 @@ function isOwnedState(state) {
 }
 
 function popupHint(node, state, bank) {
-  if (state === 'enabled') return 'Select the node again to disable it.'
-  if (state === 'disabled') return 'Select the node again to enable it.'
-  if (state === 'available') return `Select the node to spend ${node.cost} banked score.`
-  if (state === 'unaffordable') return `You need ${Math.max(0, node.cost - bank)} more banked score.`
+  if (state === 'enabled') return 'Enabled.'
+  if (state === 'disabled') return 'Disabled.'
+  if (state === 'available') return `Buy for ${node.cost}.`
+  if (state === 'unaffordable') return `You need ${Math.max(0, node.cost - bank)} to Buy.`
   return ''
 }
 
@@ -181,23 +181,6 @@ export default function SkillTreeScreen({
       <div className="skill-tree-board">
         <div className="skill-tree-map" role="group" aria-label="Skill tree">
           <svg className="skill-tree-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {SKILL_TREE_EDGES.map(({ from, to }) => {
-              const a = SKILL_TREE_NODES_BY_ID[from]
-              const b = SKILL_TREE_NODES_BY_ID[to]
-              const lit = isPurchased(progression, from) && isRevealed(progression, to)
-
-              return (
-                <line
-                  key={`${from}-${to}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  className={lit ? 'edge-lit' : 'edge-dim'}
-                  vectorEffect="non-scaling-stroke"
-                />
-              )
-            })}
           </svg>
 
           {SKILL_TREE_NODES.map((node) => {

@@ -9,16 +9,16 @@
 export const STARTING_NODE_ID = 'thisIsNormal'
 
 const PALETTES = {
-  passive: { accent: '#657c8f', dark: '#29333d', light: '#dbe5ec' },
-  preparation: { accent: '#efcf69', dark: '#8a6a27', light: '#fff4d8' },
-  automatic: { accent: '#625d82', dark: '#302b38', light: '#e6e1f0' },
-  emergency: { accent: '#a45f62', dark: '#6d2830', light: '#f4d6d8' },
+  passive: { accent: '#657c8f', dark: '#4c9eef', light: '#dbe5ec' },
+  preparation: { accent: '#efcf69', dark: '#fdc03c', light: '#fff4d8' },
+  automatic: { accent: '#625d82', dark: '#843cf6', light: '#e6e1f0' },
+  emergency: { accent: '#a45f62', dark: '#f73d52', light: '#f4d6d8' },
 }
 
 export const SKILL_TREE_NODES = [
   {
     id: 'thisIsNormal',
-    name: 'THIS IS NORMAL',
+    name: 'Its Normal',
     tagline: 'Passive',
     category: 'passive',
     palette: PALETTES.passive,
@@ -28,14 +28,14 @@ export const SKILL_TREE_NODES = [
     y: 50,
     icon: 'plus',
     hook: 'capacity',
-    description: 'Increase the Overload limit by 1.',
+    description: 'Overload Capacity +1.',
     detail: '',
     effect: { capacityBonus: 1 },
   },
   {
     id: 'rehearse',
-    name: 'REHEARSE THE CONVERSATION',
-    tagline: 'Getting Ready · +5s',
+    name: 'Reherse Lines',
+    tagline: '',
     category: 'preparation',
     palette: PALETTES.preparation,
     cost: 175,
@@ -44,20 +44,20 @@ export const SKILL_TREE_NODES = [
     y: 33,
     icon: 'chat',
     hook: 'scheduledTechnique',
-    description: '+1 Overload limit on success.',
-    detail: 'Spawn 2 minigames on failure.',
+    description: 'Overload Capacity +1.',
+    detail: 'Spawn 1 minigames on failure.',
     effect: {
       techniqueId: 'rehearsal',
       triggerDay: 7.35,
       addedSeconds: 5,
       runCapacityBonus: 1,
-      failureSpawnCount: 2,
+      failureSpawnCount: 1,
     },
   },
   {
     id: 'plan',
-    name: 'RUN THROUGH THE PLAN',
-    tagline: 'Getting Ready · +4s',
+    name: 'Run Through Plan',
+    tagline: '',
     category: 'preparation',
     palette: PALETTES.preparation,
     cost: 325,
@@ -67,7 +67,7 @@ export const SKILL_TREE_NODES = [
     icon: 'list',
     hook: 'scheduledTechnique',
     description: '+3s Spawn delay (10%)',
-    detail: 'Each minigame has a 10% to spawn 3 seconds later.',
+    detail: 'Minigames have a 10% to spawn 3 seconds later.',
     effect: {
       techniqueId: 'plan',
       triggerDay: 13.1,
@@ -78,8 +78,8 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'autotarget',
-    name: 'HOLD IT TOGETHER',
-    tagline: 'Automatic',
+    name: 'Put on Gameface',
+    tagline: '',
     category: 'automatic',
     palette: PALETTES.automatic,
     cost: 225,
@@ -88,7 +88,7 @@ export const SKILL_TREE_NODES = [
     y: 68,
     icon: 'target',
     hook: 'onMicrogameClear',
-    description: 'Autotarget the next minigame after a Clear.',
+    description: 'Autotarget minigames.',
     detail: '',
     effect: {
       autotargetAfterClear: true,
@@ -99,8 +99,8 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'adrenaline',
-    name: 'RUN ON ADRENALINE',
-    tagline: 'Automatic · Once per run',
+    name: 'ADRENALINE',
+    tagline: '',
     category: 'automatic',
     palette: PALETTES.automatic,
     cost: 425,
@@ -116,7 +116,7 @@ export const SKILL_TREE_NODES = [
   {
     id: 'suppress',
     name: 'SUPPRESS VISIBLE DISTRESS',
-    tagline: 'Automatic · Once per run',
+    tagline: '',
     category: 'emergency',
     palette: PALETTES.emergency,
     cost: 650,
@@ -125,7 +125,7 @@ export const SKILL_TREE_NODES = [
     y: 77,
     icon: 'shield',
     hook: 'onBeforeOverload',
-    description: 'Prevent Overload once, then mash Space to destroy active minigames.',
+    description: 'Prevent Overload once, mash Space to destroy minigames.',
     detail: '',
     effect: { techniqueId: 'suppression', requiredPresses: 12 },
   },

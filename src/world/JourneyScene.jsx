@@ -408,14 +408,44 @@ function Bedroom({ elapsed }) {
 
       <Box position={[1.35, 0.04, 1.55]} size={[2.1, 0.08, 2.75]} color="#b57669" />
 
-      <group>
-        <Box position={[2.8, 0.025, -1.75]} size={[2.2, 0.05, 2.55]} color="#b8c0b8" />
-        <Box position={[3.1, 0.7, -1.75]} size={[1.45, 1.35, 0.62]} color="#66766f" />
-        <Cylinder position={[3.1, 1.44, -1.72]} args={[0.42, 0.34, 0.18, 12]} color="#e2ddd0" castShadow={false} />
-        <Cylinder position={[3.1, 1.73, -1.72]} args={[0.045, 0.055, 0.42, 8]} color="#777c83" castShadow={false} />
-        <Box position={[3.1, 2.42, -1.41]} size={[1.4, 1.08, 0.07]} color="#9bb5bb" opacity={0.72} castShadow={false} />
+<group
+  position={[3.1, 0, -1.75]}
+  rotation={[0, -Math.PI / 2, 0]}
+>
+  <Box
+    position={[-0.3, 0.025, 0]}
+    size={[2.2, 0.05, 2.55]}
+    color="#b8c0b8"
+  />
 
-      </group>
+  <Box
+    position={[0, 0.7, 0]}
+    size={[1.45, 1.35, 0.62]}
+    color="#66766f"
+  />
+
+  <Cylinder
+    position={[0, 1.44, 0.03]}
+    args={[0.42, 0.34, 0.18, 12]}
+    color="#e2ddd0"
+    castShadow={false}
+  />
+
+  <Cylinder
+    position={[0, 1.73, 0.03]}
+    args={[0.045, 0.055, 0.42, 8]}
+    color="#777c83"
+    castShadow={false}
+  />
+
+  <Box
+    position={[0, 2.42, 0.34]}
+    size={[1.4, 1.08, 0.07]}
+    color="#9bb5bb"
+    opacity={0.72}
+    castShadow={false}
+  />
+</group>
 
       <group position={[0, 0, -10.8]}>
         <Box position={[0, -0.02, 0]} size={[4.4, 0.2, 9]} color="#8f7e6c" />
