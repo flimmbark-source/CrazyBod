@@ -1,5 +1,3 @@
-import { PROGRESSION_STORAGE_KEY } from './progression/progressionStore.js'
-
 const VARIANTS = {
   discomfort: ['steady', 'alternating', 'chase'],
   anxiety: ['scatter', 'ring', 'zigzag', 'corners', 'spiral'],
@@ -299,8 +297,6 @@ function onKeyUp(event) {
 
 const rootObserver = new MutationObserver((records) => {
   let activeGameWasRemoved = false
-  let clearEffectWasAdded = false
-
   for (const record of records) {
     for (const node of record.removedNodes) {
       if (!(node instanceof Element)) continue
@@ -310,9 +306,6 @@ const rootObserver = new MutationObserver((records) => {
     }
     for (const node of record.addedNodes) {
       if (!(node instanceof Element)) continue
-      if (node.matches('.completion-burst') || node.querySelector?.('.completion-burst')) {
-        clearEffectWasAdded = true
-      }
       if (node.matches('.microgame')) setupMicrogame(node)
       scanForMicrogames(node)
     }
