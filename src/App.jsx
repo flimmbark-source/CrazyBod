@@ -12,11 +12,13 @@ import {
 } from './pacingDirector.js'
 import RehearsalTechnique from './techniques/RehearsalTechnique.jsx'
 import PlanTechnique from './techniques/PlanTechnique.jsx'
+import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
 import {
   REHEARSAL_SEQUENCE,
   PLAN_SEQUENCE,
   rehearsalSucceeded,
   scheduledSucceeded,
+  suppressionSplit,
 } from './techniques/techniqueEngine.js'
 import { getNode } from './progression/skillTreeConfig.js'
 import {
@@ -215,6 +217,8 @@ function App() {
   const [treeFirstView, setTreeFirstView] = useState(false)
   const [runCapacityBonus, setRunCapacityBonus] = useState(0)
   const [spawnPaused, setSpawnPaused] = useState(false)
+  const [suppressing, setSuppressing] = useState(false)
+  const suppressUsedRef = useRef(false)
   const prevUnlockedRef = useRef(progression.treeUnlocked)
   const capacityRef = useRef(0)
   const rehearsalFiredRef = useRef(false)
@@ -265,12 +269,14 @@ function App() {
   const dayAdvancing = status === 'playing'
     && !tutorialPaused
     && !orderingPaused
+    && !suppressing
     && !activeTechnique?.pausesDay
   const spawningEnabled = status === 'playing'
     && directorReady
     && !tutorialPaused
     && !orderingPaused
     && !spawnPaused
+    && !suppressing
     && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
@@ -287,6 +293,7 @@ function App() {
     adrenalineFiredRef.current = false
     planStaggerRemainingRef.current = 0
     pendingSpawnsRef.current = []
+    suppressUsedRef.current = false
     techniqueOutcomesRef.current = {}
     lastTickRef.current = 0
     dayElapsedRef.current = 0
@@ -303,6 +310,7 @@ function App() {
     setActiveTechnique(null)
     setRunCapacityBonus(0)
     setSpawnPaused(false)
+    setSuppressing(false)
     setMicrogames([])
     setCompletionEffects([])
     setDialogueOpen(false)
@@ -672,10 +680,42 @@ function App() {
     return () => window.clearTimeout(id)
   }, [spawnPaused])
 
+  // Suppress Visible Distress: intercept the overload before the run ends, once
+  // per run, if the node is enabled. Otherwise overload normally.
+  const completeSuppression = useCallback(() => {
+    const games = microgamesRef.current
+    const currentLoad = games.length
+    const { suppressed: suppressCount } = suppressionSplit(currentLoad)
+    // Choose random targets now that the squeeze is done — the player may have
+    // cleared some by hand while mashing.
+    const order = games.map((_, index) => index)
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[order[i], order[j]] = [order[j], order[i]]
+    }
+    const targetIds = new Set(order.slice(0, suppressCount).map((index) => games[index].id))
+    suppressedCountRef.current += targetIds.size
+    // Mark as resolved so they cannot also be counted as cleared, then remove
+    // them without touching the cleared counter.
+    targetIds.forEach((id) => resolvedGamesRef.current.add(id))
+    setMicrogames((current) => {
+      const next = current.filter((game) => !targetIds.has(game.id))
+      microgamesRef.current = next
+      return next
+    })
+    techniqueOutcomesRef.current.suppress = 'used'
+    setSuppressing(false)
+  }, [])
+
   useEffect(() => {
-    if (status !== 'playing' || load < capacity) return
+    if (status !== 'playing' || load < capacity || suppressing) return
+    if (!suppressUsedRef.current && progression.enabledNodeIds.includes('suppress')) {
+      suppressUsedRef.current = true
+      setSuppressing(true)
+      return
+    }
     finishRun('overload')
-  }, [load, status, capacity, finishRun])
+  }, [load, status, capacity, suppressing, progression.enabledNodeIds, finishRun])
 
   useEffect(() => {
     if (status !== 'playing' || dayElapsed < DAY_LENGTH) return
@@ -885,6 +925,13 @@ function App() {
               steps={PLAN_SEQUENCE.steps}
               timeLimitSeconds={getNode('plan').effect.addedSeconds}
               onComplete={completePlan}
+            />
+          )}
+
+          {suppressing && (
+            <SuppressionTechnique
+              requiredPresses={getNode('suppress').effect.requiredPresses}
+              onComplete={completeSuppression}
             />
           )}
 

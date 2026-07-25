@@ -7,6 +7,7 @@ import {
   scoredPromptCount,
   rehearsalSucceeded,
   scheduledSucceeded,
+  suppressionSplit,
 } from '../src/techniques/techniqueEngine.js'
 import { drawSpawnKinds, createPacingDirector } from '../src/pacingDirector.js'
 
@@ -39,4 +40,15 @@ test('drawSpawnKinds returns the requested count from a phase pool', () => {
   const kinds = drawSpawnKinds(director, { phaseId: 'gettingReady', count: 2 })
   assert.equal(kinds.length, 2)
   for (const kind of kinds) assert.equal(typeof kind, 'string')
+})
+
+test('suppression split matches the specified table', () => {
+  const cases = [[5,3,2],[6,3,3],[7,4,3],[8,4,4]]
+  for (const [load, suppressed, remaining] of cases) {
+    const s = suppressionSplit(load)
+    if (s.suppressed !== suppressed || s.remaining !== remaining) {
+      throw new Error(`load ${load} -> ${JSON.stringify(s)}`)
+    }
+    if (s.suppressed + s.remaining !== load) throw new Error('parts must sum to load')
+  }
 })

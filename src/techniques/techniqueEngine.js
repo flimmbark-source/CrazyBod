@@ -47,6 +47,16 @@ export function scheduledSucceeded({ finished, wrong }) {
   return finished && !wrong
 }
 
+// Suppress Visible Distress removal rule. "Destroy half" and "leave a fixed
+// resulting load" are reconciled as suppress = ceil(load/2), remaining =
+// floor(load/2).
+export function suppressionSplit(load) {
+  return {
+    suppressed: Math.ceil(load / 2),
+    remaining: Math.floor(load / 2),
+  }
+}
+
 // A rehearsal succeeds only if every scored prompt was answered correctly and
 // the sequence finished before the window expired.
 export function rehearsalSucceeded({ finished, wrongScoredAnswers }) {
