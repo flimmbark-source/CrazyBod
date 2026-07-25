@@ -90,7 +90,12 @@ export const SKILL_TREE_NODES = [
     hook: 'onMicrogameClear',
     description: 'Autotarget the next minigame after a Clear.',
     detail: '',
-    effect: { autotargetAfterClear: true },
+    effect: {
+      autotargetAfterClear: true,
+      // App.jsx still performs a legacy getNode('hold') lookup. A zero value
+      // keeps that lookup safe without restoring the rejected spawn delay.
+      holdReleaseSeconds: 0,
+    },
   },
   {
     id: 'adrenaline',
@@ -126,9 +131,16 @@ export const SKILL_TREE_NODES = [
   },
 ]
 
-export const SKILL_TREE_NODES_BY_ID = Object.fromEntries(
+const nodesById = Object.fromEntries(
   SKILL_TREE_NODES.map((node) => [node.id, node]),
 )
+
+// Compatibility only: old App code still asks for `hold`, while progression
+// migration rewrites saved ownership and activation to `autotarget`.
+export const SKILL_TREE_NODES_BY_ID = {
+  ...nodesById,
+  hold: nodesById.autotarget,
+}
 
 export function getNode(nodeId) {
   return SKILL_TREE_NODES_BY_ID[nodeId] ?? null
