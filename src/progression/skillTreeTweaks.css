@@ -95,7 +95,7 @@
   border: 2px solid var(--node-accent);
   border-radius: 50%;
   color: var(--node-light);
-  background: #302b38;
+  background: #37382b;
   box-shadow: none;
   cursor: pointer;
   transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
@@ -129,9 +129,6 @@
   filter: none;
 }
 
-.tree-node-disabled svg {
-  opacity: 0.46;
-}
 
 .tree-node-available {
   color: var(--node-dark);
@@ -146,7 +143,7 @@
   border-color: rgb(255, 199, 15);
   background: rgba(252, 157, 33, 0.954);
   filter: none;
-  opacity: 0.34;
+  ;
 }
 
 .tree-node-hidden {
