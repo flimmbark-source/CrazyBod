@@ -5,16 +5,13 @@ import './styles.css'
 import './compat.css'
 import './microgameEnhancements.css'
 import './completionEffects.css'
-import './endScreens.css'
-import './endScreensCompat.css'
-import './endScreensResponsive.css'
 import './tutorial.css'
 import './tutorialFocusGuide.css'
 import './minigames.css'
 import './startSequence.css'
+import './skillTree.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
-import './endScreens.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
