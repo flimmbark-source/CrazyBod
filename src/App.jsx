@@ -8,7 +8,11 @@ import {
   createPacingDirector,
   initializePacingDirector,
   takeSpawnBatch,
+  drawSpawnKinds,
 } from './pacingDirector.js'
+import RehearsalTechnique from './techniques/RehearsalTechnique.jsx'
+import { REHEARSAL_SEQUENCE, rehearsalSucceeded } from './techniques/techniqueEngine.js'
+import { getNode } from './progression/skillTreeConfig.js'
 import {
   DAY_LENGTH,
   OVERLOAD_SCORE_MULTIPLIER,
@@ -206,6 +210,8 @@ function App() {
   const [runCapacityBonus, setRunCapacityBonus] = useState(0)
   const prevUnlockedRef = useRef(progression.treeUnlocked)
   const capacityRef = useRef(0)
+  const rehearsalFiredRef = useRef(false)
+  const techniqueOutcomesRef = useRef({})
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
   const microgamesRef = useRef([])
@@ -260,6 +266,8 @@ function App() {
     resolvedGamesRef.current = new Set()
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
+    rehearsalFiredRef.current = false
+    techniqueOutcomesRef.current = {}
     lastTickRef.current = 0
     dayElapsedRef.current = 0
     spawnElapsedRef.current = 0
@@ -479,6 +487,7 @@ function App() {
       capacity,
       activeAtEnd,
       appeared: Math.max(spawnedCountRef.current, cleared + activeAtEnd),
+      techniques: { ...techniqueOutcomesRef.current },
     })
     setStatus(outcome)
   }, [])
@@ -513,6 +522,32 @@ function App() {
     resetFull()
     setTutorialEnabled(true)
   }, [resetFull])
+
+  // Fire the rehearsal once per run, at its configured day-time trigger, but
+  // only when the node is enabled and nothing else is active.
+  useEffect(() => {
+    if (status !== 'playing' || activeTechnique || rehearsalFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('rehearse')) return
+    if (dayElapsed < getNode('rehearse').effect.triggerDay) return
+    rehearsalFiredRef.current = true
+    setActiveTechnique({ id: 'rehearsal', pausesDay: true, pausesSpawns: false })
+  }, [status, activeTechnique, dayElapsed, progression.enabledNodeIds])
+
+  const completeRehearsal = useCallback((outcome) => {
+    const node = getNode('rehearse')
+    const success = rehearsalSucceeded(outcome)
+    techniqueOutcomesRef.current.rehearsal = success ? 'success' : 'failure'
+    if (success) {
+      setRunCapacityBonus((bonus) => bonus + (node.effect.runCapacityBonus ?? 1))
+    } else {
+      const phaseId = phaseFor(dayElapsedRef.current).id
+      drawSpawnKinds(directorRef.current, {
+        phaseId,
+        count: node.effect.failureSpawnCount ?? 2,
+      }).forEach((kind) => spawnMicrogame(kind))
+    }
+    setActiveTechnique(null)
+  }, [spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing' || load < capacity) return
@@ -711,6 +746,14 @@ function App() {
               load={load}
               distortion={distortion}
               onAnswer={answerOrderDialogue}
+            />
+          )}
+
+          {activeTechnique?.id === 'rehearsal' && (
+            <RehearsalTechnique
+              prompts={REHEARSAL_SEQUENCE.prompts}
+              timeLimitSeconds={getNode('rehearse').effect.addedSeconds}
+              onComplete={completeRehearsal}
             />
           )}
 

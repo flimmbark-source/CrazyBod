@@ -59,6 +59,18 @@ export function createPacingDirector(seed = Date.now()) {
   }
 }
 
+// Draw `count` kinds immediately from a phase's pool, without touching the
+// spawn schedule. Used by techniques that force extra spawns (e.g. a failed
+// rehearsal spawning two Getting Ready minigames).
+export function drawSpawnKinds(director, { phaseId, count }) {
+  const phase = pacingPhaseById(phaseId)
+  const kinds = []
+  for (let i = 0; i < count; i += 1) {
+    kinds.push(drawKind(director, phase, kinds))
+  }
+  return kinds
+}
+
 export function initializePacingDirector(director, spawnElapsed = 0) {
   director.nextSpawnAt = spawnElapsed + randomBetween(director.random, OPENING_INTERVAL)
 }

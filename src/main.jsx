@@ -13,6 +13,7 @@ import './tutorialFocusGuide.css'
 import './minigames.css'
 import './startSequence.css'
 import './progression/skillTree.css'
+import './techniques/techniques.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
 
