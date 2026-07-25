@@ -6,7 +6,7 @@ The first run begins with 5 capacity.
 
 The first run’s final score is deposited into the persistent bank.
 
-The skill tree unlocks after that first result and opens automatically.
+The game-over animation finishes before the first results screen appears. On that first results screen only, Continue opens Skill Tree Unlocked, followed by the skill tree.
 
 Later result screens offer both Skill Tree and Try Another Day.
 
@@ -232,9 +232,13 @@ TITLE
   ↓
 FIRST RUN AT 5 CAPACITY
   ↓
+GAME-OVER ANIMATION
+  ↓
 RESULTS
   ↓
 DEPOSIT FINAL SCORE
+  ↓
+CONTINUE
   ↓
 SKILL TREE UNLOCKED
   ↓
@@ -242,7 +246,7 @@ SKILL TREE OPENS
   ↓
 PURCHASE OR START NEXT RUN
 
-This interprets “automatically open after the first result” as a first-run exception. The player reaches the tree automatically but can immediately start another run from it without purchasing anything.
+Continue appears on the first results screen only. The results screen does not skip directly to Skill Tree Unlocked.
 
 Later runs
 

@@ -1,3 +1,5 @@
+import { PROGRESSION_STORAGE_KEY } from './progression/progressionStore.js'
+
 const VARIANTS = {
   discomfort: ['steady', 'alternating', 'chase'],
   anxiety: ['scatter', 'ring', 'zigzag', 'corners', 'spiral'],
@@ -54,6 +56,28 @@ function setActive(windowElement) {
   activeWindow?.classList.remove('keyboard-active')
   activeWindow = windowElement?.isConnected ? windowElement : null
   activeWindow?.classList.add('keyboard-active')
+}
+
+function autotargetEnabled() {
+  try {
+    const raw = window.localStorage.getItem(PROGRESSION_STORAGE_KEY)
+    if (!raw) return false
+    const progression = JSON.parse(raw)
+    const enabled = Array.isArray(progression?.enabledNodeIds)
+      ? progression.enabledNodeIds
+      : []
+    // `hold` is accepted here only so an older save works before the migrated
+    // progression state has been written back to localStorage.
+    return enabled.includes('autotarget') || enabled.includes('hold')
+  } catch {
+    return false
+  }
+}
+
+function autotargetNextMicrogame() {
+  const next = [...document.querySelectorAll('.microgame')]
+    .find((windowElement) => windowElement.isConnected)
+  setActive(next ?? null)
 }
 
 function clickButton(button) {
@@ -286,14 +310,21 @@ function onKeyUp(event) {
 }
 
 const rootObserver = new MutationObserver((records) => {
+  let activeGameWasRemoved = false
+  let clearEffectWasAdded = false
+
   for (const record of records) {
     for (const node of record.removedNodes) {
       if (!(node instanceof Element)) continue
+      if (node === activeWindow || node.contains(activeWindow)) activeGameWasRemoved = true
       if (node.matches('.microgame')) node.__crazyBodCleanup?.()
       node.querySelectorAll?.('.microgame').forEach((game) => game.__crazyBodCleanup?.())
     }
     for (const node of record.addedNodes) {
       if (!(node instanceof Element)) continue
+      if (node.matches('.completion-burst') || node.querySelector?.('.completion-burst')) {
+        clearEffectWasAdded = true
+      }
       if (node.matches('.microgame')) setupMicrogame(node)
       scanForMicrogames(node)
     }
@@ -301,10 +332,11 @@ const rootObserver = new MutationObserver((records) => {
 
   if (activeWindow && !activeWindow.isConnected) {
     activeWindow.__crazyBodCleanup?.()
-    // The focused window was cleared. With autotarget on, pass the keyboard to
-    // the next remaining minigame; otherwise just drop focus.
-    const next = autoTargetEnabled ? document.querySelector('.microgame') : null
-    setActive(next)
+    setActive(null)
+
+    if (activeGameWasRemoved && clearEffectWasAdded && autotargetEnabled()) {
+      queueMicrotask(autotargetNextMicrogame)
+    }
   }
 })
 

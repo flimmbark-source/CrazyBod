@@ -1,28 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 
-// React-owned results screen. Replaces the old imperative endScreens.js
-// observer, which derived results by reading rendered DOM text and inferring
-// time from score. Everything here is driven by the real `result` object built
-// by finishRun, so unscored technique time no longer corrupts the readout.
+// React-owned results screen. Everything here is driven by the result object
+// created by finishRun, so the summary does not infer state from rendered DOM.
 
 const RESULT_COPY = {
   overload: {
     eyebrow: 'DAY RESULT',
     title: 'OVERLOADED',
-    outcome: 'Overloaded',
-    note: 'Your capacity ran out.',
   },
   home: {
     eyebrow: 'DAY RESULT',
-    title: 'SAFE RETURN',
-    outcome: 'Went home',
-    note: 'You chose to stop.',
+    title: 'RETURNED HOME',
   },
   complete: {
     eyebrow: 'DAY RESULT',
     title: 'MADE IT',
-    outcome: 'Reached the café',
-    note: 'You finished!',
   },
 }
 
@@ -34,8 +26,17 @@ function prefersReducedMotion() {
   }
 }
 
-function ScoreLedger({ result }) {
+function resultSummary(result) {
+  const duration = `${result.dayElapsed.toFixed(1)} seconds`
+  if (result.outcome === 'overload') return `after ${duration}.`
+  if (result.outcome === 'home') return `after ${duration}.`
+  return `after ${duration}.`
+}
+
+function ScoreLedger({ result, banked }) {
   const isOverload = result.outcome === 'overload'
+  const wasBanked = banked != null
+
   return (
     <div className="score-ledger">
       <div className="score-ledger-row">
@@ -53,9 +54,12 @@ function ScoreLedger({ result }) {
           <strong>100%</strong>
         </div>
       )}
-      <div className="score-ledger-row total">
-        <span>FINAL SCORE</span>
-        <strong>{result.finalScore}</strong>
+      <div className="score-ledger-row total" aria-live={wasBanked ? 'polite' : undefined}>
+        <span>{wasBanked ? 'BANKED' : 'FINAL SCORE'}</span>
+        <div className="score-total-value">
+          <strong>{wasBanked ? `+${result.finalScore}` : result.finalScore}</strong>
+          {wasBanked && <small>BANK TOTAL {banked}</small>}
+        </div>
       </div>
     </div>
   )
@@ -85,8 +89,33 @@ function OverloadBust({ capacity }) {
   )
 }
 
+function HomeReturn({ capacity, activeAtEnd }) {
+  return (
+    <section className="home-return-stage" role="status" aria-live="polite">
+      <div className="home-hush" />
+      <div className="home-rings" aria-hidden="true">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <i key={index} className="home-ring" style={{ '--ring': index }} />
+        ))}
+      </div>
+      <div className="home-copy">
+        <strong>WENT HOME</strong>
+      </div>
+      <div
+        className="home-meter"
+        aria-label={`Went home with ${activeAtEnd} of ${capacity} capacity occupied`}
+      >
+        {Array.from({ length: capacity }).map((_, index) => (
+          <i key={index} className={index < activeAtEnd ? 'filled' : ''} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function ResultsCard({ result, capacity, banked, onRestart, onTutorial, onSkillTree }) {
   const copy = RESULT_COPY[result.outcome]
+  const actionClass = `results-actions${onSkillTree ? ' has-skill-tree' : ''}`
 
   return (
     <section className="results-screen" aria-labelledby="results-title">
@@ -94,44 +123,20 @@ function ResultsCard({ result, capacity, banked, onRestart, onTutorial, onSkillT
         <header className="results-header">
           <span>{copy.eyebrow}</span>
           <h1 id="results-title">{copy.title}</h1>
-          <p>{copy.note}</p>
+          <p>{resultSummary(result)}</p>
         </header>
 
-        <ScoreLedger result={result} />
+        <ScoreLedger result={result} banked={banked} />
 
-        <div className="results-stats">
-          <div><span>TIME OUT</span><strong>{result.dayElapsed.toFixed(1)}s</strong></div>
-          <div><span>CLEARED</span><strong>{result.clearedCount}</strong></div>
-          <div><span>PEAK LOAD</span><strong>{result.peakLoad}/{capacity}</strong></div>
-          <div><span>LEFT ACTIVE</span><strong>{result.activeAtEnd}</strong></div>
-        </div>
-
-        <div className="results-outcome">
-          <span>OUTCOME</span>
-          <strong>{copy.outcome}</strong>
-          <small>
-            {result.appeared} demands appeared
-            {result.suppressedCount > 0 ? ` · ${result.suppressedCount} suppressed` : ''}
-          </small>
-        </div>
-
-        {banked != null && (
-          <div className="results-bank" aria-live="polite">
-            <span>BANKED</span>
-            <strong>+{result.finalScore}</strong>
-            <small>bank total {banked}</small>
-          </div>
-        )}
-
-        <div className="results-actions">
+        <div className={actionClass}>
+          <button className="results-restart" type="button" onClick={onRestart}>
+            TRY ANOTHER DAY
+          </button>
           {onSkillTree && (
             <button className="results-skill-tree" type="button" onClick={onSkillTree}>
               SKILL TREE
             </button>
           )}
-          <button className="results-restart" type="button" onClick={onRestart}>
-            TRY ANOTHER DAY
-          </button>
           <button className="results-tutorial" type="button" onClick={onTutorial}>
             PLAY TUTORIAL
           </button>
@@ -150,17 +155,23 @@ export default function ResultsScreen({
   onSkillTree,
 }) {
   const isOverload = result.outcome === 'overload'
-  const [phase, setPhase] = useState(isOverload ? 'bust' : 'results')
+  const isHome = result.outcome === 'home'
+  const [phase, setPhase] = useState(isOverload ? 'bust' : isHome ? 'home' : 'results')
 
   useEffect(() => {
-    if (phase !== 'bust') return undefined
-    const duration = prefersReducedMotion() ? 1850 : 2150
+    if (phase !== 'bust' && phase !== 'home') return undefined
+
+    const reducedMotion = prefersReducedMotion()
+    const duration = phase === 'bust'
+      ? (reducedMotion ? 1850 : 2150)
+      : (reducedMotion ? 1500 : 2200)
     const timer = window.setTimeout(() => setPhase('results'), duration)
     return () => window.clearTimeout(timer)
   }, [phase])
 
   const rootClass = useMemo(() => {
     if (phase === 'bust') return 'end-sequence-root showing-bust'
+    if (phase === 'home') return 'end-sequence-root showing-home'
     return `end-sequence-root showing-results outcome-${result.outcome}`
   }, [phase, result.outcome])
 
@@ -168,6 +179,8 @@ export default function ResultsScreen({
     <div className={rootClass}>
       {phase === 'bust' ? (
         <OverloadBust capacity={capacity} />
+      ) : phase === 'home' ? (
+        <HomeReturn capacity={capacity} activeAtEnd={result.activeAtEnd} />
       ) : (
         <ResultsCard
           result={result}

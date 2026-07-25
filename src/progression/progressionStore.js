@@ -15,6 +15,10 @@ export const PROGRESSION_STORAGE_KEY = 'crazybod:progression'
 export const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 export const PROGRESSION_VERSION = 1
 
+const LEGACY_NODE_IDS = {
+  hold: 'autotarget',
+}
+
 export function defaultProgression() {
   return {
     version: PROGRESSION_VERSION,
@@ -36,18 +40,21 @@ export function migrateProgression(raw) {
   if (!raw || typeof raw !== 'object') return base
 
   const asArray = (value) => (Array.isArray(value) ? value.filter((id) => typeof id === 'string') : [])
+  const asNodeIds = (value) => [
+    ...new Set(asArray(value).map((id) => LEGACY_NODE_IDS[id] ?? id)),
+  ]
   const asNumber = (value, fallback) => (Number.isFinite(value) ? value : fallback)
 
-  const revealed = new Set(asArray(raw.revealedNodeIds))
+  const revealed = new Set(asNodeIds(raw.revealedNodeIds))
   revealed.add(STARTING_NODE_ID)
 
   return {
     version: PROGRESSION_VERSION,
     bank: Math.max(0, asNumber(raw.bank, 0)),
     treeUnlocked: Boolean(raw.treeUnlocked),
-    purchasedNodeIds: asArray(raw.purchasedNodeIds).filter(getNode),
+    purchasedNodeIds: asNodeIds(raw.purchasedNodeIds).filter(getNode),
     revealedNodeIds: [...revealed].filter(getNode),
-    enabledNodeIds: asArray(raw.enabledNodeIds).filter(getNode),
+    enabledNodeIds: asNodeIds(raw.enabledNodeIds).filter(getNode),
     completedRuns: Math.max(0, Math.floor(asNumber(raw.completedRuns, 0))),
     highScore: Math.max(0, asNumber(raw.highScore, 0)),
     lastBankedRunId: typeof raw.lastBankedRunId === 'string' ? raw.lastBankedRunId : null,
