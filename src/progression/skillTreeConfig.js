@@ -34,7 +34,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'rehearse',
-    name: 'Reherse Lines (+5s)',
+    name: 'Reherse Lines (+8s)',
     tagline: '',
     category: 'preparation',
     palette: PALETTES.preparation,
@@ -49,7 +49,7 @@ export const SKILL_TREE_NODES = [
     effect: {
       techniqueId: 'rehearsal',
       triggerDay: 7.35,
-      addedSeconds: 5,
+      addedSeconds: 8,
       runCapacityBonus: 1,
       failureSpawnCount: 1,
     },

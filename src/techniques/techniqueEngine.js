@@ -10,12 +10,12 @@ export const REHEARSAL_SEQUENCE = {
   prompts: [
     {
       line: 'You picture walking in. What do you lead with?',
-      options: ['"Hey — good to see you."', '"...sorry, one second."', '"I almost didn\'t come."'],
+      options: ['"Hey, good to see you."', '"...sorry, one second."', '"I almost didn\'t come."'],
       correctOption: null, // free response — any answer advances
     },
     {
       line: 'They ask how you have been. Keep it level.',
-      options: ['"Honestly? Not great."', '"Good — busy, but good."', '"Why are you asking?"'],
+      options: ['"Honestly? Not great."', '"Good, busy, but good."', '"Why are you asking?"'],
       correctOption: 1,
     },
     {
