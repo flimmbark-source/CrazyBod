@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { scoredPromptCount } from './techniqueEngine.js'
 
-// The rehearsal box. It pauses the day (the parent sets activeTechnique with
-// pausesDay) but leaves minigames interactive — this panel only captures its
-// own pointer area, never the whole screen.
+// The rehearsal dialogue. It pauses the day (the parent sets activeTechnique
+// with pausesDay) but leaves minigames interactive — this panel only captures
+// its own pointer area, never the whole screen.
 //
 // Every answer advances the sequence. A wrong answer to a scored prompt marks
 // the run failed but does not stop it. Success requires finishing every prompt
@@ -56,24 +56,39 @@ export default function RehearsalTechnique({ prompts, timeLimitSeconds, onComple
 
   return (
     <section
-      className="rehearsal-box"
+      className="dialogue-box rehearsal-dialogue"
       role="dialog"
       aria-label="Rehearse the conversation"
       aria-live="polite"
     >
-      <div className="rehearsal-head">
-        <span>REHEARSE</span>
-        <strong>{remaining.toFixed(1)}s</strong>
+      <div className="speaker-row">
+        <span className="portrait">R</span>
+        <div>
+          <div className="rehearsal-head">
+            <strong>REHEARSE</strong>
+            <span>{remaining.toFixed(1)}s</span>
+          </div>
+          <p>{prompt.line}</p>
+        </div>
       </div>
-      <div className="rehearsal-timer"><i style={{ transform: `scaleX(${timeRatio})` }} /></div>
-      <p className="rehearsal-line">{prompt.line}</p>
-      <div className="rehearsal-options">
+
+      <div className="rehearsal-timer">
+        <i style={{ transform: `scaleX(${timeRatio})` }} />
+      </div>
+
+      <div className="dialogue-options">
         {prompt.options.map((option, optionIndex) => (
-          <button key={option} type="button" onClick={() => answer(optionIndex)}>
+          <button
+            key={option}
+            type="button"
+            style={{ '--option-index': optionIndex, '--load': 0 }}
+            onClick={() => answer(optionIndex)}
+          >
             {option}
           </button>
         ))}
       </div>
+
       <div className="rehearsal-progress" aria-hidden="true">
         {prompts.map((_, promptIndex) => (
           <i key={promptIndex} className={promptIndex <= index ? 'done' : ''} />
