@@ -1,0 +1,216 @@
+/* Final skill-tree tuning: compact nodes and category colour language drawn
+   from CrazyBod's existing blue-grey, gold, violet and muted-red palette. */
+
+.skill-tree-screen {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(98, 93, 130, 0.24), transparent 36%),
+    radial-gradient(circle at 72% 64%, rgba(164, 95, 98, 0.12), transparent 30%),
+    linear-gradient(145deg, #302b38 0%, #282331 52%, #1a1821 100%);
+}
+
+.skill-tree-map {
+  background:
+    radial-gradient(circle at 46% 50%, rgba(101, 124, 143, 0.1), transparent 18%),
+    radial-gradient(circle at 30% 30%, rgba(239, 207, 105, 0.08), transparent 24%),
+    linear-gradient(160deg, rgba(48, 43, 56, 0.98), rgba(26, 24, 33, 0.99));
+}
+
+.skill-tree-edges .edge-lit {
+  stroke: #efcf69;
+  filter: drop-shadow(0 0 6px rgba(239, 207, 105, 0.56));
+}
+
+.tree-node {
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  border-width: 3px;
+  box-shadow:
+    0 6px 0 #15111c,
+    0 12px 20px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 2px rgba(255, 248, 239, 0.08);
+}
+
+.tree-node-root {
+  width: 68px;
+  height: 68px;
+  margin: -34px 0 0 -34px;
+}
+
+.tree-node-rim { inset: 6px; }
+
+.tree-node .tree-node-glyph,
+.tree-node svg {
+  width: 24px;
+  height: 24px;
+}
+
+.tree-node-lock { font-size: 22px; }
+
+.tree-node-label {
+  top: calc(100% + 12px);
+  width: 128px;
+  font-size: 8px;
+}
+
+.tree-node-cost {
+  right: -9px;
+  top: -8px;
+  min-width: 31px;
+  padding: 4px 6px;
+  border-width: 2px;
+  font-size: 10px;
+}
+
+.tree-node.is-active::after {
+  inset: -9px;
+  border-width: 2px;
+}
+
+.tree-node-enabled {
+  color: var(--node-light);
+  border-color: var(--node-accent);
+  background: linear-gradient(155deg, var(--node-accent), var(--node-dark));
+  box-shadow:
+    0 6px 0 var(--node-dark),
+    0 0 18px var(--node-accent),
+    inset 0 0 0 2px rgba(255, 248, 239, 0.16);
+}
+
+.tree-node-disabled {
+  color: var(--node-light);
+  border-color: var(--node-dark);
+  background: linear-gradient(155deg, var(--node-dark), #282331);
+  filter: saturate(0.5) brightness(0.82);
+}
+
+.tree-node-available {
+  color: var(--node-dark);
+  border-color: var(--node-dark);
+  background: linear-gradient(155deg, var(--node-light), var(--node-accent));
+  box-shadow:
+    0 6px 0 var(--node-dark),
+    0 0 22px var(--node-accent),
+    inset 0 0 0 2px rgba(255, 250, 244, 0.28);
+  animation: tree-node-category-pulse 1.8s ease-in-out infinite;
+}
+
+.tree-node-unaffordable {
+  color: var(--node-light);
+  border-color: var(--node-dark);
+  background: linear-gradient(155deg, var(--node-dark), #282331);
+  filter: saturate(0.35) brightness(0.75);
+}
+
+.tree-node-enabled .tree-node-label,
+.tree-node-available .tree-node-label {
+  border-color: var(--node-accent);
+}
+
+.tree-node-disabled .tree-node-label,
+.tree-node-unaffordable .tree-node-label {
+  border-color: var(--node-dark);
+}
+
+.tree-node-unaffordable .tree-node-cost {
+  color: var(--node-light);
+  background: var(--node-dark);
+}
+
+.skill-tree-inspector:not(.is-empty) .inspector-icon {
+  color: var(--node-light);
+  background: var(--node-accent);
+}
+
+.skill-tree-inspector:not(.is-empty) .inspector-state {
+  color: var(--node-light);
+  background: var(--node-accent);
+}
+
+.skill-tree-inspector.inspector-available .inspector-state {
+  color: var(--node-dark);
+  background: var(--node-light);
+}
+
+.skill-tree-inspector.inspector-disabled .inspector-icon,
+.skill-tree-inspector.inspector-disabled .inspector-state,
+.skill-tree-inspector.inspector-unaffordable .inspector-icon,
+.skill-tree-inspector.inspector-unaffordable .inspector-state {
+  background: var(--node-dark);
+}
+
+.skill-tree-inspector:not(.is-empty) .inspector-rule {
+  box-shadow: 0 5px 0 var(--node-accent);
+}
+
+.skill-tree-inspector:not(.is-empty) .inspector-cost-row strong {
+  color: var(--node-accent);
+}
+
+.bank-gem {
+  background: #efcf69;
+  filter: drop-shadow(0 2px 0 #8a6a27);
+}
+
+@keyframes tree-node-category-pulse {
+  0%, 100% {
+    box-shadow:
+      0 6px 0 var(--node-dark),
+      0 0 17px var(--node-accent),
+      inset 0 0 0 2px rgba(255, 250, 244, 0.26);
+  }
+  50% {
+    box-shadow:
+      0 6px 0 var(--node-dark),
+      0 0 29px var(--node-accent),
+      inset 0 0 0 2px rgba(255, 250, 244, 0.38);
+  }
+}
+
+@media (max-width: 1050px) {
+  .tree-node {
+    width: 52px;
+    height: 52px;
+    margin: -26px 0 0 -26px;
+  }
+
+  .tree-node-root {
+    width: 62px;
+    height: 62px;
+    margin: -31px 0 0 -31px;
+  }
+
+  .tree-node .tree-node-glyph,
+  .tree-node svg {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (max-width: 760px) {
+  .tree-node {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+  }
+
+  .tree-node-root {
+    width: 52px;
+    height: 52px;
+    margin: -26px 0 0 -26px;
+  }
+
+  .tree-node .tree-node-glyph,
+  .tree-node svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .tree-node-rim { inset: 5px; }
+  .tree-node-label { top: calc(100% + 8px); width: 88px; font-size: 6.4px; }
+  .tree-node.is-active::after { inset: -7px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-node-available { animation: none; }
+}
