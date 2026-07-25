@@ -12,53 +12,31 @@ import {
   isRevealed,
 } from './progressionStore.js'
 
+// Compact node glyphs, drawn as inline SVG so the tiles read as icons rather
+// than labelled boxes. 24x24 viewBox, currentColor stroke.
+const ICONS = {
+  plus: <path d="M12 6v12M6 12h12" />,
+  chat: <path d="M5 6h14v9H9l-4 3z" />,
+  list: <path d="M6 8h12M6 12h12M6 16h8" />,
+  hold: <path d="M9 6v12M15 6v12" />,
+  bolt: <path d="M13 5l-6 8h4l-1 6 6-9h-4z" />,
+  shield: <path d="M12 5l6 2v5c0 4-3 6-6 7-3-1-6-3-6-7V7z" />,
+}
+
+function NodeIcon({ icon }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[icon] ?? ICONS.plus}
+    </svg>
+  )
+}
+
 function nodeState(progression, node) {
   if (!isRevealed(progression, node.id)) return 'hidden'
   if (isPurchased(progression, node.id)) {
     return isEnabled(progression, node.id) ? 'enabled' : 'disabled'
   }
   return canPurchase(progression, node.id).ok ? 'available' : 'unaffordable'
-}
-
-function TreeNode({ node, state, onPurchase, onToggle }) {
-  const hidden = state === 'hidden'
-  const purchased = state === 'enabled' || state === 'disabled'
-
-  const handleClick = () => {
-    if (hidden) return
-    if (purchased) onToggle(node.id, state === 'disabled')
-    else if (state === 'available') onPurchase(node.id)
-  }
-
-  const label = hidden ? 'Locked' : node.name
-  return (
-    <button
-      type="button"
-      className={`tree-node tree-node-${state}`}
-      style={{ left: `${node.x}%`, top: `${node.y}%` }}
-      onClick={handleClick}
-      disabled={hidden || state === 'unaffordable'}
-      aria-label={
-        hidden
-          ? 'Locked skill'
-          : `${node.name}. ${node.description} ${
-              purchased
-                ? state === 'enabled'
-                  ? 'Purchased and enabled. Activate to toggle off.'
-                  : 'Purchased but disabled. Activate to toggle on.'
-                : `Costs ${node.cost}. ${state === 'available' ? 'Available to purchase.' : 'Not enough banked.'}`
-            }`
-      }
-      aria-pressed={purchased ? state === 'enabled' : undefined}
-    >
-      <span className="tree-node-name">{hidden ? '???' : label}</span>
-      {!hidden && <span className="tree-node-tagline">{node.tagline}</span>}
-      {!hidden && !purchased && <span className="tree-node-cost">{node.cost}</span>}
-      {purchased && (
-        <span className="tree-node-toggle">{state === 'enabled' ? 'ON' : 'OFF'}</span>
-      )}
-    </button>
-  )
 }
 
 function ConfirmButton({ className, label, confirmLabel, onConfirm }) {
@@ -75,10 +53,7 @@ function ConfirmButton({ className, label, confirmLabel, onConfirm }) {
       <button
         type="button"
         className={`${className} reset-confirm-yes`}
-        onClick={() => {
-          setConfirming(false)
-          onConfirm()
-        }}
+        onClick={() => { setConfirming(false); onConfirm() }}
       >
         {confirmLabel}
       </button>
@@ -86,6 +61,31 @@ function ConfirmButton({ className, label, confirmLabel, onConfirm }) {
         CANCEL
       </button>
     </span>
+  )
+}
+
+function NodeTooltip({ node, state, affordable }) {
+  const side = node.x < 50 ? 'right' : 'left'
+  const hint = {
+    hidden: 'Locked',
+    available: `Cost ${node.cost} · click to unlock`,
+    unaffordable: `Cost ${node.cost} · need more banked`,
+    enabled: 'Enabled · click to turn off',
+    disabled: 'Owned · click to turn on',
+  }[state]
+
+  return (
+    <div
+      className={`tree-tip tree-tip-${side}`}
+      style={{ left: `${node.x}%`, top: `${node.y}%` }}
+      role="tooltip"
+    >
+      <strong>{node.name}</strong>
+      <span className="tree-tip-tag">{node.tagline}</span>
+      <p>{node.description}</p>
+      {node.detail && <small>{node.detail}</small>}
+      <span className={`tree-tip-hint${state === 'available' && affordable ? ' can-buy' : ''}`}>{hint}</span>
+    </div>
   )
 }
 
@@ -99,105 +99,88 @@ export default function SkillTreeScreen({
   onResetTree,
   onResetFull,
 }) {
-  const [selectedId, setSelectedId] = useState(null)
-  const selected = selectedId ? SKILL_TREE_NODES_BY_ID[selectedId] : null
-  const selectedVisible = selected && isRevealed(progression, selected.id) ? selected : null
+  const [activeId, setActiveId] = useState(null)
+  const active = activeId ? SKILL_TREE_NODES_BY_ID[activeId] : null
+  const activeVisible = active && isRevealed(progression, active.id) ? active : null
+
+  const clickNode = (node, state) => {
+    if (state === 'hidden') return
+    if (state === 'enabled' || state === 'disabled') onToggle(node.id, state === 'disabled')
+    else if (state === 'available') onPurchase(node.id)
+  }
 
   return (
     <div className="skill-tree-screen">
-      <header className="skill-tree-header">
-        <div>
-          <span className="skill-tree-eyebrow">
-            {firstUnlock ? 'SKILL TREE UNLOCKED' : 'SKILL TREE'}
-          </span>
-          <h1>Techniques</h1>
-        </div>
-        <div className="skill-tree-bank" aria-live="polite">
-          <span>BANK</span>
-          <strong>{progression.bank}</strong>
-        </div>
-      </header>
-
-      <div className="skill-tree-canvas" role="group" aria-label="Skill tree">
-        <svg
-          className="skill-tree-edges"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
+      <div className="skill-tree-map" role="group" aria-label="Skill tree">
+        <svg className="skill-tree-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {SKILL_TREE_EDGES.map(({ from, to }) => {
             const a = SKILL_TREE_NODES_BY_ID[from]
             const b = SKILL_TREE_NODES_BY_ID[to]
-            const active = isPurchased(progression, from) && isRevealed(progression, to)
+            const lit = isPurchased(progression, from) && isRevealed(progression, to)
             return (
               <line
                 key={`${from}-${to}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                className={active ? 'edge-active' : 'edge-dim'}
+                x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                className={lit ? 'edge-lit' : 'edge-dim'}
                 vectorEffect="non-scaling-stroke"
               />
             )
           })}
         </svg>
 
-        {SKILL_TREE_NODES.map((node) => (
-          <div
-            key={node.id}
-            className="tree-node-anchor"
-            onMouseEnter={() => setSelectedId(node.id)}
-            onFocus={() => setSelectedId(node.id)}
-            style={{ left: `${node.x}%`, top: `${node.y}%` }}
-          >
-            <TreeNode
-              node={node}
-              state={nodeState(progression, node)}
-              onPurchase={onPurchase}
-              onToggle={onToggle}
-            />
-          </div>
-        ))}
+        {SKILL_TREE_NODES.map((node) => {
+          const state = nodeState(progression, node)
+          const affordable = state === 'available'
+          return (
+            <button
+              key={node.id}
+              type="button"
+              className={`tree-node tree-node-${state}${activeId === node.id ? ' is-active' : ''}`}
+              style={{ left: `${node.x}%`, top: `${node.y}%` }}
+              onClick={() => clickNode(node, state)}
+              onMouseEnter={() => setActiveId(node.id)}
+              onMouseLeave={() => setActiveId((id) => (id === node.id ? null : id))}
+              onFocus={() => setActiveId(node.id)}
+              onBlur={() => setActiveId((id) => (id === node.id ? null : id))}
+              disabled={state === 'hidden'}
+              aria-label={
+                state === 'hidden'
+                  ? 'Locked skill'
+                  : `${node.name}. ${node.description} ${
+                      state === 'enabled' ? 'Enabled.'
+                      : state === 'disabled' ? 'Owned, disabled.'
+                      : `Costs ${node.cost}.`
+                    }`
+              }
+              aria-pressed={state === 'enabled' ? true : state === 'disabled' ? false : undefined}
+            >
+              <span className="tree-node-glyph">
+                {state === 'hidden' ? <span className="tree-node-lock">?</span> : <NodeIcon icon={node.icon} />}
+              </span>
+            </button>
+          )
+        })}
+
+        {activeVisible && (
+          <NodeTooltip node={activeVisible} state={nodeState(progression, activeVisible)} affordable />
+        )}
       </div>
 
-      <aside className="skill-tree-detail" aria-live="polite">
-        {selectedVisible ? (
-          <>
-            <strong>{selectedVisible.name}</strong>
-            <p>{selectedVisible.description}</p>
-            <small>{selectedVisible.detail}</small>
-          </>
-        ) : (
-          <>
-            <strong>Choose a technique</strong>
-            <p>Hover or focus a node to read what it does. Buy to own it; owned nodes can be toggled on and off.</p>
-          </>
-        )}
-      </aside>
+      {/* HUD overlays */}
+      <div className="skill-tree-bank" aria-live="polite">
+        <span className="bank-gem" aria-hidden="true" />
+        <strong>{progression.bank}</strong>
+        {firstUnlock && <em className="bank-unlocked">UNLOCKED</em>}
+      </div>
 
-      <footer className="skill-tree-actions">
-        <button type="button" className="skill-tree-start" onClick={onStartDay}>
-          START THE DAY
-        </button>
-        <button type="button" className="skill-tree-back" onClick={onExit}>
-          BACK
-        </button>
-        <div className="skill-tree-resets">
-          <ConfirmButton
-            className="skill-tree-reset"
-            label="RESET TREE"
-            confirmLabel="RESET TREE?"
-            onConfirm={onResetTree}
-          />
-          <ConfirmButton
-            className="skill-tree-reset danger"
-            label="RESET SAVE"
-            confirmLabel="ERASE EVERYTHING?"
-            onConfirm={onResetFull}
-          />
-        </div>
-      </footer>
+      <button type="button" className="skill-tree-close" onClick={onExit} aria-label="Back to title">×</button>
+
+      <div className="skill-tree-resets">
+        <ConfirmButton className="skill-tree-reset" label="RESET TREE" confirmLabel="RESET TREE?" onConfirm={onResetTree} />
+        <ConfirmButton className="skill-tree-reset danger" label="RESET SAVE" confirmLabel="ERASE ALL?" onConfirm={onResetFull} />
+      </div>
+
+      <button type="button" className="skill-tree-start" onClick={onStartDay}>START THE DAY</button>
     </div>
   )
 }
