@@ -11,8 +11,8 @@ import {
 } from './pacingDirector.js'
 import {
   DAY_LENGTH,
-  SCORE_PER_SECOND,
   OVERLOAD_SCORE_MULTIPLIER,
+  phaseFor,
   phaseLabel,
   scoreForElapsed,
 } from './config/gameConfig.js'
@@ -169,7 +169,16 @@ function scrambleText(text, intensity) {
 
 function App() {
   const [status, setStatus] = useState('intro')
-  const [elapsed, setElapsed] = useState(0)
+  // Three clocks, split from the single `elapsed` value:
+  //  - dayElapsed  : scored day time. Drives score, phase, world, completion.
+  //                  Pauses during techniques, tutorial and order dialogue.
+  //  - spawnElapsed: the spawn clock. Advances only while spawning is enabled.
+  //  - runElapsed  : real time since the run began. Drives technique scheduling
+  //                  and run statistics.
+  const [dayElapsed, setDayElapsed] = useState(0)
+  const [spawnElapsed, setSpawnElapsed] = useState(0)
+  const [runElapsed, setRunElapsed] = useState(0)
+  const [activeTechnique, setActiveTechnique] = useState(null)
   const [microgames, setMicrogames] = useState([])
   const [dialogueOpen, setDialogueOpen] = useState(false)
   const [dialogueAnswered, setDialogueAnswered] = useState(false)
@@ -188,25 +197,28 @@ function App() {
   const [tutorialStep, setTutorialStep] = useState('none')
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
-  const startTimeRef = useRef(0)
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
   const microgamesRef = useRef([])
   const resolvedGamesRef = useRef(new Set())
   const completionEffectIdRef = useRef(0)
-  const pauseStartedRef = useRef(null)
-  const pausedDurationRef = useRef(0)
   const tutorialFirstSeenRef = useRef(false)
   const tutorialSecondSeenRef = useRef(false)
-  const elapsedRef = useRef(0)
+  const lastTickRef = useRef(0)
+  const dayElapsedRef = useRef(0)
+  const spawnElapsedRef = useRef(0)
+  const runElapsedRef = useRef(0)
+  const dayAdvancingRef = useRef(false)
+  const spawningEnabledRef = useRef(false)
   const clearedCountRef = useRef(0)
   const peakLoadRef = useRef(0)
   const spawnedCountRef = useRef(0)
   const suppressedCountRef = useRef(0)
   const runFinishedRef = useRef(false)
 
-  const score = scoreForElapsed(elapsed)
-  const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - elapsed))
+  const score = scoreForElapsed(dayElapsed)
+  const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
+  const currentPhaseId = phaseFor(dayElapsed).id
   const load = microgames.length
   const overloadRatio = Math.min(1, load / OVERLOAD_LIMIT)
   const overloadShake = Math.max(0, load - 2) * 0.8
@@ -215,25 +227,39 @@ function App() {
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
   const orderingPaused = status === 'playing' && orderDialogueOpen
   const gameplayPaused = tutorialPaused || orderingPaused
+  // Subsystem gates. Techniques (added later) can pause the day and/or spawns
+  // independently; the tutorial and order dialogue pause both.
+  const dayAdvancing = status === 'playing'
+    && !tutorialPaused
+    && !orderingPaused
+    && !activeTechnique?.pausesDay
+  const spawningEnabled = status === 'playing'
+    && directorReady
+    && !tutorialPaused
+    && !orderingPaused
+    && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
     const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0
-    startTimeRef.current = 0
-    pausedDurationRef.current = 0
-    pauseStartedRef.current = null
     directorRef.current = createPacingDirector(seed)
     spawnCounterRef.current = 0
     microgamesRef.current = []
     resolvedGamesRef.current = new Set()
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
-    elapsedRef.current = 0
+    lastTickRef.current = 0
+    dayElapsedRef.current = 0
+    spawnElapsedRef.current = 0
+    runElapsedRef.current = 0
     clearedCountRef.current = 0
     peakLoadRef.current = 0
     spawnedCountRef.current = 0
     suppressedCountRef.current = 0
     runFinishedRef.current = false
-    setElapsed(0)
+    setDayElapsed(0)
+    setSpawnElapsed(0)
+    setRunElapsed(0)
+    setActiveTechnique(null)
     setMicrogames([])
     setCompletionEffects([])
     setDialogueOpen(false)
@@ -279,9 +305,7 @@ function App() {
     if (status !== 'countdown') return undefined
 
     const timer = window.setTimeout(() => {
-      startTimeRef.current = performance.now()
-      pausedDurationRef.current = 0
-      pauseStartedRef.current = null
+      lastTickRef.current = performance.now()
       setStartCue('start')
       setStatus('playing')
     }, READY_CUE_MS)
@@ -319,36 +343,39 @@ function App() {
     return () => window.removeEventListener('crazybod:start-tutorial', handleTutorialRestart)
   }, [startTutorialGame])
 
+  // Keep the gating flags the tick reads in refs, so the interval always sees
+  // the current values without being torn down and rebuilt each pause.
   useEffect(() => {
-    if (status !== 'playing') {
-      pauseStartedRef.current = null
-      return
-    }
+    dayAdvancingRef.current = dayAdvancing
+    spawningEnabledRef.current = spawningEnabled
+  }, [dayAdvancing, spawningEnabled])
 
-    if (gameplayPaused && pauseStartedRef.current === null) {
-      pauseStartedRef.current = performance.now()
-      return
-    }
-
-    if (!gameplayPaused && pauseStartedRef.current !== null) {
-      pausedDurationRef.current += performance.now() - pauseStartedRef.current
-      pauseStartedRef.current = null
-    }
-  }, [gameplayPaused, status])
-
+  // Single ticking clock. Each tick distributes real elapsed time to whichever
+  // subsystems are currently advancing.
   useEffect(() => {
-    if (status !== 'playing' || gameplayPaused) return undefined
+    if (status !== 'playing') return undefined
 
+    lastTickRef.current = performance.now()
     const timer = window.setInterval(() => {
-      const nextElapsed = Math.min(
-        (performance.now() - startTimeRef.current - pausedDurationRef.current) / 1000,
-        DAY_LENGTH,
-      )
-      setElapsed(nextElapsed)
+      const now = performance.now()
+      const delta = (now - lastTickRef.current) / 1000
+      lastTickRef.current = now
+
+      runElapsedRef.current += delta
+      if (dayAdvancingRef.current) {
+        dayElapsedRef.current = Math.min(dayElapsedRef.current + delta, DAY_LENGTH)
+      }
+      if (spawningEnabledRef.current) {
+        spawnElapsedRef.current += delta
+      }
+
+      setRunElapsed(runElapsedRef.current)
+      setDayElapsed(dayElapsedRef.current)
+      setSpawnElapsed(spawnElapsedRef.current)
     }, 100)
 
     return () => window.clearInterval(timer)
-  }, [gameplayPaused, status])
+  }, [status])
 
   useEffect(() => {
     if (status !== 'playing' || !tutorialRun || tutorialStep !== 'none') return
@@ -356,7 +383,7 @@ function App() {
     const first = TUTORIAL_SEQUENCE[0]
     const second = TUTORIAL_SEQUENCE[1]
 
-    if (!tutorialFirstSeenRef.current && elapsed >= first.at) {
+    if (!tutorialFirstSeenRef.current && dayElapsed >= first.at) {
       tutorialFirstSeenRef.current = true
       spawnMicrogame(first.kind, first.role)
       setTutorialStep(first.role)
@@ -366,47 +393,42 @@ function App() {
     if (
       tutorialFirstSeenRef.current
       && !tutorialSecondSeenRef.current
-      && elapsed >= second.at
+      && dayElapsed >= second.at
     ) {
       tutorialSecondSeenRef.current = true
       spawnMicrogame(second.kind, second.role)
       setTutorialStep(second.role)
     }
-  }, [elapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
+  }, [dayElapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
 
   useEffect(() => {
-    if (status !== 'playing' || gameplayPaused || !directorReady) return
+    if (!spawningEnabled) return
 
     const director = directorRef.current
     if (director.nextSpawnAt === null) {
-      initializePacingDirector(director, elapsed)
+      initializePacingDirector(director, spawnElapsed)
       return
     }
-    if (elapsed < director.nextSpawnAt) return
+    if (spawnElapsed < director.nextSpawnAt) return
 
     const batch = takeSpawnBatch(director, {
-      elapsed,
-      activeGames: load,
-      overloadLimit: OVERLOAD_LIMIT,
+      spawnElapsed,
+      phaseId: currentPhaseId,
     })
-    batch.kinds.forEach((kind) => spawnMicrogame(kind))
-  }, [directorReady, elapsed, gameplayPaused, load, spawnMicrogame, status])
+    batch.kinds.forEach(({ kind }) => spawnMicrogame(kind))
+  }, [spawningEnabled, spawnElapsed, currentPhaseId, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
-    if (elapsed >= 25 && !dialogueAnswered) setDialogueOpen(true)
-  }, [elapsed, status, dialogueAnswered])
+    if (dayElapsed >= 25 && !dialogueAnswered) setDialogueOpen(true)
+  }, [dayElapsed, status, dialogueAnswered])
 
   useEffect(() => {
     if (status !== 'playing') return
-    if (elapsed >= 35 && dialogueAnswered && !orderDialogueAnswered) {
+    if (dayElapsed >= 35 && dialogueAnswered && !orderDialogueAnswered) {
       setOrderDialogueOpen(true)
     }
-  }, [dialogueAnswered, elapsed, orderDialogueAnswered, status])
-
-  useEffect(() => {
-    elapsedRef.current = elapsed
-  }, [elapsed])
+  }, [dialogueAnswered, dayElapsed, orderDialogueAnswered, status])
 
   useEffect(() => {
     if (status !== 'playing') return
@@ -419,8 +441,8 @@ function App() {
     if (runFinishedRef.current) return
     runFinishedRef.current = true
 
-    const dayElapsed = Math.min(DAY_LENGTH, elapsedRef.current)
-    const rawScore = scoreForElapsed(dayElapsed)
+    const finishedDay = Math.min(DAY_LENGTH, dayElapsedRef.current)
+    const rawScore = scoreForElapsed(finishedDay)
     const capacity = OVERLOAD_LIMIT
     const finalScore = outcome === 'overload'
       ? Math.floor(rawScore * OVERLOAD_SCORE_MULTIPLIER)
@@ -435,8 +457,8 @@ function App() {
       rawScore,
       finalScore,
       penalty: Math.max(0, rawScore - finalScore),
-      dayElapsed,
-      runElapsed: elapsedRef.current,
+      dayElapsed: finishedDay,
+      runElapsed: runElapsedRef.current,
       clearedCount: cleared,
       suppressedCount: suppressedCountRef.current,
       peakLoad,
@@ -453,9 +475,9 @@ function App() {
   }, [load, status, finishRun])
 
   useEffect(() => {
-    if (status !== 'playing' || elapsed < DAY_LENGTH) return
+    if (status !== 'playing' || dayElapsed < DAY_LENGTH) return
     finishRun('complete')
-  }, [elapsed, status, finishRun])
+  }, [dayElapsed, status, finishRun])
 
   const resolveMicrogame = useCallback((id) => {
     if (resolvedGamesRef.current.has(id)) return
@@ -550,8 +572,8 @@ function App() {
           performance={{ min: 0.6 }}
         >
           <AuthoredJourneyScene
-            elapsed={elapsed}
-            active={status === 'playing' && !gameplayPaused}
+            elapsed={dayElapsed}
+            active={dayAdvancing}
             dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
           />
         </Canvas>
@@ -574,7 +596,7 @@ function App() {
               <span className="hud-label">TIME</span>
               <strong>{remainingTime}s</strong>
             </div>
-            <div className="phase-label">{getPhase(elapsed)}</div>
+            <div className="phase-label">{getPhase(dayElapsed)}</div>
             <div className="hud-panel score-panel">
               <span className="hud-label">SCORE</span>
               <strong>{score}</strong>

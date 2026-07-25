@@ -116,3 +116,11 @@ export function pacingPhaseFor(elapsed) {
   return PACING_PHASES.find((phase) => elapsed >= phase.start && elapsed < phase.end)
     ?? PACING_PHASES[PACING_PHASES.length - 1]
 }
+
+const PACING_PHASES_BY_ID = Object.fromEntries(
+  PACING_PHASES.map((phase) => [phase.id, phase]),
+)
+
+export function pacingPhaseById(phaseId) {
+  return PACING_PHASES_BY_ID[phaseId] ?? PACING_PHASES[PACING_PHASES.length - 1]
+}

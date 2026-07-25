@@ -1,4 +1,4 @@
-import { OPENING_INTERVAL, pacingPhaseFor } from './pacingConfig.js'
+import { OPENING_INTERVAL, pacingPhaseById } from './pacingConfig.js'
 
 function mulberry32(seed) {
   let value = seed >>> 0
@@ -59,31 +59,36 @@ export function createPacingDirector(seed = Date.now()) {
   }
 }
 
-export function initializePacingDirector(director, elapsed = 0) {
-  director.nextSpawnAt = elapsed + randomBetween(director.random, OPENING_INTERVAL)
+export function initializePacingDirector(director, spawnElapsed = 0) {
+  director.nextSpawnAt = spawnElapsed + randomBetween(director.random, OPENING_INTERVAL)
 }
 
 function nextDelay(director, phase) {
   return randomBetween(director.random, phase.interval)
 }
 
-export function takeSpawnBatch(director, { elapsed }) {
-  const phase = pacingPhaseFor(elapsed)
+// `spawnElapsed` is the spawn clock (advances only while spawning is enabled);
+// `phaseId` is the day phase (derived from dayElapsed) and selects the weights,
+// interval and pair chance. Keeping the two inputs separate is what lets
+// unscored technique time change pacing without changing the day.
+export function takeSpawnBatch(director, { spawnElapsed, phaseId }) {
+  const phase = pacingPhaseById(phaseId)
 
   const firstKind = drawKind(director, phase)
-  const kinds = [firstKind]
+  const kinds = [{ kind: firstKind, slot: 'first' }]
 
   const pairSpawned = director.random() < phase.pairChance
 
   if (pairSpawned) {
-    kinds.push(drawKind(director, phase, [firstKind]))
+    kinds.push({ kind: drawKind(director, phase, [firstKind]), slot: 'pair' })
   }
 
-  director.nextSpawnAt = elapsed + nextDelay(director, phase)
+  director.nextSpawnAt = spawnElapsed + nextDelay(director, phase)
 
   return {
     kinds,
     phase: phase.id,
+    paired: pairSpawned,
     nextSpawnAt: director.nextSpawnAt,
   }
 }
