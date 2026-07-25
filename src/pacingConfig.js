@@ -10,7 +10,7 @@ export const PACING_PHASES = [
     id: 'waking',
     start: 0,
     end: 5,
-    interval: [2, 4],
+    interval: [3, 4],
     pairChance: 0,
     weights: {
       fatigue: 4,
@@ -29,7 +29,7 @@ export const PACING_PHASES = [
     id: 'gettingReady',
     start: 5,
     end: 15,
-    interval: [5, 6],
+    interval: [3, 5],
     pairChance: 0.00,
     weights: {
       packingCheck: 4,
@@ -50,8 +50,8 @@ export const PACING_PHASES = [
     id: 'walking',
     start: 15,
     end: 30,
-    interval: [4, 6],
-    pairChance: 0.00,
+    interval: [2, 3],
+    pairChance: 0.20,
     weights: {
       balance: 4,
       tremor: 3,
@@ -71,8 +71,8 @@ export const PACING_PHASES = [
     id: 'ordering',
     start: 30,
     end: 42,
-    interval: [2, 4],
-    pairChance: 0.10,
+    interval: [2, 3],
+    pairChance: 0.20,
     weights: {
       anxiety: 4,
       taskSwitching: 4,
@@ -93,8 +93,8 @@ export const PACING_PHASES = [
     id: 'sitting',
     start: 42,
     end: Number.POSITIVE_INFINITY,
-    interval: [2, 3],
-    pairChance: 0.15,
+    interval: [1, 2],
+    pairChance: 0.20,
     weights: {
       fatigue: 3,
       pressurePoint: 3,
@@ -115,4 +115,12 @@ export const PACING_PHASES = [
 export function pacingPhaseFor(elapsed) {
   return PACING_PHASES.find((phase) => elapsed >= phase.start && elapsed < phase.end)
     ?? PACING_PHASES[PACING_PHASES.length - 1]
+}
+
+const PACING_PHASES_BY_ID = Object.fromEntries(
+  PACING_PHASES.map((phase) => [phase.id, phase]),
+)
+
+export function pacingPhaseById(phaseId) {
+  return PACING_PHASES_BY_ID[phaseId] ?? PACING_PHASES[PACING_PHASES.length - 1]
 }

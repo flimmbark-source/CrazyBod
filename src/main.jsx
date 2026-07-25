@@ -12,9 +12,12 @@ import './tutorial.css'
 import './tutorialFocusGuide.css'
 import './minigames.css'
 import './startSequence.css'
+import './progression/skillTree.css'
+import './progression/skillTreeTweaks.css'
+import './techniques/techniques.css'
+import './results/resultsCleanup.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
-import './endScreens.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

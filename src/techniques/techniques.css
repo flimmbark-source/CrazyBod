@@ -1,0 +1,270 @@
+.rehearsal-box {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 150;
+  width: min(460px, calc(100vw - 28px));
+  padding: 14px 16px 12px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(246, 199, 91, 0.55);
+  background: rgba(27, 23, 32, 0.96);
+  color: #fff8ef;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  animation: rehearsal-in 180ms ease-out;
+}
+
+@keyframes rehearsal-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.rehearsal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.rehearsal-head span {
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: #f6c75b;
+}
+
+.rehearsal-head strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+.rehearsal-timer {
+  margin: 6px 0 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 248, 239, 0.14);
+  overflow: hidden;
+}
+
+.rehearsal-timer i {
+  display: block;
+  height: 100%;
+  background: #f6c75b;
+  transform-origin: left center;
+  transition: transform 100ms linear;
+}
+
+.rehearsal-line {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.rehearsal-options {
+  display: grid;
+  gap: 7px;
+}
+
+.rehearsal-options button {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 248, 239, 0.18);
+  background: rgba(255, 248, 239, 0.06);
+  color: #fff8ef;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 110ms ease, border-color 110ms ease;
+}
+
+.rehearsal-options button:hover,
+.rehearsal-options button:focus-visible {
+  background: rgba(246, 199, 91, 0.16);
+  border-color: rgba(246, 199, 91, 0.6);
+  outline: none;
+}
+
+.rehearsal-progress {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.rehearsal-progress i {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 248, 239, 0.16);
+}
+
+.rehearsal-progress i.done {
+  background: #f6c75b;
+}
+
+.plan-box {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 150;
+  width: min(460px, calc(100vw - 28px));
+  padding: 14px 16px 14px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(127, 176, 246, 0.55);
+  background: rgba(27, 23, 32, 0.96);
+  color: #fff8ef;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  animation: rehearsal-in 180ms ease-out;
+}
+
+.plan-box .rehearsal-head span { color: #9ec2f6; }
+.plan-box .rehearsal-timer i { background: #9ec2f6; }
+
+.plan-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 248, 239, 0.18);
+  background: rgba(255, 248, 239, 0.06);
+  color: #fff8ef;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 110ms ease, border-color 110ms ease;
+}
+
+.plan-step em {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 248, 239, 0.14);
+  color: #fff8ef;
+}
+
+.plan-step:hover:not(:disabled),
+.plan-step:focus-visible {
+  background: rgba(158, 194, 246, 0.18);
+  border-color: rgba(158, 194, 246, 0.6);
+  outline: none;
+}
+
+.plan-step.placed {
+  border-color: rgba(158, 194, 246, 0.7);
+  opacity: 0.72;
+  cursor: default;
+}
+
+.plan-step.placed em {
+  background: #9ec2f6;
+  color: #1b1720;
+}
+
+/* The overlay backdrop must not swallow pointer input — pointer-based
+   minigames stay interactive during the squeeze. Only the core is clickable. */
+.suppression-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(90, 30, 43, 0.28), rgba(20, 16, 22, 0.52) 70%);
+}
+
+.suppression-core {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(340px, calc(100vw - 40px));
+  padding: 22px 24px;
+  border-radius: 22px;
+  border: 2px solid rgba(246, 143, 143, 0.7);
+  background: rgba(27, 23, 32, 0.97);
+  color: #fff8ef;
+  text-align: center;
+  transform: scale(var(--squeeze, 1));
+  transition: transform 90ms ease-out;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.suppression-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: #f68f8f;
+}
+
+.suppression-title {
+  font-size: 30px;
+  letter-spacing: 0.1em;
+}
+
+.suppression-hint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.suppression-meter {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 248, 239, 0.14);
+  overflow: hidden;
+}
+
+.suppression-meter i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f68f8f, #f6c75b);
+  transform-origin: left center;
+  transition: transform 80ms linear;
+}
+
+.suppression-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.suppression-mash {
+  margin-top: 4px;
+  padding: 12px 26px;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-size: 15px;
+  color: #1b1720;
+  background: #f6c75b;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.suppression-mash:active {
+  transform: translateY(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rehearsal-box,
+  .plan-box { animation: none; }
+  .suppression-core { transition: none; }
+}

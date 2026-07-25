@@ -8,11 +8,32 @@ import {
   createPacingDirector,
   initializePacingDirector,
   takeSpawnBatch,
+  drawSpawnKinds,
 } from './pacingDirector.js'
+import RehearsalTechnique from './techniques/RehearsalTechnique.jsx'
+import PlanTechnique from './techniques/PlanTechnique.jsx'
+import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
+import {
+  REHEARSAL_SEQUENCE,
+  PLAN_SEQUENCE,
+  rehearsalSucceeded,
+  scheduledSucceeded,
+  suppressionSplit,
+} from './techniques/techniqueEngine.js'
+import { getNode } from './progression/skillTreeConfig.js'
+import {
+  DAY_LENGTH,
+  OVERLOAD_SCORE_MULTIPLIER,
+  phaseFor,
+  phaseLabel,
+  scoreForElapsed,
+} from './config/gameConfig.js'
+import ResultsScreen from './results/ResultsScreen.jsx'
+import { useProgression } from './progression/useProgression.js'
+import { computeCapacity } from './progression/progressionStore.js'
+import SkillTreeScreen from './progression/SkillTreeScreen.jsx'
+import SkillTreeUnlock from './progression/SkillTreeUnlock.jsx'
 
-const DAY_LENGTH = 50
-const OVERLOAD_LIMIT = 6
-const SCORE_PER_SECOND = 10
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 const READY_CUE_MS = 1150
 const START_CUE_MS = 650
@@ -51,11 +72,7 @@ const ORDER_DIALOGUE = {
 }
 
 function getPhase(elapsed) {
-  if (elapsed < 5) return 'WAKING UP'
-  if (elapsed < 15) return 'GETTING READY'
-  if (elapsed < 30) return 'WALKING TO THE CAFÉ'
-  if (elapsed < 42) return 'ORDERING'
-  return 'SITTING DOWN'
+  return phaseLabel(elapsed)
 }
 
 function seededFraction(seed, value) {
@@ -167,13 +184,22 @@ function scrambleText(text, intensity) {
 
 function App() {
   const [status, setStatus] = useState('intro')
-  const [elapsed, setElapsed] = useState(0)
+  // Three clocks, split from the single `elapsed` value:
+  //  - dayElapsed  : scored day time. Drives score, phase, world, completion.
+  //                  Pauses during techniques, tutorial and order dialogue.
+  //  - spawnElapsed: the spawn clock. Advances only while spawning is enabled.
+  //  - runElapsed  : real time since the run began. Drives technique scheduling
+  //                  and run statistics.
+  const [dayElapsed, setDayElapsed] = useState(0)
+  const [spawnElapsed, setSpawnElapsed] = useState(0)
+  const [runElapsed, setRunElapsed] = useState(0)
+  const [activeTechnique, setActiveTechnique] = useState(null)
   const [microgames, setMicrogames] = useState([])
   const [dialogueOpen, setDialogueOpen] = useState(false)
   const [dialogueAnswered, setDialogueAnswered] = useState(false)
   const [orderDialogueOpen, setOrderDialogueOpen] = useState(false)
   const [orderDialogueAnswered, setOrderDialogueAnswered] = useState(false)
-  const [finalScore, setFinalScore] = useState(0)
+  const [result, setResult] = useState(null)
   const [completionEffects, setCompletionEffects] = useState([])
   const [tutorialEnabled, setTutorialEnabled] = useState(() => {
     try {
@@ -186,47 +212,112 @@ function App() {
   const [tutorialStep, setTutorialStep] = useState('none')
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
-  const startTimeRef = useRef(0)
+  const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
+  const [firstUnlockPending, setFirstUnlockPending] = useState(false)
+  const [treeFirstView, setTreeFirstView] = useState(false)
+  const [runCapacityBonus, setRunCapacityBonus] = useState(0)
+  const [spawnPaused, setSpawnPaused] = useState(false)
+  const [suppressing, setSuppressing] = useState(false)
+  const suppressUsedRef = useRef(false)
+  const prevUnlockedRef = useRef(progression.treeUnlocked)
+  const capacityRef = useRef(0)
+  const rehearsalFiredRef = useRef(false)
+  const planFiredRef = useRef(false)
+  const holdUsedRef = useRef(false)
+  const adrenalineFiredRef = useRef(false)
+  const planStaggerRemainingRef = useRef(0)
+  const pendingSpawnsRef = useRef([])
+  const enabledNodesRef = useRef(progression.enabledNodeIds)
+  const techniqueOutcomesRef = useRef({})
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
   const microgamesRef = useRef([])
   const resolvedGamesRef = useRef(new Set())
   const completionEffectIdRef = useRef(0)
-  const pauseStartedRef = useRef(null)
-  const pausedDurationRef = useRef(0)
   const tutorialFirstSeenRef = useRef(false)
   const tutorialSecondSeenRef = useRef(false)
+  const lastTickRef = useRef(0)
+  const dayElapsedRef = useRef(0)
+  const spawnElapsedRef = useRef(0)
+  const runElapsedRef = useRef(0)
+  const dayAdvancingRef = useRef(false)
+  const spawningEnabledRef = useRef(false)
+  const clearedCountRef = useRef(0)
+  const peakLoadRef = useRef(0)
+  const spawnedCountRef = useRef(0)
+  const suppressedCountRef = useRef(0)
+  const runFinishedRef = useRef(false)
 
-  const score = Math.floor(elapsed * SCORE_PER_SECOND)
-  const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - elapsed))
+  const score = scoreForElapsed(dayElapsed)
+  const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
+  const currentPhaseId = phaseFor(dayElapsed).id
+  // Capacity is derived from the enabled skill nodes plus any per-run bonus
+  // (e.g. a successful rehearsal). First run with nothing enabled is 5.
+  const capacity = computeCapacity(progression.enabledNodeIds, runCapacityBonus)
+  capacityRef.current = capacity
+  enabledNodesRef.current = progression.enabledNodeIds
   const load = microgames.length
-  const overloadRatio = Math.min(1, load / OVERLOAD_LIMIT)
+  const overloadRatio = Math.min(1, load / capacity)
   const overloadShake = Math.max(0, load - 2) * 0.8
   const homeShake = Math.max(0, load - 1) * 0.85
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
   const orderingPaused = status === 'playing' && orderDialogueOpen
   const gameplayPaused = tutorialPaused || orderingPaused
+  // Subsystem gates. Techniques (added later) can pause the day and/or spawns
+  // independently; the tutorial and order dialogue pause both.
+  const dayAdvancing = status === 'playing'
+    && !tutorialPaused
+    && !orderingPaused
+    && !suppressing
+    && !activeTechnique?.pausesDay
+  const spawningEnabled = status === 'playing'
+    && directorReady
+    && !tutorialPaused
+    && !orderingPaused
+    && !spawnPaused
+    && !suppressing
+    && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
     const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0
-    startTimeRef.current = 0
-    pausedDurationRef.current = 0
-    pauseStartedRef.current = null
     directorRef.current = createPacingDirector(seed)
     spawnCounterRef.current = 0
     microgamesRef.current = []
     resolvedGamesRef.current = new Set()
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
-    setElapsed(0)
+    rehearsalFiredRef.current = false
+    planFiredRef.current = false
+    holdUsedRef.current = false
+    adrenalineFiredRef.current = false
+    planStaggerRemainingRef.current = 0
+    pendingSpawnsRef.current = []
+    suppressUsedRef.current = false
+    techniqueOutcomesRef.current = {}
+    lastTickRef.current = 0
+    dayElapsedRef.current = 0
+    spawnElapsedRef.current = 0
+    runElapsedRef.current = 0
+    clearedCountRef.current = 0
+    peakLoadRef.current = 0
+    spawnedCountRef.current = 0
+    suppressedCountRef.current = 0
+    runFinishedRef.current = false
+    setDayElapsed(0)
+    setSpawnElapsed(0)
+    setRunElapsed(0)
+    setActiveTechnique(null)
+    setRunCapacityBonus(0)
+    setSpawnPaused(false)
+    setSuppressing(false)
     setMicrogames([])
     setCompletionEffects([])
     setDialogueOpen(false)
     setDialogueAnswered(false)
     setOrderDialogueOpen(false)
     setOrderDialogueAnswered(false)
-    setFinalScore(0)
+    setResult(null)
     setTutorialRun(withTutorial)
     setTutorialStep('none')
     setDirectorReady(!withTutorial)
@@ -265,9 +356,7 @@ function App() {
     if (status !== 'countdown') return undefined
 
     const timer = window.setTimeout(() => {
-      startTimeRef.current = performance.now()
-      pausedDurationRef.current = 0
-      pauseStartedRef.current = null
+      lastTickRef.current = performance.now()
       setStartCue('start')
       setStatus('playing')
     }, READY_CUE_MS)
@@ -284,6 +373,7 @@ function App() {
   const spawnMicrogame = useCallback((kind, tutorialRole = null) => {
     const index = spawnCounterRef.current
     spawnCounterRef.current += 1
+    spawnedCountRef.current += 1
     const game = {
       id: `${kind}-${directorRef.current.seed}-${index}`,
       kind,
@@ -298,42 +388,88 @@ function App() {
     return game
   }, [])
 
+  // Route director spawns through the spawn-control hooks. A game is either
+  // placed now or pushed onto the pending queue for later release.
+  const requestSpawns = useCallback((entries) => {
+    const enabled = enabledNodesRef.current
+    const holdEnabled = enabled.includes('hold')
+    const planActive = planStaggerRemainingRef.current > 0
+    const planDelay = getNode('plan').effect.staggerDelaySeconds ?? 3
+    const holdSeconds = getNode('hold').effect.holdReleaseSeconds ?? 5
+    let staggeredThisBatch = false
+
+    entries.forEach((entry) => {
+      // Run Through the Plan: delay the second game of the next pair spawns.
+      if (planActive && entry.slot === 'pair') {
+        pendingSpawnsRef.current.push({
+          kind: entry.kind,
+          releaseAt: spawnElapsedRef.current + planDelay,
+          releaseCondition: 'time',
+        })
+        staggeredThisBatch = true
+        return
+      }
+      // Hold It Together: hold the first game that would fill the last slot.
+      if (
+        holdEnabled
+        && !holdUsedRef.current
+        && microgamesRef.current.length === capacityRef.current - 1
+      ) {
+        holdUsedRef.current = true
+        pendingSpawnsRef.current.push({
+          kind: entry.kind,
+          releaseAt: spawnElapsedRef.current + holdSeconds,
+          releaseCondition: 'slotOrTime',
+        })
+        return
+      }
+      spawnMicrogame(entry.kind)
+    })
+
+    if (staggeredThisBatch && planStaggerRemainingRef.current > 0) {
+      planStaggerRemainingRef.current -= 1
+    }
+  }, [spawnMicrogame])
+
   useEffect(() => {
     const handleTutorialRestart = () => startTutorialGame()
     window.addEventListener('crazybod:start-tutorial', handleTutorialRestart)
     return () => window.removeEventListener('crazybod:start-tutorial', handleTutorialRestart)
   }, [startTutorialGame])
 
+  // Keep the gating flags the tick reads in refs, so the interval always sees
+  // the current values without being torn down and rebuilt each pause.
   useEffect(() => {
-    if (status !== 'playing') {
-      pauseStartedRef.current = null
-      return
-    }
+    dayAdvancingRef.current = dayAdvancing
+    spawningEnabledRef.current = spawningEnabled
+  }, [dayAdvancing, spawningEnabled])
 
-    if (gameplayPaused && pauseStartedRef.current === null) {
-      pauseStartedRef.current = performance.now()
-      return
-    }
-
-    if (!gameplayPaused && pauseStartedRef.current !== null) {
-      pausedDurationRef.current += performance.now() - pauseStartedRef.current
-      pauseStartedRef.current = null
-    }
-  }, [gameplayPaused, status])
-
+  // Single ticking clock. Each tick distributes real elapsed time to whichever
+  // subsystems are currently advancing.
   useEffect(() => {
-    if (status !== 'playing' || gameplayPaused) return undefined
+    if (status !== 'playing') return undefined
 
+    lastTickRef.current = performance.now()
     const timer = window.setInterval(() => {
-      const nextElapsed = Math.min(
-        (performance.now() - startTimeRef.current - pausedDurationRef.current) / 1000,
-        DAY_LENGTH,
-      )
-      setElapsed(nextElapsed)
+      const now = performance.now()
+      const delta = (now - lastTickRef.current) / 1000
+      lastTickRef.current = now
+
+      runElapsedRef.current += delta
+      if (dayAdvancingRef.current) {
+        dayElapsedRef.current = Math.min(dayElapsedRef.current + delta, DAY_LENGTH)
+      }
+      if (spawningEnabledRef.current) {
+        spawnElapsedRef.current += delta
+      }
+
+      setRunElapsed(runElapsedRef.current)
+      setDayElapsed(dayElapsedRef.current)
+      setSpawnElapsed(spawnElapsedRef.current)
     }, 100)
 
     return () => window.clearInterval(timer)
-  }, [gameplayPaused, status])
+  }, [status])
 
   useEffect(() => {
     if (status !== 'playing' || !tutorialRun || tutorialStep !== 'none') return
@@ -341,7 +477,7 @@ function App() {
     const first = TUTORIAL_SEQUENCE[0]
     const second = TUTORIAL_SEQUENCE[1]
 
-    if (!tutorialFirstSeenRef.current && elapsed >= first.at) {
+    if (!tutorialFirstSeenRef.current && dayElapsed >= first.at) {
       tutorialFirstSeenRef.current = true
       spawnMicrogame(first.kind, first.role)
       setTutorialStep(first.role)
@@ -351,60 +487,245 @@ function App() {
     if (
       tutorialFirstSeenRef.current
       && !tutorialSecondSeenRef.current
-      && elapsed >= second.at
+      && dayElapsed >= second.at
     ) {
       tutorialSecondSeenRef.current = true
       spawnMicrogame(second.kind, second.role)
       setTutorialStep(second.role)
     }
-  }, [elapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
+  }, [dayElapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
 
   useEffect(() => {
-    if (status !== 'playing' || gameplayPaused || !directorReady) return
+    if (!spawningEnabled) return
 
     const director = directorRef.current
     if (director.nextSpawnAt === null) {
-      initializePacingDirector(director, elapsed)
+      initializePacingDirector(director, spawnElapsed)
       return
     }
-    if (elapsed < director.nextSpawnAt) return
+    if (spawnElapsed < director.nextSpawnAt) return
 
     const batch = takeSpawnBatch(director, {
-      elapsed,
-      activeGames: load,
-      overloadLimit: OVERLOAD_LIMIT,
+      spawnElapsed,
+      phaseId: currentPhaseId,
     })
-    batch.kinds.forEach((kind) => spawnMicrogame(kind))
-  }, [directorReady, elapsed, gameplayPaused, load, spawnMicrogame, status])
+    requestSpawns(batch.kinds)
+  }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns])
+
+  // Release pending (held or staggered) spawns when their condition is met.
+  useEffect(() => {
+    if (status !== 'playing' || spawnPaused) return
+    const queue = pendingSpawnsRef.current
+    if (queue.length === 0) return
+
+    const now = spawnElapsedRef.current
+    const curLoad = microgamesRef.current.length
+    const cap = capacityRef.current
+    const ready = []
+    const rest = []
+    for (const item of queue) {
+      const timeUp = now >= item.releaseAt
+      const slotOpen = item.releaseCondition === 'slotOrTime' && curLoad < cap - 1
+      const release = item.releaseCondition === 'time' ? timeUp : timeUp || slotOpen
+      ;(release ? ready : rest).push(item)
+    }
+    if (ready.length) {
+      pendingSpawnsRef.current = rest
+      ready.forEach((item) => spawnMicrogame(item.kind))
+    }
+  }, [spawnElapsed, load, status, spawnPaused, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
-    if (elapsed >= 25 && !dialogueAnswered) setDialogueOpen(true)
-  }, [elapsed, status, dialogueAnswered])
+    if (dayElapsed >= 25 && !dialogueAnswered) setDialogueOpen(true)
+  }, [dayElapsed, status, dialogueAnswered])
 
   useEffect(() => {
     if (status !== 'playing') return
-    if (elapsed >= 35 && dialogueAnswered && !orderDialogueAnswered) {
+    if (dayElapsed >= 35 && dialogueAnswered && !orderDialogueAnswered) {
       setOrderDialogueOpen(true)
     }
-  }, [dialogueAnswered, elapsed, orderDialogueAnswered, status])
+  }, [dialogueAnswered, dayElapsed, orderDialogueAnswered, status])
 
   useEffect(() => {
-    if (status !== 'playing' || load < OVERLOAD_LIMIT) return
-    const penalizedScore = Math.floor(score * 0.25)
-    setFinalScore(penalizedScore)
-    setStatus('overload')
-  }, [load, score, status])
+    if (status !== 'playing') return
+    peakLoadRef.current = Math.max(peakLoadRef.current, load)
+  }, [load, status])
+
+  // One authoritative end-of-run transaction. Builds the result from real run
+  // data (not from rendered DOM), so it survives unscored technique time.
+  const finishRun = useCallback((outcome) => {
+    if (runFinishedRef.current) return
+    runFinishedRef.current = true
+
+    const finishedDay = Math.min(DAY_LENGTH, dayElapsedRef.current)
+    const rawScore = scoreForElapsed(finishedDay)
+    const capacity = capacityRef.current
+    const finalScore = outcome === 'overload'
+      ? Math.floor(rawScore * OVERLOAD_SCORE_MULTIPLIER)
+      : rawScore
+    const activeAtEnd = outcome === 'overload' ? capacity : microgamesRef.current.length
+    const cleared = clearedCountRef.current
+    const peakLoad = Math.max(peakLoadRef.current, outcome === 'overload' ? capacity : 0)
+
+    setResult({
+      runId: `${directorRef.current.seed}`,
+      outcome,
+      rawScore,
+      finalScore,
+      penalty: Math.max(0, rawScore - finalScore),
+      dayElapsed: finishedDay,
+      runElapsed: runElapsedRef.current,
+      clearedCount: cleared,
+      suppressedCount: suppressedCountRef.current,
+      peakLoad,
+      capacity,
+      activeAtEnd,
+      appeared: Math.max(spawnedCountRef.current, cleared + activeAtEnd),
+      techniques: { ...techniqueOutcomesRef.current },
+    })
+    setStatus(outcome)
+  }, [])
+
+  // Bank the finished run exactly once. depositRun is idempotent by runId, so
+  // re-running this effect (e.g. under StrictMode) cannot double-deposit.
+  useEffect(() => {
+    if (!result) return
+    depositRun({ runId: result.runId, finalScore: result.finalScore })
+  }, [result, depositRun])
+
+  // Detect the first-ever unlock so the first-run flow can route into the tree.
+  useEffect(() => {
+    if (progression.treeUnlocked && !prevUnlockedRef.current) {
+      setFirstUnlockPending(true)
+    }
+    prevUnlockedRef.current = progression.treeUnlocked
+  }, [progression.treeUnlocked])
+
+  const openSkillTree = useCallback((firstView = false) => {
+    setFirstUnlockPending(false)
+    setTreeFirstView(firstView)
+    setStatus('skillTree')
+  }, [])
+
+  const exitToTitle = useCallback(() => {
+    setTreeFirstView(false)
+    setStatus('intro')
+  }, [])
+
+  const handleResetFull = useCallback(() => {
+    resetFull()
+    setTutorialEnabled(true)
+  }, [resetFull])
+
+  // Fire the rehearsal once per run, at its configured day-time trigger, but
+  // only when the node is enabled and nothing else is active.
+  useEffect(() => {
+    if (status !== 'playing' || activeTechnique || rehearsalFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('rehearse')) return
+    if (dayElapsed < getNode('rehearse').effect.triggerDay) return
+    rehearsalFiredRef.current = true
+    setActiveTechnique({ id: 'rehearsal', pausesDay: true, pausesSpawns: false })
+  }, [status, activeTechnique, dayElapsed, progression.enabledNodeIds])
+
+  const completeRehearsal = useCallback((outcome) => {
+    const node = getNode('rehearse')
+    const success = rehearsalSucceeded(outcome)
+    techniqueOutcomesRef.current.rehearsal = success ? 'success' : 'failure'
+    if (success) {
+      setRunCapacityBonus((bonus) => bonus + (node.effect.runCapacityBonus ?? 1))
+    } else {
+      const phaseId = phaseFor(dayElapsedRef.current).id
+      drawSpawnKinds(directorRef.current, {
+        phaseId,
+        count: node.effect.failureSpawnCount ?? 2,
+      }).forEach((kind) => spawnMicrogame(kind))
+    }
+    setActiveTechnique(null)
+  }, [spawnMicrogame])
+
+  // Run Through the Plan: scheduled technique that staggers the next pairs.
+  useEffect(() => {
+    if (status !== 'playing' || activeTechnique || planFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('plan')) return
+    if (dayElapsed < getNode('plan').effect.triggerDay) return
+    planFiredRef.current = true
+    setActiveTechnique({ id: 'plan', pausesDay: true, pausesSpawns: false })
+  }, [status, activeTechnique, dayElapsed, progression.enabledNodeIds])
+
+  const completePlan = useCallback((outcome) => {
+    const node = getNode('plan')
+    const success = scheduledSucceeded(outcome)
+    techniqueOutcomesRef.current.plan = success ? 'success' : 'failure'
+    if (success) planStaggerRemainingRef.current = node.effect.staggerPairs ?? 2
+    setActiveTechnique(null)
+  }, [])
+
+  // Run on Adrenaline: pause new spawns for a window when load reaches one
+  // below capacity. Day and score keep going; existing minigames stay.
+  useEffect(() => {
+    if (status !== 'playing' || adrenalineFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('adrenaline')) return
+    const belowLimit = getNode('adrenaline').effect.belowLimit ?? 1
+    if (load < capacity - belowLimit) return
+    adrenalineFiredRef.current = true
+    techniqueOutcomesRef.current.adrenaline = 'used'
+    setSpawnPaused(true)
+  }, [load, capacity, status, progression.enabledNodeIds])
 
   useEffect(() => {
-    if (status !== 'playing' || elapsed < DAY_LENGTH) return
-    setFinalScore(score)
-    setStatus('complete')
-  }, [elapsed, score, status])
+    if (!spawnPaused) return undefined
+    const seconds = getNode('adrenaline').effect.pauseSeconds ?? 6
+    const id = window.setTimeout(() => setSpawnPaused(false), seconds * 1000)
+    return () => window.clearTimeout(id)
+  }, [spawnPaused])
+
+  // Suppress Visible Distress: intercept the overload before the run ends, once
+  // per run, if the node is enabled. Otherwise overload normally.
+  const completeSuppression = useCallback(() => {
+    const games = microgamesRef.current
+    const currentLoad = games.length
+    const { suppressed: suppressCount } = suppressionSplit(currentLoad)
+    // Choose random targets now that the squeeze is done — the player may have
+    // cleared some by hand while mashing.
+    const order = games.map((_, index) => index)
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[order[i], order[j]] = [order[j], order[i]]
+    }
+    const targetIds = new Set(order.slice(0, suppressCount).map((index) => games[index].id))
+    suppressedCountRef.current += targetIds.size
+    // Mark as resolved so they cannot also be counted as cleared, then remove
+    // them without touching the cleared counter.
+    targetIds.forEach((id) => resolvedGamesRef.current.add(id))
+    setMicrogames((current) => {
+      const next = current.filter((game) => !targetIds.has(game.id))
+      microgamesRef.current = next
+      return next
+    })
+    techniqueOutcomesRef.current.suppress = 'used'
+    setSuppressing(false)
+  }, [])
+
+  useEffect(() => {
+    if (status !== 'playing' || load < capacity || suppressing) return
+    if (!suppressUsedRef.current && progression.enabledNodeIds.includes('suppress')) {
+      suppressUsedRef.current = true
+      setSuppressing(true)
+      return
+    }
+    finishRun('overload')
+  }, [load, status, capacity, suppressing, progression.enabledNodeIds, finishRun])
+
+  useEffect(() => {
+    if (status !== 'playing' || dayElapsed < DAY_LENGTH) return
+    finishRun('complete')
+  }, [dayElapsed, status, finishRun])
 
   const resolveMicrogame = useCallback((id) => {
     if (resolvedGamesRef.current.has(id)) return
     resolvedGamesRef.current.add(id)
+    clearedCountRef.current += 1
 
     const gameElement = document.querySelector(`[data-game-id="${id}"]`)
     const rect = gameElement?.getBoundingClientRect()
@@ -441,8 +762,7 @@ function App() {
   }, [tutorialRun, tutorialStep])
 
   const goHome = () => {
-    setFinalScore(score)
-    setStatus('home')
+    finishRun('home')
   }
 
   const answerDialogue = () => {
@@ -495,8 +815,8 @@ function App() {
           performance={{ min: 0.6 }}
         >
           <AuthoredJourneyScene
-            elapsed={elapsed}
-            active={status === 'playing' && !gameplayPaused}
+            elapsed={dayElapsed}
+            active={dayAdvancing}
             dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
           />
         </Canvas>
@@ -519,7 +839,7 @@ function App() {
               <span className="hud-label">TIME</span>
               <strong>{remainingTime}s</strong>
             </div>
-            <div className="phase-label">{getPhase(elapsed)}</div>
+            <div className="phase-label">{getPhase(dayElapsed)}</div>
             <div className="hud-panel score-panel">
               <span className="hud-label">SCORE</span>
               <strong>{score}</strong>
@@ -528,7 +848,7 @@ function App() {
 
           <div
             className="load-meter"
-            aria-label={`Overload ${load} of ${OVERLOAD_LIMIT}`}
+            aria-label={`Overload ${load} of ${capacity}`}
             style={{
               '--overload': overloadRatio,
               '--overload-scale': 1 + overloadRatio * 0.16,
@@ -541,8 +861,8 @@ function App() {
           >
             <span>OVERLOAD</span>
             <div className="load-pips">
-              {Array.from({ length: OVERLOAD_LIMIT }).map((_, index) => (
-                <i key={index} className={index >= OVERLOAD_LIMIT - load ? 'filled' : ''} />
+              {Array.from({ length: capacity }).map((_, index) => (
+                <i key={index} className={index >= capacity - load ? 'filled' : ''} />
               ))}
             </div>
           </div>
@@ -592,6 +912,29 @@ function App() {
             />
           )}
 
+          {activeTechnique?.id === 'rehearsal' && (
+            <RehearsalTechnique
+              prompts={REHEARSAL_SEQUENCE.prompts}
+              timeLimitSeconds={getNode('rehearse').effect.addedSeconds}
+              onComplete={completeRehearsal}
+            />
+          )}
+
+          {activeTechnique?.id === 'plan' && (
+            <PlanTechnique
+              steps={PLAN_SEQUENCE.steps}
+              timeLimitSeconds={getNode('plan').effect.addedSeconds}
+              onComplete={completePlan}
+            />
+          )}
+
+          {suppressing && (
+            <SuppressionTechnique
+              requiredPresses={getNode('suppress').effect.requiredPresses}
+              onComplete={completeSuppression}
+            />
+          )}
+
           <button
             className={`go-home${tutorialStep === 'home' ? ' tutorial-target tutorial-home-target' : ''}`}
             type="button"
@@ -625,11 +968,44 @@ function App() {
             <strong>{tutorialEnabled ? 'ON' : 'OFF'}</strong>
           </button>
           <button type="button" onClick={startGame}>START THE DAY</button>
+          {progression.treeUnlocked && (
+            <button type="button" className="title-skill-tree" onClick={() => openSkillTree(false)}>
+              SKILL TREE
+            </button>
+          )}
         </OverlayCard>
       )}
 
-      {!['intro', 'countdown', 'playing'].includes(status) && (
-        <EndCard status={status} score={finalScore} onRestart={startGame} />
+      {status === 'skillTree' && (
+        <SkillTreeScreen
+          progression={progression}
+          firstUnlock={treeFirstView}
+          onStartDay={startGame}
+          onExit={exitToTitle}
+          onPurchase={purchaseNode}
+          onToggle={toggleNode}
+          onResetTree={resetTree}
+          onResetFull={handleResetFull}
+        />
+      )}
+
+      {['overload', 'home', 'complete'].includes(status) && result && (
+        firstUnlockPending ? (
+          <SkillTreeUnlock
+            finalScore={result.finalScore}
+            bank={progression.bank}
+            onOpenTree={() => openSkillTree(true)}
+          />
+        ) : (
+          <ResultsScreen
+            result={result}
+            capacity={result.capacity}
+            banked={progression.treeUnlocked ? progression.bank : null}
+            onRestart={startGame}
+            onTutorial={startTutorialGame}
+            onSkillTree={progression.treeUnlocked ? () => openSkillTree(false) : undefined}
+          />
+        )
       )}
     </main>
   )
@@ -777,37 +1153,6 @@ function OverlayCard({ eyebrow, title, children }) {
         {children}
       </section>
     </div>
-  )
-}
-
-function EndCard({ status, score, onRestart }) {
-  const copy = {
-    home: {
-      eyebrow: 'YOU WENT HOME',
-      title: 'ENOUGH FOR TODAY',
-      body: 'You kept what you had. The rest of the day can wait.',
-    },
-    overload: {
-      eyebrow: 'OVERLOAD',
-      title: 'EVERYTHING AT ONCE',
-      body: 'The day ended for you. Most of the score slipped away with it.',
-    },
-    complete: {
-      eyebrow: 'DESTINATION REACHED',
-      title: 'YOU MADE IT',
-      body: 'You got to the café, ordered, and finally sat down.',
-    },
-  }[status]
-
-  return (
-    <OverlayCard eyebrow={copy.eyebrow} title={copy.title}>
-      <p>{copy.body}</p>
-      <div className="final-score">
-        <span>SCORE</span>
-        <strong>{score}</strong>
-      </div>
-      <button type="button" onClick={onRestart}>TRY ANOTHER DAY</button>
-    </OverlayCard>
   )
 }
 
