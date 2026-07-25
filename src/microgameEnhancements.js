@@ -8,6 +8,14 @@ const VARIANTS = {
 const bags = new Map()
 let activeWindow = null
 let syntheticPointerRelease = false
+let autoTargetEnabled = false
+
+// Hold It Together: when on, clearing the focused minigame hands the keyboard
+// to the next one on screen instead of dropping focus, so a run can be played
+// without re-clicking each window.
+export function setAutoTargetEnabled(enabled) {
+  autoTargetEnabled = enabled
+}
 
 function shuffled(values) {
   const next = [...values]
@@ -293,7 +301,10 @@ const rootObserver = new MutationObserver((records) => {
 
   if (activeWindow && !activeWindow.isConnected) {
     activeWindow.__crazyBodCleanup?.()
-    setActive(null)
+    // The focused window was cleared. With autotarget on, pass the keyboard to
+    // the next remaining minigame; otherwise just drop focus.
+    const next = autoTargetEnabled ? document.querySelector('.microgame') : null
+    setActive(next)
   }
 })
 

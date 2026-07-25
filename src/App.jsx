@@ -21,6 +21,7 @@ import {
   suppressionSplit,
 } from './techniques/techniqueEngine.js'
 import { getNode } from './progression/skillTreeConfig.js'
+import { setAutoTargetEnabled } from './microgameEnhancements.js'
 import {
   DAY_LENGTH,
   OVERLOAD_SCORE_MULTIPLIER,
@@ -223,11 +224,9 @@ function App() {
   const capacityRef = useRef(0)
   const rehearsalFiredRef = useRef(false)
   const planFiredRef = useRef(false)
-  const holdUsedRef = useRef(false)
   const adrenalineFiredRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   const pendingSpawnsRef = useRef([])
-  const enabledNodesRef = useRef(progression.enabledNodeIds)
   const techniqueOutcomesRef = useRef({})
   const directorRef = useRef(createPacingDirector())
   const spawnCounterRef = useRef(0)
@@ -255,7 +254,6 @@ function App() {
   // (e.g. a successful rehearsal). First run with nothing enabled is 5.
   const capacity = computeCapacity(progression.enabledNodeIds, runCapacityBonus)
   capacityRef.current = capacity
-  enabledNodesRef.current = progression.enabledNodeIds
   const load = microgames.length
   const overloadRatio = Math.min(1, load / capacity)
   const overloadShake = Math.max(0, load - 2) * 0.8
@@ -289,7 +287,6 @@ function App() {
     tutorialSecondSeenRef.current = false
     rehearsalFiredRef.current = false
     planFiredRef.current = false
-    holdUsedRef.current = false
     adrenalineFiredRef.current = false
     planStaggerRemainingRef.current = 0
     pendingSpawnsRef.current = []
@@ -391,11 +388,8 @@ function App() {
   // Route director spawns through the spawn-control hooks. A game is either
   // placed now or pushed onto the pending queue for later release.
   const requestSpawns = useCallback((entries) => {
-    const enabled = enabledNodesRef.current
-    const holdEnabled = enabled.includes('hold')
     const planActive = planStaggerRemainingRef.current > 0
     const planDelay = getNode('plan').effect.staggerDelaySeconds ?? 3
-    const holdSeconds = getNode('hold').effect.holdReleaseSeconds ?? 5
     let staggeredThisBatch = false
 
     entries.forEach((entry) => {
@@ -407,20 +401,6 @@ function App() {
           releaseCondition: 'time',
         })
         staggeredThisBatch = true
-        return
-      }
-      // Hold It Together: hold the first game that would fill the last slot.
-      if (
-        holdEnabled
-        && !holdUsedRef.current
-        && microgamesRef.current.length === capacityRef.current - 1
-      ) {
-        holdUsedRef.current = true
-        pendingSpawnsRef.current.push({
-          kind: entry.kind,
-          releaseAt: spawnElapsedRef.current + holdSeconds,
-          releaseCondition: 'slotOrTime',
-        })
         return
       }
       spawnMicrogame(entry.kind)
@@ -512,22 +492,17 @@ function App() {
     requestSpawns(batch.kinds)
   }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns])
 
-  // Release pending (held or staggered) spawns when their condition is met.
+  // Release pending (staggered) spawns once their delay has elapsed.
   useEffect(() => {
     if (status !== 'playing' || spawnPaused) return
     const queue = pendingSpawnsRef.current
     if (queue.length === 0) return
 
     const now = spawnElapsedRef.current
-    const curLoad = microgamesRef.current.length
-    const cap = capacityRef.current
     const ready = []
     const rest = []
     for (const item of queue) {
-      const timeUp = now >= item.releaseAt
-      const slotOpen = item.releaseCondition === 'slotOrTime' && curLoad < cap - 1
-      const release = item.releaseCondition === 'time' ? timeUp : timeUp || slotOpen
-      ;(release ? ready : rest).push(item)
+      ;(now >= item.releaseAt ? ready : rest).push(item)
     }
     if (ready.length) {
       pendingSpawnsRef.current = rest
@@ -660,6 +635,14 @@ function App() {
     if (success) planStaggerRemainingRef.current = node.effect.staggerPairs ?? 2
     setActiveTechnique(null)
   }, [])
+
+  // Hold It Together: while enabled during a run, clearing the focused
+  // minigame autotargets the next one for the keyboard.
+  useEffect(() => {
+    const on = status === 'playing' && progression.enabledNodeIds.includes('hold')
+    setAutoTargetEnabled(on)
+    return () => setAutoTargetEnabled(false)
+  }, [status, progression.enabledNodeIds])
 
   // Run on Adrenaline: pause new spawns for a window when load reaches one
   // below capacity. Day and score keep going; existing minigames stay.

@@ -26,8 +26,8 @@ unlocks, where banked score buys techniques:
   the run on success, or spawns two extra minigames on failure.
 - **Run Through the Plan** — a scheduled sequence that staggers the next pair
   spawns.
-- **Hold It Together** — holds back, once per run, the game that would fill the
-  last slot.
+- **Hold It Together** — after you clear a minigame, the keyboard automatically
+  targets the next one, so a run plays without re-clicking each window.
 - **Run on Adrenaline** — pauses new spawns for six seconds at one below
   capacity.
 - **Suppress Visible Distress** — an emergency Space-mash that suppresses half of

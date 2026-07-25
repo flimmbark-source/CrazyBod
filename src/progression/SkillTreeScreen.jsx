@@ -20,6 +20,12 @@ const ICONS = {
   chat: <path d="M5 6h14v9H9l-4 3z" />,
   list: <path d="M6 8h12M6 12h12M6 16h8" />,
   hold: <path d="M9 6v12M15 6v12" />,
+  target: (
+    <>
+      <circle cx="12" cy="12" r="5.5" />
+      <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" />
+    </>
+  ),
   bolt: <path d="M13 5l-6 8h4l-1 6 6-9h-4z" />,
   shield: <path d="M12 5l6 2v5c0 4-3 6-6 7-3-1-6-3-6-7V7z" />,
 }
@@ -117,7 +123,7 @@ function NodeInspector({ node, state }) {
   const copy = stateCopy(node, state)
 
   return (
-    <aside className={`skill-tree-inspector inspector-${state}`} aria-live="polite">
+    <aside className={`skill-tree-inspector inspector-${state} inspector-cat-${node.category}`} aria-live="polite">
       <div className="inspector-topline">
         <span className="inspector-kicker">{node.tagline}</span>
         <span className="inspector-state">{copy.label}</span>
@@ -229,7 +235,7 @@ export default function SkillTreeScreen({
               <button
                 key={node.id}
                 type="button"
-                className={`tree-node tree-node-${state}${isRoot ? ' tree-node-root' : ''}${activeId === node.id ? ' is-active' : ''}${deniedId === node.id ? ' is-denied' : ''}`}
+                className={`tree-node tree-node-${state} tree-node-cat-${node.category}${isRoot ? ' tree-node-root' : ''}${activeId === node.id ? ' is-active' : ''}${deniedId === node.id ? ' is-denied' : ''}`}
                 style={{ left: `${node.x}%`, top: `${node.y}%` }}
                 onClick={() => clickNode(node, state)}
                 onMouseEnter={() => state !== 'hidden' && setActiveId(node.id)}
