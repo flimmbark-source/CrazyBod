@@ -115,7 +115,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'suppress',
-    name: 'SUPPRESS VISIBLE DISTRESS',
+    name: 'Suppress Feelings',
     tagline: '',
     category: 'emergency',
     palette: PALETTES.emergency,
