@@ -1,0 +1,58 @@
+.cafe-conversation-dialogue {
+  z-index: 48;
+}
+
+.cafe-rupture-dialogue {
+  z-index: 56;
+  bottom: 28px;
+  width: min(720px, calc(100% - 44px));
+  box-shadow: 10px 11px 0 rgba(40, 35, 49, 0.82);
+}
+
+.cafe-rupture-dialogue .dialogue-options {
+  display: none;
+}
+
+.cafe-beat-rupture .microgame,
+.cafe-beat-departure .microgame,
+.cafe-beat-aftermath .microgame {
+  transform: translate(var(--beat-x), var(--beat-y)) rotate(calc((var(--window-index) - 2) * 0.35deg));
+  pointer-events: none;
+  transition: transform 620ms cubic-bezier(.18,.84,.28,1), opacity 260ms ease;
+}
+
+.cafe-beat-rupture .microgame *,
+.cafe-beat-departure .microgame *,
+.cafe-beat-aftermath .microgame * {
+  animation-play-state: paused !important;
+}
+
+.cafe-beat-departure .microgame,
+.cafe-beat-aftermath .microgame {
+  opacity: 0.72;
+}
+
+.cafe-beat-conversation .go-home,
+.cafe-beat-rupture .go-home,
+.cafe-beat-departure .go-home,
+.cafe-beat-aftermath .go-home {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 820px) {
+  .cafe-rupture-dialogue {
+    bottom: 18px;
+    width: calc(100% - 20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cafe-beat-rupture .microgame,
+  .cafe-beat-departure .microgame,
+  .cafe-beat-aftermath .microgame {
+    transform: rotate(calc((var(--window-index) - 2) * 0.35deg));
+    opacity: 0.38;
+    transition: opacity 160ms linear;
+  }
+}
