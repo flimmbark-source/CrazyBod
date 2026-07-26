@@ -132,8 +132,8 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       gravel: makeAudio(gravelUrl, { loop: true }),
       alarm: makeAudio(alarmUrl),
       rustle: makeAudio(rustleUrl, { loop: true }),
-      goHome: makeAudio(goHomeUrl, { loop: true }),
-      overloaded: makeAudio(overloadedUrl, { loop: true }),
+      goHome: makeAudio(goHomeUrl),
+      overloaded: makeAudio(overloadedUrl),
       cafe: makeAudio(cafeUrl, { loop: true, volume: 0.85 }),
       outside: [barkUrl, busIdleUrl, busPassUrl, carnivalUrl, cityUrl, motorcycleUrl]
         .map((url) => makeAudio(url, { volume: 0.7 }))
