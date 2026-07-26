@@ -1053,9 +1053,9 @@ function App() {
       )}
 
       {status === 'intro' && (
-        <OverlayCard eyebrow="" title="CRAZYBOD">
+        <OverlayCard eyebrow="" title="All you have to do is get to the cafe">
           <p>
-            Try to finish your day. Minigames will pop up, too many on the screen and you'll CRASH.
+            It's just a quick walk to see your friend at the cafe. Complete the Minigames that pop up, too many on the screen and you'll bust!
           </p>
           <button
             className="tutorial-toggle"
