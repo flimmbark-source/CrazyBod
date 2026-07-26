@@ -8,6 +8,7 @@ import {
   advanceCafeConversation,
   isCafeBeatFrozen,
 } from '../src/narrative/cafeBeat.js'
+import { DAY_LENGTH } from '../src/config/gameConfig.js'
 
 test('the café conversation always contains three compromised options', () => {
   assert.equal(CAFE_DIALOGUE.length, 3)
@@ -32,8 +33,10 @@ test('every answer follows the same fixed conversation sequence', () => {
   })
 })
 
-test('the café conversation begins five seconds before the day ends', () => {
-  assert.equal(CAFE_BEAT_START_AT, 45)
+test('the café conversation begins exactly as the day timer runs out', () => {
+  // The finale is tied to the day length so the on-screen countdown reaches
+  // zero as Mara speaks, instead of freezing partway through the conversation.
+  assert.equal(CAFE_BEAT_START_AT, DAY_LENGTH)
 })
 
 test('dialogue interludes give each exchange five seconds of space', () => {

@@ -1,3 +1,5 @@
+import { DAY_LENGTH } from '../config/gameConfig.js'
+
 export const CAFE_BEAT_PHASES = Object.freeze({
   INACTIVE: 'inactive',
   CONVERSATION: 'conversation',
@@ -8,7 +10,11 @@ export const CAFE_BEAT_PHASES = Object.freeze({
   CELEBRATION: 'celebration',
 })
 
-export const CAFE_BEAT_START_AT = 45
+// The café conversation is the finale of the day, so it begins exactly when the
+// day timer runs out. Tying it to DAY_LENGTH keeps the on-screen countdown and
+// the beat trigger from drifting apart: the timer reaches 0 as Mara speaks,
+// instead of freezing partway through the conversation.
+export const CAFE_BEAT_START_AT = DAY_LENGTH
 
 export const CAFE_BEAT_TIMINGS = Object.freeze({
   interludeMs: 5000,

@@ -31,10 +31,11 @@ const PLAYER_PATH = [
   { at: 35, position: [-0.6, 1.65, -89], look: [-1.3, 1.48, -95.15], walk: 0.45, fov: 65 },
   { at: 36, position: [-0.6, 1.65, -89], look: [4.2, 1.42, -91.6], walk: 0, fov: 66 },
 
-  // Sitting down: move directly to the player's side of the table, then settle.
-  { at: 40.5, position: [4.2, 1.65, -88.25], look: [4.2, 1.42, -91.6], walk: 0.78, fov: 64 },
-  { at: 41.2, position: [4.2, 1.38, -88.25], look: [4.2, 1.42, -91.6], walk: 0, fov: 63 },
-  { at: 50, position: [4.2, 1.38, -88.25], look: [4.2, 1.42, -91.6], walk: 0, fov: 63 },
+  // Sitting down: move to the player's side of the table, then settle so the
+  // seated eyeline rises to meet Mara's head across the table.
+  { at: 40.5, position: [4.2, 1.65, -88.25], look: [4.2, 1.55, -91.6], walk: 0.78, fov: 64 },
+  { at: 41.2, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
+  { at: 50, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
 ]
 
 const BEDROOM_COLOR = new THREE.Color('#b8a7bb')
@@ -149,11 +150,11 @@ function Door({ position, color, progress, openAngle = -Math.PI * 0.48, width = 
   )
 }
 
-function Chair({ position, rotation = [0, 0, 0], color = '#6b4f45' }) {
+function Chair({ position, rotation = [0, 0, 0], color = '#6b4f45', backless = false }) {
   return (
     <group position={position} rotation={rotation}>
       <Box position={[0, 0.72, 0]} size={[1.05, 0.14, 1.05]} color={color} />
-      <Box position={[0, 1.35, 0.45]} size={[1.05, 1.2, 0.14]} color={color} />
+      {!backless && <Box position={[0, 1.35, 0.45]} size={[1.05, 1.2, 0.14]} color={color} />}
       {[-0.42, 0.42].flatMap((x) => [-0.42, 0.42].map((z) => (
         <Box key={`${x}-${z}`} position={[x, 0.34, z]} size={[0.12, 0.72, 0.12]} color="#493b3b" />
       )))}
@@ -704,7 +705,9 @@ function CafeInterior({ elapsed, active }) {
       <group position={[4.2, 0, -90]}>
         <Table position={[0, 0, 0]} size={[2.55, 0.16, 1.75]} color="#b48261" />
         <Chair position={[0, 0, -1.6]} rotation={[0, Math.PI, 0]} color="#684c45" />
-        <Chair position={[0, 0, 1.6]} color="#684c45" />
+        {/* Player's chair: the back rail sat right in the camera and blocked the
+            conversation, so this seat is rendered backless. */}
+        <Chair position={[0, 0, 1.6]} color="#684c45" backless />
         <Cylinder position={[-0.35, 1.18, -0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
         <Cylinder position={[0.35, 1.18, 0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
       </group>
