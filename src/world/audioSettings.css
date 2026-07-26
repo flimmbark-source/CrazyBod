@@ -1,0 +1,107 @@
+.audio-settings {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: inherit;
+}
+
+.status-intro .overlay-card {
+  position: relative;
+}
+
+.audio-settings.audio-settings-embedded {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+}
+
+.audio-settings-gear {
+  width: 46px;
+  height: 46px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  background: rgba(26, 22, 34, 0.88);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.audio-settings-embedded .audio-settings-gear {
+  width: 32px;
+  height: 32px;
+  border-width: 1px;
+  border-radius: 9px;
+  font-size: 17px;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24);
+}
+
+.audio-settings-gear:hover,
+.audio-settings-gear:focus-visible {
+  transform: translateY(-1px);
+  background: rgba(45, 37, 58, 0.96);
+}
+
+.audio-settings-panel {
+  min-width: 210px;
+  display: grid;
+  grid-template-columns: auto minmax(110px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  background: rgba(26, 22, 34, 0.94);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.audio-settings-panel label,
+.audio-settings-panel output {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.audio-settings-panel input[type='range'] {
+  width: 100%;
+  accent-color: #f4cf72;
+}
+
+@media (max-width: 620px) {
+  .audio-settings {
+    top: 10px;
+    left: 10px;
+  }
+
+  .audio-settings.audio-settings-embedded {
+    top: 8px;
+    left: 8px;
+  }
+
+  .audio-settings-gear {
+    width: 42px;
+    height: 42px;
+  }
+
+  .audio-settings-embedded .audio-settings-gear {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .audio-settings-panel {
+    min-width: 180px;
+    grid-template-columns: 1fr auto;
+  }
+
+  .audio-settings-panel label {
+    grid-column: 1 / -1;
+  }
+}

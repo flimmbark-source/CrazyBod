@@ -7,6 +7,7 @@
 export const DAY_LENGTH = 50
 export const SCORE_PER_SECOND = 10
 export const BASE_OVERLOAD_LIMIT = 5
+export const DAY_ELAPSED_EVENT = 'crazybod:day-elapsed'
 
 // The maximum score is a function of the scored day length only. Unscored
 // technique time must never let the score exceed this ceiling.
@@ -38,5 +39,8 @@ export function phaseLabel(dayElapsed) {
 }
 
 export function scoreForElapsed(dayElapsed) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(DAY_ELAPSED_EVENT, { detail: dayElapsed }))
+  }
   return Math.min(MAX_SCORE, Math.floor(dayElapsed * SCORE_PER_SECOND))
 }

@@ -258,6 +258,7 @@ function App() {
   const completionEffectIdRef = useRef(0)
   const tutorialFirstSeenRef = useRef(false)
   const tutorialSecondSeenRef = useRef(false)
+  const tutorialHomePendingRef = useRef(false)
   const lastTickRef = useRef(0)
   const dayElapsedRef = useRef(0)
   const spawnElapsedRef = useRef(0)
@@ -320,6 +321,7 @@ function App() {
     resolvedGamesRef.current = new Set()
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
+    tutorialHomePendingRef.current = false
     rehearsalFiredRef.current = false
     planFiredRef.current = false
     adrenalineFiredRef.current = false
@@ -512,6 +514,17 @@ function App() {
       setTutorialStep(second.role)
     }
   }, [dayElapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
+
+  useEffect(() => {
+    if (status !== 'playing' || !tutorialRun) return
+    if (!tutorialHomePendingRef.current || tutorialStep !== 'none') return
+
+    // "Two capacity left" — the load has climbed to within two pips of overload.
+    if (capacity - load <= 2) {
+      tutorialHomePendingRef.current = false
+      setTutorialStep('home')
+    }
+  }, [load, capacity, status, tutorialRun, tutorialStep])
 
   useEffect(() => {
     if (!spawningEnabled) return
@@ -882,7 +895,11 @@ function App() {
 
   const advanceTutorial = () => {
   if (tutorialStep === 'summary') {
-    setTutorialStep('home')
+    // Hold the Go Home lesson until the player is genuinely under pressure:
+    // resume play and surface it once only two capacity pips remain.
+    tutorialHomePendingRef.current = true
+    setDirectorReady(true)
+    setTutorialStep('none')
     return
   }
   finishTutorial()
@@ -1177,10 +1194,15 @@ function TutorialCallout({ step, target, onProceed }) {
         top: clampTop(candidate.top),
       }))
 
-      const blockedRects = [
-        ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
-        targetRect,
-      ]
+      // The Go Home lesson fires while play is paused and the board is crowded
+      // with idle minigames; ignore them as blockers so the callout stays pinned
+      // to the Go Home button instead of fleeing to a far corner.
+      const blockedRects = step === 'home'
+        ? [targetRect]
+        : [
+            ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
+            targetRect,
+          ]
       const candidateRect = (candidate) => ({
         left: candidate.left,
         top: candidate.top,
@@ -1244,7 +1266,7 @@ function TutorialCallout({ step, target, onProceed }) {
           body: 'Click the box, then use the arrow keys or WASD to reach the exit.',
         }
       : {
-          eyebrow: 'WHEN IT IS TOO MUCH',
+          eyebrow: '',
           title: 'Go Home if you feel overwhelmed.',
           body: '',
         }
