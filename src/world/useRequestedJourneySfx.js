@@ -4,18 +4,30 @@ import popupUrl from './Pops/dragon-studio-pop-402323.mp3'
 import interactionUrl from './universfield-mouse-click-351398.mp3'
 import doorUrl from './dragon-studio-open-door-stock-sfx-454246.mp3'
 import achievementUrl from './Orchestral-hit-achievement-sound-effect.mp3'
+import progressUrl from './universfield-new-notification-059-494262.mp3'
 
 const APARTMENT_DOOR_OPENS_AT = 13.05
 const CAFE_DOOR_OPENS_AT = 28.75
 const OVERLOAD_STING_MS = 2000
 const OVERLOAD_MUSIC_FILE = 'sonican-big-band-detective-30-seconds-486239.mp3'
+const PROGRESS_IDLE_MS = 180
+const MIN_PROGRESS_RATE = 0.82
+const MAX_PROGRESS_RATE = 1.72
 
-function makeAudio(url, volume = 0.45) {
+function makeAudio(url, volume = 0.45, { loop = false } = {}) {
   if (typeof Audio === 'undefined') return null
   const audio = new Audio(url)
   audio.volume = volume
   audio.preload = 'auto'
+  audio.loop = loop
+  audio.__crazyBodBaseVolume = volume
   return audio
+}
+
+function applyMasterVolume(audio, volume) {
+  if (!audio) return
+  const baseVolume = Number(audio.__crazyBodBaseVolume ?? audio.volume)
+  audio.volume = Math.min(1, Math.max(0, baseVolume * volume))
 }
 
 function resetAudio(audio) {
@@ -44,12 +56,24 @@ function playClone(audio) {
   if (!audio) return
   const clone = audio.cloneNode()
   clone.volume = audio.volume
+  clone.playbackRate = audio.playbackRate
   clone.play().catch((error) => {
     console.warn('Requested journey sound playback failed:', error)
   })
 }
 
-export default function useRequestedJourneySfx({ status, dayElapsed, load }) {
+function progressPercentage(element) {
+  const inlineWidth = Number.parseFloat(element.style.width)
+  if (Number.isFinite(inlineWidth)) return Math.min(100, Math.max(0, inlineWidth))
+
+  const track = element.parentElement
+  if (!track) return 0
+  const trackWidth = track.getBoundingClientRect().width
+  if (trackWidth <= 0) return 0
+  return Math.min(100, Math.max(0, (element.getBoundingClientRect().width / trackWidth) * 100))
+}
+
+export default function useRequestedJourneySfx({ status, dayElapsed, load, volume = 1 }) {
   const clipsRef = useRef(null)
   if (clipsRef.current === null) {
     clipsRef.current = {
@@ -57,6 +81,7 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load }) {
       interaction: makeAudio(interactionUrl, 0.38),
       door: makeAudio(doorUrl, 0.5),
       achievement: makeAudio(achievementUrl, 0.58),
+      progress: makeAudio(progressUrl, 0.34, { loop: true }),
     }
   }
 
@@ -69,6 +94,15 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load }) {
   const originalPlayRef = useRef(null)
 
   useEffect(() => {
+    Object.values(clipsRef.current).forEach((audio) => applyMasterVolume(audio, volume))
+    const delayedMusic = delayedOverloadMusicRef.current
+    if (delayedMusic) {
+      delayedMusic.__crazyBodBaseVolume ??= delayedMusic.volume
+      applyMasterVolume(delayedMusic, volume)
+    }
+  }, [volume])
+
+  useEffect(() => {
     const originalPlay = HTMLMediaElement.prototype.play
     originalPlayRef.current = originalPlay
 
@@ -76,6 +110,8 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load }) {
       const source = this.currentSrc || this.src || ''
       if (source.includes(OVERLOAD_MUSIC_FILE) && !allowOverloadMusicRef.current) {
         delayedOverloadMusicRef.current = this
+        this.__crazyBodBaseVolume ??= this.volume
+        applyMasterVolume(this, volume)
         return Promise.resolve()
       }
       return originalPlay.apply(this, args)
@@ -85,7 +121,7 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load }) {
       HTMLMediaElement.prototype.play = originalPlay
       originalPlayRef.current = null
     }
-  }, [])
+  }, [volume])
 
   useEffect(() => {
     const clips = clipsRef.current
@@ -95,15 +131,15 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load }) {
       unlocked = true
       Object.values(clips).forEach((audio) => {
         if (!audio) return
-        const volume = audio.volume
+        const audibleVolume = audio.volume
         audio.volume = 0
         audio.play()
           .then(() => {
             resetAudio(audio)
-            audio.volume = volume
+            audio.volume = audibleVolume
           })
           .catch(() => {
-            audio.volume = volume
+            audio.volume = audibleVolume
           })
       })
       window.removeEventListener('pointerdown', unlock, true)
@@ -128,6 +164,55 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load }) {
     window.addEventListener('pointerdown', handlePointerDown, true)
     return () => window.removeEventListener('pointerdown', handlePointerDown, true)
   }, [])
+
+  useEffect(() => {
+    const progressAudio = clipsRef.current.progress
+    const previousValues = new WeakMap()
+    const lastMovingAt = new WeakMap()
+    let frame = 0
+    let playPending = false
+
+    const tick = (now) => {
+      const bars = Array.from(document.querySelectorAll('.mini-progress > i, .tiny-progress > i'))
+      let highestMovingProgress = -1
+
+      bars.forEach((bar) => {
+        const current = progressPercentage(bar)
+        const previous = previousValues.get(bar)
+        if (Number.isFinite(previous) && current > previous + 0.04) {
+          lastMovingAt.set(bar, now)
+        }
+        previousValues.set(bar, current)
+
+        const movedAt = lastMovingAt.get(bar)
+        if (Number.isFinite(movedAt) && now - movedAt <= PROGRESS_IDLE_MS) {
+          highestMovingProgress = Math.max(highestMovingProgress, current)
+        }
+      })
+
+      if (status === 'playing' && highestMovingProgress >= 0 && progressAudio) {
+        const ratio = highestMovingProgress / 100
+        progressAudio.playbackRate = MIN_PROGRESS_RATE
+          + (MAX_PROGRESS_RATE - MIN_PROGRESS_RATE) * ratio
+        if (progressAudio.paused && !playPending) {
+          playPending = true
+          progressAudio.play()
+            .catch((error) => console.warn('Progress sound playback failed:', error))
+            .finally(() => { playPending = false })
+        }
+      } else if (progressAudio && !progressAudio.paused) {
+        progressAudio.pause()
+      }
+
+      frame = window.requestAnimationFrame(tick)
+    }
+
+    frame = window.requestAnimationFrame(tick)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      if (progressAudio) progressAudio.pause()
+    }
+  }, [status])
 
   useEffect(() => {
     const added = load - previousLoadRef.current
