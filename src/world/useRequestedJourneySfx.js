@@ -12,8 +12,10 @@ const CAFE_DOOR_OPENS_AT = 28.75
 const OVERLOAD_STING_MS = 2000
 const OVERLOAD_MUSIC_FILE = 'sonican-big-band-detective-30-seconds-486239.mp3'
 const PROGRESS_IDLE_MS = 180
-const MIN_PROGRESS_RATE = 1.35
-const MAX_PROGRESS_RATE = 2.6
+const MIN_PROGRESS_RATE = 1.1
+const MAX_PROGRESS_RATE = 1.9
+const MAX_PROGRESS_INTERVAL_MS = 125
+const MIN_PROGRESS_INTERVAL_MS = 42
 
 function makeAudio(url, volume = 0.45, { loop = false } = {}) {
   if (typeof Audio === 'undefined') return null
@@ -88,7 +90,7 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
       interaction: makeAudio(interactionUrl, 0.38),
       door: makeAudio(doorUrl, 0.5),
       achievement: makeAudio(achievementUrl, 0.58),
-      progress: makeAudio(progressUrl, 0.34, { loop: true }),
+      progress: makeAudio(progressUrl, 0.34),
       completion: makeAudio(completionUrl, 0.52),
     }
   }
@@ -197,7 +199,7 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
     const previousValues = new WeakMap()
     const lastMovingAt = new WeakMap()
     let frame = 0
-    let playPending = false
+    let lastTriggerAt = Number.NEGATIVE_INFINITY
 
     const tick = (now) => {
       const bars = Array.from(document.querySelectorAll('.mini-progress > i, .tiny-progress > i'))
@@ -219,26 +221,24 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
 
       if (status === 'playing' && highestMovingProgress >= 0 && progressAudio) {
         const ratio = highestMovingProgress / 100
+        const interval = MAX_PROGRESS_INTERVAL_MS
+          - (MAX_PROGRESS_INTERVAL_MS - MIN_PROGRESS_INTERVAL_MS) * ratio
         progressAudio.playbackRate = MIN_PROGRESS_RATE
           + (MAX_PROGRESS_RATE - MIN_PROGRESS_RATE) * ratio
-        if (progressAudio.paused && !playPending) {
-          playPending = true
-          progressAudio.play()
-            .catch((error) => console.warn('Progress sound playback failed:', error))
-            .finally(() => { playPending = false })
+
+        if (now - lastTriggerAt >= interval) {
+          lastTriggerAt = now
+          playClone(progressAudio)
         }
-      } else if (progressAudio && !progressAudio.paused) {
-        progressAudio.pause()
+      } else {
+        lastTriggerAt = Number.NEGATIVE_INFINITY
       }
 
       frame = window.requestAnimationFrame(tick)
     }
 
     frame = window.requestAnimationFrame(tick)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      if (progressAudio) progressAudio.pause()
-    }
+    return () => window.cancelAnimationFrame(frame)
   }, [status])
 
   useEffect(() => {
