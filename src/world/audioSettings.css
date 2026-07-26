@@ -15,8 +15,8 @@
 
 .audio-settings.audio-settings-embedded {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 10px;
+  left: 10px;
   z-index: 2;
 }
 
@@ -31,6 +31,15 @@
   line-height: 1;
   cursor: pointer;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.audio-settings-embedded .audio-settings-gear {
+  width: 32px;
+  height: 32px;
+  border-width: 1px;
+  border-radius: 9px;
+  font-size: 17px;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24);
 }
 
 .audio-settings-gear:hover,
@@ -72,13 +81,19 @@
   }
 
   .audio-settings.audio-settings-embedded {
-    top: 10px;
-    left: 10px;
+    top: 8px;
+    left: 8px;
   }
 
   .audio-settings-gear {
     width: 42px;
     height: 42px;
+  }
+
+  .audio-settings-embedded .audio-settings-gear {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
   }
 
   .audio-settings-panel {
