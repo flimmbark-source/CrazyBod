@@ -1261,7 +1261,7 @@ function TutorialCallout({ step, target, onProceed }) {
           body: 'Click the box, then use the arrow keys or WASD to reach the exit.',
         }
       : {
-          eyebrow: 'WHEN IT IS TOO MUCH',
+          eyebrow: '',
           title: 'Go Home if you feel overwhelmed.',
           body: '',
         }

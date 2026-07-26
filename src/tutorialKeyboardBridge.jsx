@@ -60,7 +60,7 @@ function syncTutorialUi() {
     scoreCallout.innerHTML = `
       <i class="tutorial-pointer" aria-hidden="true"></i>
       <span>IF YOU BECOME OVERWHELMED</span>
-      <strong>You will lose some of your score.</strong>
+      <strong>If you bust, you will lose some of your score.</strong>
     `
     homeLayer.append(scoreCallout)
   }
