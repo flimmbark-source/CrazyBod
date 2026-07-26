@@ -14,7 +14,7 @@ const RESULT_COPY = {
   },
   complete: {
     eyebrow: 'DAY RESULT',
-    title: 'MADE IT',
+    title: 'YOU DID IT!',
   },
 }
 
@@ -27,9 +27,8 @@ function prefersReducedMotion() {
 }
 
 function resultSummary(result) {
+  if (result.outcome === 'complete') return 'You made it to the café.'
   const duration = `${result.dayElapsed.toFixed(1)} seconds`
-  if (result.outcome === 'overload') return `after ${duration}.`
-  if (result.outcome === 'home') return `after ${duration}.`
   return `after ${duration}.`
 }
 
