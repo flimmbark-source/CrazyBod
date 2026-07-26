@@ -9,6 +9,17 @@
   font-family: inherit;
 }
 
+.status-intro .overlay-card {
+  position: relative;
+}
+
+.audio-settings.audio-settings-embedded {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+}
+
 .audio-settings-gear {
   width: 46px;
   height: 46px;
@@ -56,6 +67,11 @@
 
 @media (max-width: 620px) {
   .audio-settings {
+    top: 10px;
+    left: 10px;
+  }
+
+  .audio-settings.audio-settings-embedded {
     top: 10px;
     left: 10px;
   }
