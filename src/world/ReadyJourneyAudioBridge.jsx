@@ -9,12 +9,12 @@ const AUDIO_VOLUME_KEY = 'crazybod:audio-volume'
 function readStoredVolume() {
   try {
     const storedValue = window.localStorage.getItem(AUDIO_VOLUME_KEY)
-    if (storedValue === null) return 0.75
+    if (storedValue === null) return 0.5
 
     const stored = Number(storedValue)
-    return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.75
+    return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.5
   } catch {
-    return 0.75
+    return 0.5
   }
 }
 
