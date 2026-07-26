@@ -52,6 +52,17 @@ test('migrate preserves the legacy Hold It Together purchase and enabled state',
   assert.deepEqual(state.enabledNodeIds, ['autotarget'])
 })
 
+test('migrate reveals children of already-owned nodes (new nodes appear on old saves)', () => {
+  // A save from before the stretch ritual existed: rehearse is owned, but its
+  // revealed list predates the new child.
+  const state = migrateProgression({
+    purchasedNodeIds: ['thisIsNormal', 'rehearse'],
+    revealedNodeIds: ['thisIsNormal', 'rehearse', 'autotarget', 'plan'],
+    enabledNodeIds: ['thisIsNormal', 'rehearse'],
+  })
+  assert.ok(state.revealedNodeIds.includes('stretch'))
+})
+
 test('base capacity is 5 with nothing enabled', () => {
   assert.equal(computeCapacity([]), BASE_OVERLOAD_LIMIT)
   assert.equal(BASE_OVERLOAD_LIMIT, 5)
@@ -82,6 +93,15 @@ test('purchase subtracts exact cost, auto-enables, reveals children', () => {
   assert.ok(isRevealed(state, 'rehearse'))
   assert.ok(isRevealed(state, 'autotarget'))
   assert.equal(isRevealed(state, 'plan'), false) // grandchild not yet revealed
+})
+
+test('buying the rehearsal reveals the stretch ritual beside the plan', () => {
+  let state = { ...defaultProgression(), bank: 1000 }
+  state = purchaseNode(state, 'thisIsNormal')
+  assert.equal(isRevealed(state, 'stretch'), false) // hidden until rehearse
+  state = purchaseNode(state, 'rehearse')
+  assert.ok(isRevealed(state, 'stretch'))
+  assert.equal(getNode('stretch').parent, 'rehearse')
 })
 
 test('purchase is rejected when invalid (no state change)', () => {

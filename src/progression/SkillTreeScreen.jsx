@@ -24,6 +24,12 @@ const ICONS = {
   ),
   bolt: <path d="M13 5l-6 8h4l-1 6 6-9h-4z" />,
   shield: <path d="M12 5l6 2v5c0 4-3 6-6 7-3-1-6-3-6-7V7z" />,
+  stretch: (
+    <>
+      <circle cx="12" cy="5" r="2" />
+      <path d="M12 8v6M12 11l-5 2M12 11l5 2M12 14l-3 6M12 14l3 6" />
+    </>
+  ),
 }
 
 function NodeIcon({ icon }) {

@@ -12,14 +12,20 @@ import {
 } from './pacingDirector.js'
 import RehearsalTechnique from './techniques/RehearsalTechnique.jsx'
 import PlanTechnique from './techniques/PlanTechnique.jsx'
+import StretchTechnique from './techniques/StretchTechnique.jsx'
 import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
 import {
   REHEARSAL_SEQUENCE,
   PLAN_SEQUENCE,
+  STRETCH_SEQUENCE,
+  PHYSICAL_SYMPTOM_KINDS,
   rehearsalSucceeded,
   scheduledSucceeded,
+  stretchSucceeded,
   suppressionSplit,
 } from './techniques/techniqueEngine.js'
+
+const PHYSICAL_SYMPTOM_KIND_SET = new Set(PHYSICAL_SYMPTOM_KINDS)
 import { getNode } from './progression/skillTreeConfig.js'
 import { setAutoTargetEnabled } from './microgameEnhancements.js'
 import {
@@ -249,6 +255,10 @@ function App() {
   const planFiredRef = useRef(false)
   const adrenalineFiredRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
+  const stretchFiredRef = useRef(false)
+  // While the day clock is below this value, a completed stretch thins the
+  // physical-symptom spawns. 0 means the benefit is inactive.
+  const stretchThinUntilRef = useRef(0)
   const pendingSpawnsRef = useRef([])
   const techniqueOutcomesRef = useRef({})
   const directorRef = useRef(createPacingDirector())
@@ -324,6 +334,8 @@ function App() {
     planFiredRef.current = false
     adrenalineFiredRef.current = false
     planStaggerRemainingRef.current = 0
+    stretchFiredRef.current = false
+    stretchThinUntilRef.current = 0
     pendingSpawnsRef.current = []
     suppressUsedRef.current = false
     techniqueOutcomesRef.current = {}
@@ -428,6 +440,11 @@ function App() {
     const planDelay = getNode('plan').effect.staggerDelaySeconds ?? 3
     let staggeredThisBatch = false
 
+    // Stretch Every Joint: while the warm-up still holds, loosened joints let
+    // some of the physical symptoms slide off before they land.
+    const stretchActive = dayElapsedRef.current < stretchThinUntilRef.current
+    const thinChance = getNode('stretch').effect.thinChance ?? 0.5
+
     entries.forEach((entry) => {
       // Run Through the Plan: delay the second game of the next pair spawns.
       if (planActive && entry.slot === 'pair') {
@@ -437,6 +454,13 @@ function App() {
           releaseCondition: 'time',
         })
         staggeredThisBatch = true
+        return
+      }
+      if (
+        stretchActive
+        && PHYSICAL_SYMPTOM_KIND_SET.has(entry.kind)
+        && Math.random() < thinChance
+      ) {
         return
       }
       spawnMicrogame(entry.kind)
@@ -656,6 +680,28 @@ function App() {
     }
     setActiveTechnique(null)
   }, [spawnMicrogame])
+
+  // Stretch Every Joint: a pre-departure warm-up. Fires once per run at its
+  // trigger, before you leave for the walk, while nothing else is active.
+  useEffect(() => {
+    if (status !== 'playing' || cafeBeatActive || activeTechnique || stretchFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('stretch')) return
+    if (dayElapsed < getNode('stretch').effect.triggerDay) return
+    stretchFiredRef.current = true
+    setActiveTechnique({ id: 'stretch', pausesDay: true, pausesSpawns: false })
+  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
+
+  const completeStretch = useCallback((outcome) => {
+    const node = getNode('stretch')
+    const success = stretchSucceeded(outcome)
+    techniqueOutcomesRef.current.stretch = success ? 'success' : 'failure'
+    if (success) {
+      // Thin the physical symptoms for a stretch of the early walk. Gentle
+      // failure: nothing happens, you just carry the stiffness with you.
+      stretchThinUntilRef.current = dayElapsedRef.current + (node.effect.windowSeconds ?? 12)
+    }
+    setActiveTechnique(null)
+  }, [])
 
   // Run Through the Plan: scheduled technique that staggers the next pairs.
   useEffect(() => {
@@ -1055,6 +1101,15 @@ function App() {
               steps={PLAN_SEQUENCE.steps}
               timeLimitSeconds={getNode('plan').effect.addedSeconds}
               onComplete={completePlan}
+            />
+          )}
+
+          {activeTechnique?.id === 'stretch' && (
+            <StretchTechnique
+              joints={STRETCH_SEQUENCE.joints}
+              timeLimitSeconds={getNode('stretch').effect.addedSeconds}
+              holdSeconds={getNode('stretch').effect.holdSeconds}
+              onComplete={completeStretch}
             />
           )}
 

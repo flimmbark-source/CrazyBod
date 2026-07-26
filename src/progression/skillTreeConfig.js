@@ -129,6 +129,29 @@ export const SKILL_TREE_NODES = [
     detail: 'Ignore the feelings your body is telling you to just get it done.',
     effect: { techniqueId: 'suppression', requiredPresses: 12 },
   },
+  {
+    id: 'stretch',
+    name: 'Stretch every joint before you leave.',
+    tagline: 'Getting Ready',
+    category: 'preparation',
+    palette: PALETTES.preparation,
+    cost: 275,
+    parent: 'rehearse',
+    x: 15,
+    y: 46,
+    icon: 'stretch',
+    hook: 'scheduledTechnique',
+    description: 'Loosen up to thin the aches early in the walk.',
+    detail: 'Nobody tells you leaving the house needs a warm-up. You have stopped expecting them to.',
+    effect: {
+      techniqueId: 'stretch',
+      triggerDay: 10.5,
+      addedSeconds: 11,
+      holdSeconds: 0.8,
+      thinChance: 0.5,
+      windowSeconds: 12,
+    },
+  },
 ]
 
 const nodesById = Object.fromEntries(

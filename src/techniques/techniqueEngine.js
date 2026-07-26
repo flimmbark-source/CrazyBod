@@ -37,6 +37,39 @@ export const PLAN_SEQUENCE = {
   ],
 }
 
+// Stretch Every Joint: a pre-departure ritual. The player holds each joint in
+// turn to loosen it. There is nothing to get "wrong" — you either finished
+// warming up before you had to leave, or you ran out of time and didn't.
+export const STRETCH_SEQUENCE = {
+  joints: [
+    { key: 'neck', label: 'Neck' },
+    { key: 'shoulders', label: 'Shoulders' },
+    { key: 'wrists', label: 'Wrists' },
+    { key: 'back', label: 'Back' },
+    { key: 'hips', label: 'Hips' },
+    { key: 'knees', label: 'Knees' },
+    { key: 'ankles', label: 'Ankles' },
+  ],
+}
+
+// The physical symptoms a completed stretch thins out early in the walk. These
+// are exactly the minigames authored in physical.jsx.
+export const PHYSICAL_SYMPTOM_KINDS = [
+  'balance',
+  'jointSlip',
+  'muscleLock',
+  'pressurePoint',
+  'spiral',
+  'tremor',
+  'weakGrip',
+]
+
+// The stretch pays off only if every joint was loosened before the window ran
+// out. Failure is gentle: you simply do not get the benefit this run.
+export function stretchSucceeded({ finished }) {
+  return Boolean(finished)
+}
+
 export function scoredPromptCount(prompts) {
   return prompts.filter((prompt) => prompt.correctOption !== null).length
 }

@@ -4,9 +4,12 @@ import assert from 'node:assert/strict'
 import {
   REHEARSAL_SEQUENCE,
   PLAN_SEQUENCE,
+  STRETCH_SEQUENCE,
+  PHYSICAL_SYMPTOM_KINDS,
   scoredPromptCount,
   rehearsalSucceeded,
   scheduledSucceeded,
+  stretchSucceeded,
   suppressionSplit,
 } from '../src/techniques/techniqueEngine.js'
 import { drawSpawnKinds, createPacingDirector } from '../src/pacingDirector.js'
@@ -33,6 +36,22 @@ test('scheduled techniques succeed only when finished without a wrong pick', () 
 test('plan sequence has ordered steps', () => {
   const orders = PLAN_SEQUENCE.steps.map((s) => s.order)
   assert.deepEqual(orders, [...orders].sort((a, b) => a - b))
+})
+
+test('stretch succeeds only when the warm-up was finished in time', () => {
+  assert.equal(stretchSucceeded({ finished: true }), true)
+  assert.equal(stretchSucceeded({ finished: false }), false) // ran out of time
+})
+
+test('stretch has joints and thins only the physical symptoms', () => {
+  assert.ok(STRETCH_SEQUENCE.joints.length >= 4)
+  for (const joint of STRETCH_SEQUENCE.joints) assert.equal(typeof joint.key, 'string')
+  // The thinned kinds are exactly the physical.jsx minigames — no cognitive or
+  // sensory symptoms leak in.
+  assert.deepEqual(
+    [...PHYSICAL_SYMPTOM_KINDS].sort(),
+    ['balance', 'jointSlip', 'muscleLock', 'pressurePoint', 'spiral', 'tremor', 'weakGrip'],
+  )
 })
 
 test('drawSpawnKinds returns the requested count from a phase pool', () => {

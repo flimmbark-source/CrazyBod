@@ -45,14 +45,22 @@ export function migrateProgression(raw) {
   ]
   const asNumber = (value, fallback) => (Number.isFinite(value) ? value : fallback)
 
+  const purchased = asNodeIds(raw.purchasedNodeIds).filter(getNode)
+
   const revealed = new Set(asNodeIds(raw.revealedNodeIds))
   revealed.add(STARTING_NODE_ID)
+  // Reveal the children of everything already owned. Without this, a node added
+  // in a later version stays hidden forever on any save that had already bought
+  // its parent (reveal is otherwise only computed at purchase time).
+  for (const nodeId of purchased) {
+    for (const childId of childrenOf(nodeId)) revealed.add(childId)
+  }
 
   return {
     version: PROGRESSION_VERSION,
     bank: Math.max(0, asNumber(raw.bank, 0)),
     treeUnlocked: Boolean(raw.treeUnlocked),
-    purchasedNodeIds: asNodeIds(raw.purchasedNodeIds).filter(getNode),
+    purchasedNodeIds: purchased,
     revealedNodeIds: [...revealed].filter(getNode),
     enabledNodeIds: asNodeIds(raw.enabledNodeIds).filter(getNode),
     completedRuns: Math.max(0, Math.floor(asNumber(raw.completedRuns, 0))),
