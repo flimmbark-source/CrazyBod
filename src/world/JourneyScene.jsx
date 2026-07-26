@@ -775,12 +775,12 @@ export function AuthoredJourneyScene({
         shadow-camera-near={1}
         shadow-camera-far={45}
       />
-      +<CameraRig
-  elapsed={elapsed}
-  active={active}
-  enabled={cameraEnabled}
-  dialogueStage={dialogueStage}
-/>
+      <CameraRig
+        elapsed={elapsed}
+        active={active}
+        enabled={cameraEnabled}
+        dialogueStage={dialogueStage}
+      />
       <World elapsed={elapsed} active={active} />
     </>
   )
