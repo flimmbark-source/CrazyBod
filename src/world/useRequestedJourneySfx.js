@@ -5,6 +5,7 @@ import interactionUrl from './universfield-mouse-click-351398.mp3'
 import doorUrl from './dragon-studio-open-door-stock-sfx-454246.mp3'
 import achievementUrl from './Orchestral-hit-achievement-sound-effect.mp3'
 import progressUrl from './universfield-new-notification-059-494262.mp3'
+import completionUrl from './universfield-new-notification-04-326127.mp3'
 
 const APARTMENT_DOOR_OPENS_AT = 13.05
 const CAFE_DOOR_OPENS_AT = 28.75
@@ -73,6 +74,12 @@ function progressPercentage(element) {
   return Math.min(100, Math.max(0, (element.getBoundingClientRect().width / trackWidth) * 100))
 }
 
+function countCompletionBursts(node) {
+  if (!(node instanceof Element)) return 0
+  return (node.classList.contains('completion-burst') ? 1 : 0)
+    + node.querySelectorAll('.completion-burst').length
+}
+
 export default function useRequestedJourneySfx({ status, dayElapsed, load, volume = 1 }) {
   const clipsRef = useRef(null)
   if (clipsRef.current === null) {
@@ -82,6 +89,7 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
       door: makeAudio(doorUrl, 0.5),
       achievement: makeAudio(achievementUrl, 0.58),
       progress: makeAudio(progressUrl, 0.34, { loop: true }),
+      completion: makeAudio(completionUrl, 0.52),
     }
   }
 
@@ -164,6 +172,25 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
     window.addEventListener('pointerdown', handlePointerDown, true)
     return () => window.removeEventListener('pointerdown', handlePointerDown, true)
   }, [])
+
+  useEffect(() => {
+    const observer = new MutationObserver((records) => {
+      if (status !== 'playing') return
+      const completed = records.reduce((total, record) => (
+        total + Array.from(record.addedNodes).reduce(
+          (count, node) => count + countCompletionBursts(node),
+          0,
+        )
+      ), 0)
+
+      for (let index = 0; index < completed; index += 1) {
+        playClone(clipsRef.current.completion)
+      }
+    })
+
+    observer.observe(document.body, { subtree: true, childList: true })
+    return () => observer.disconnect()
+  }, [status])
 
   useEffect(() => {
     const progressAudio = clipsRef.current.progress
