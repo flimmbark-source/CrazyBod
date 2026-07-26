@@ -2,7 +2,7 @@ export const OPENING_INTERVAL = [2, 3]
 
 export const TUTORIAL_SEQUENCE = [
   { role: 'first', at: 2.5, kind: 'fatigue' },
-  { role: 'second', at: 8.5, kind: 'brainFog' },
+  { role: 'second', at: 6.5, kind: 'brainFog' },
 ]
 
 export const PACING_PHASES = [
@@ -49,7 +49,7 @@ export const PACING_PHASES = [
     id: 'walking',
     start: 15,
     end: 30,
-    interval: [10, 11],
+    interval: [1.5, 3],
     pairChance: 0.20,
     weights: {
       balance: 4,
@@ -71,7 +71,7 @@ export const PACING_PHASES = [
     id: 'ordering',
     start: 30,
     end: 42,
-    interval: [10, 12],
+    interval: [1, 2],
     pairChance: 0.20,
     weights: {
       anxiety: 4,
@@ -93,7 +93,7 @@ export const PACING_PHASES = [
     id: 'sitting',
     start: 42,
     end: Number.POSITIVE_INFINITY,
-    interval: [10, 12],
+    interval: [1, 2],
     pairChance: 0.30,
     weights: {
       fatigue: 3,
