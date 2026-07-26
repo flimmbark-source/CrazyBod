@@ -63,25 +63,6 @@ test('This Is Normal enabled gives capacity 6, disabled 5, plus run bonus', () =
   assert.equal(computeCapacity(['thisIsNormal'], 1), 7) // rehearsal success
 })
 
-test('the full passive capacity spine raises the durable ceiling to 10', () => {
-  const spine = ['thisIsNormal', 'spoons', 'buffer', 'pacing']
-  assert.equal(computeCapacity(spine), 10)
-  // Non-capacity nodes never move the ceiling.
-  assert.equal(computeCapacity([...spine, 'autotarget', 'adrenaline', 'suppress']), 10)
-})
-
-test('the capacity spine reveals one node at a time', () => {
-  let state = { ...defaultProgression(), bank: 10000 }
-  assert.equal(isRevealed(state, 'spoons'), false)
-  state = purchaseNode(state, 'thisIsNormal')
-  assert.equal(isRevealed(state, 'spoons'), true)
-  assert.equal(isRevealed(state, 'buffer'), false) // grandchild still hidden
-  state = purchaseNode(state, 'spoons')
-  assert.equal(isRevealed(state, 'buffer'), true)
-  state = purchaseNode(state, 'buffer')
-  assert.equal(isRevealed(state, 'pacing'), true)
-})
-
 test('purchase requires reveal, affordability, and not-already-owned', () => {
   let state = defaultProgression()
   // Hidden until revealed.

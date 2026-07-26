@@ -11,10 +11,13 @@ import {
   drawSpawnKinds,
 } from './pacingDirector.js'
 import RehearsalTechnique from './techniques/RehearsalTechnique.jsx'
+import PlanTechnique from './techniques/PlanTechnique.jsx'
 import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
 import {
   REHEARSAL_SEQUENCE,
+  PLAN_SEQUENCE,
   rehearsalSucceeded,
+  scheduledSucceeded,
   suppressionSplit,
 } from './techniques/techniqueEngine.js'
 import { getNode } from './progression/skillTreeConfig.js'
@@ -243,9 +246,9 @@ function App() {
   const prevUnlockedRef = useRef(progression.treeUnlocked)
   const capacityRef = useRef(0)
   const rehearsalFiredRef = useRef(false)
-  // Passive spawn-control nodes (Run Through the Plan, Run on Adrenaline) read
-  // their enabled state here so the spawn path stays a stable callback.
-  const enabledNodesRef = useRef(new Set())
+  const planFiredRef = useRef(false)
+  const adrenalineFiredRef = useRef(false)
+  const planStaggerRemainingRef = useRef(0)
   const pendingSpawnsRef = useRef([])
   const techniqueOutcomesRef = useRef({})
   const directorRef = useRef(createPacingDirector())
@@ -318,6 +321,9 @@ function App() {
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
     rehearsalFiredRef.current = false
+    planFiredRef.current = false
+    adrenalineFiredRef.current = false
+    planStaggerRemainingRef.current = 0
     pendingSpawnsRef.current = []
     suppressUsedRef.current = false
     techniqueOutcomesRef.current = {}
@@ -415,32 +421,29 @@ function App() {
     return game
   }, [])
 
-  // Route director spawns through the passive spawn-control nodes. Each spawn
-  // is either placed now or pushed onto the pending queue for later release.
+  // Route director spawns through the spawn-control hooks. A game is either
+  // placed now or pushed onto the pending queue for later release.
   const requestSpawns = useCallback((entries) => {
-    const enabled = enabledNodesRef.current
-    const planEnabled = enabled.has('plan')
-    const planChance = getNode('plan').effect.delayChance ?? 0.2
-    const planDelay = getNode('plan').effect.delaySeconds ?? 3
+    const planActive = planStaggerRemainingRef.current > 0
+    const planDelay = getNode('plan').effect.staggerDelaySeconds ?? 3
+    let staggeredThisBatch = false
 
     entries.forEach((entry) => {
-      // Run Through the Plan: each spawn has a chance to arrive a few seconds
-      // late, thinning out the pile-up. Everything just takes a little longer.
-      if (planEnabled && Math.random() < planChance) {
+      // Run Through the Plan: delay the second game of the next pair spawns.
+      if (planActive && entry.slot === 'pair') {
         pendingSpawnsRef.current.push({
           kind: entry.kind,
           releaseAt: spawnElapsedRef.current + planDelay,
           releaseCondition: 'time',
         })
+        staggeredThisBatch = true
         return
       }
       spawnMicrogame(entry.kind)
     })
 
-    // Run on Adrenaline: a spawn can jolt you into briefly stalling the wave.
-    const adrenalineChance = getNode('adrenaline').effect.pauseChance ?? 0.2
-    if (enabled.has('adrenaline') && Math.random() < adrenalineChance) {
-      setSpawnPaused(true)
+    if (staggeredThisBatch && planStaggerRemainingRef.current > 0) {
+      planStaggerRemainingRef.current -= 1
     }
   }, [spawnMicrogame])
 
@@ -456,10 +459,6 @@ function App() {
     dayAdvancingRef.current = dayAdvancing
     spawningEnabledRef.current = spawningEnabled
   }, [dayAdvancing, spawningEnabled])
-
-  useEffect(() => {
-    enabledNodesRef.current = new Set(progression.enabledNodeIds)
-  }, [progression.enabledNodeIds])
 
   // Single ticking clock. Each tick distributes real elapsed time to whichever
   // subsystems are currently advancing.
@@ -658,6 +657,23 @@ function App() {
     setActiveTechnique(null)
   }, [spawnMicrogame])
 
+  // Run Through the Plan: scheduled technique that staggers the next pairs.
+  useEffect(() => {
+    if (status !== 'playing' || cafeBeatActive || activeTechnique || planFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('plan')) return
+    if (dayElapsed < getNode('plan').effect.triggerDay) return
+    planFiredRef.current = true
+    setActiveTechnique({ id: 'plan', pausesDay: true, pausesSpawns: false })
+  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
+
+  const completePlan = useCallback((outcome) => {
+    const node = getNode('plan')
+    const success = scheduledSucceeded(outcome)
+    techniqueOutcomesRef.current.plan = success ? 'success' : 'failure'
+    if (success) planStaggerRemainingRef.current = node.effect.staggerPairs ?? 2
+    setActiveTechnique(null)
+  }, [])
+
   // Auto Target: while enabled during a run, clearing the focused
   // minigame moves keyboard focus to the next one on screen.
   useEffect(() => {
@@ -666,8 +682,18 @@ function App() {
     return () => setAutoTargetEnabled(false)
   }, [status, progression.enabledNodeIds])
 
-  // Run on Adrenaline: the pause itself is triggered per-spawn in requestSpawns;
-  // this clears it after the configured window. Day and score keep going.
+  // Run on Adrenaline: pause new spawns for a window when load reaches one
+  // below capacity. Day and score keep going; existing minigames stay.
+  useEffect(() => {
+    if (status !== 'playing' || cafeBeatActive || adrenalineFiredRef.current) return
+    if (!progression.enabledNodeIds.includes('adrenaline')) return
+    const belowLimit = getNode('adrenaline').effect.belowLimit ?? 1
+    if (load < capacity - belowLimit) return
+    adrenalineFiredRef.current = true
+    techniqueOutcomesRef.current.adrenaline = 'used'
+    setSpawnPaused(true)
+  }, [load, capacity, status, cafeBeatActive, progression.enabledNodeIds])
+
   useEffect(() => {
     if (!spawnPaused) return undefined
     const seconds = getNode('adrenaline').effect.pauseSeconds ?? 6
@@ -1021,6 +1047,14 @@ function App() {
               prompts={REHEARSAL_SEQUENCE.prompts}
               timeLimitSeconds={getNode('rehearse').effect.addedSeconds}
               onComplete={completeRehearsal}
+            />
+          )}
+
+          {activeTechnique?.id === 'plan' && (
+            <PlanTechnique
+              steps={PLAN_SEQUENCE.steps}
+              timeLimitSeconds={getNode('plan').effect.addedSeconds}
+              onComplete={completePlan}
             />
           )}
 
