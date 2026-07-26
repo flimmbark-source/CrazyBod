@@ -313,13 +313,18 @@ function App() {
     && !suppressing
     && !cafeBeatActive
     && !activeTechnique?.pausesDay
+  // Games keep spawning through Mara's conversation (the CONVERSATION and
+  // INTERLUDE phases) at the sitting-phase rate: the day clock holds during the
+  // beat, so currentPhaseId stays on the last stage and the director keeps
+  // drawing from it. Only the frozen walk-out phases (rupture onward) stop
+  // spawns, which is why this gates on cafeBeatFrozen rather than cafeBeatActive.
   const spawningEnabled = status === 'playing'
     && directorReady
     && !tutorialPaused
     && !orderingPaused
     && !spawnPaused
     && !suppressing
-    && !cafeBeatActive
+    && !cafeBeatFrozen
     && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
@@ -557,7 +562,7 @@ function App() {
 
   // Release pending (staggered) spawns once their delay has elapsed.
   useEffect(() => {
-    if (status !== 'playing' || spawnPaused || cafeBeatActive) return
+    if (status !== 'playing' || spawnPaused || cafeBeatFrozen) return
     const queue = pendingSpawnsRef.current
     if (queue.length === 0) return
 
@@ -571,7 +576,7 @@ function App() {
       pendingSpawnsRef.current = rest
       ready.forEach((item) => spawnMicrogame(item.kind))
     }
-  }, [spawnElapsed, load, status, spawnPaused, cafeBeatActive, spawnMicrogame])
+  }, [spawnElapsed, load, status, spawnPaused, cafeBeatFrozen, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
