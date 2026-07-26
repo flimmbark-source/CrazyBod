@@ -18,7 +18,6 @@ import motorcycleUrl from './OutsideSounds/universfield-fast-motorcycle-pass-by-
 const STEPS_OUTSIDE_AT = 15
 const ENTERS_CAFE_AT = 29
 const ALARM_MS = 2000
-const OUTSIDE_SOUND_CHANCE = 0.5
 
 function makeAudio(url, { loop = false, volume = 0.3 } = {}) {
   if (typeof Audio === 'undefined') return null
@@ -308,7 +307,6 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       && outsideFiredRef.current
       && !cafeFiredRef.current
       && loadIncreased
-      && Math.random() < OUTSIDE_SOUND_CHANCE
     ) {
       const pool = clipsRef.current.outside
       if (pool.length) startClip(pool[Math.floor(Math.random() * pool.length)])
