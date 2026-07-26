@@ -262,6 +262,7 @@ function App() {
   const dayElapsedRef = useRef(0)
   const spawnElapsedRef = useRef(0)
   const runElapsedRef = useRef(0)
+  const walkoutClockStartRef = useRef(null)
   const dayAdvancingRef = useRef(false)
   const spawningEnabledRef = useRef(false)
   const clearedCountRef = useRef(0)
@@ -285,17 +286,22 @@ function App() {
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
   const orderingPaused = status === 'playing' && orderDialogueOpen
   const cafeBeatActive = status === 'playing' && cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE
-  const cafeBeatKeepsDayMoving = cafeBeatPhase === CAFE_BEAT_PHASES.CONVERSATION
-    || cafeBeatPhase === CAFE_BEAT_PHASES.INTERLUDE
+  // Mara's walk-out (her outburst, then leaving) is when the day's final seconds
+  // tick away to zero — see the walk-out clock effect below.
+  const cafeBeatWalkingOut = cafeBeatPhase === CAFE_BEAT_PHASES.RUPTURE
+    || cafeBeatPhase === CAFE_BEAT_PHASES.DEPARTURE
   const cafeBeatFrozen = isCafeBeatFrozen(cafeBeatPhase)
   const gameplayPaused = tutorialPaused || orderingPaused || cafeBeatFrozen
   // Subsystem gates. Techniques (added later) can pause the day and/or spawns
   // independently; the tutorial and order dialogue pause both.
+  // The main clock does not advance the day during the café beat: the timer
+  // holds at its remaining value through the conversation, then the walk-out
+  // clock effect below drives it down to zero as Mara leaves.
   const dayAdvancing = status === 'playing'
     && !tutorialPaused
     && !orderingPaused
     && !suppressing
-    && (!cafeBeatActive || cafeBeatKeepsDayMoving)
+    && !cafeBeatActive
     && !activeTechnique?.pausesDay
   const spawningEnabled = status === 'playing'
     && directorReady
@@ -779,6 +785,30 @@ function App() {
     }
     return undefined
   }, [cafeBeatPhase, finishRun])
+
+  // Walk-out clock. The day timer is frozen for the whole café beat, so it holds
+  // at its remaining value while Mara talks. Once she erupts and leaves, run the
+  // day's final seconds down to zero across the rupture-and-departure so the
+  // timer reaches the full end exactly as she walks out.
+  useEffect(() => {
+    if (!cafeBeatWalkingOut) {
+      walkoutClockStartRef.current = null
+      return undefined
+    }
+    if (walkoutClockStartRef.current === null) {
+      walkoutClockStartRef.current = performance.now()
+    }
+    const totalMs = CAFE_BEAT_TIMINGS.ruptureMs + CAFE_BEAT_TIMINGS.departureMs
+    const advance = () => {
+      const progress = Math.min(1, (performance.now() - walkoutClockStartRef.current) / totalMs)
+      const nextDay = CAFE_BEAT_START_AT + progress * (DAY_LENGTH - CAFE_BEAT_START_AT)
+      dayElapsedRef.current = nextDay
+      setDayElapsed(nextDay)
+    }
+    advance()
+    const id = window.setInterval(advance, 100)
+    return () => window.clearInterval(id)
+  }, [cafeBeatWalkingOut])
 
   const resolveMicrogame = useCallback((id) => {
     if (resolvedGamesRef.current.has(id)) return

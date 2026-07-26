@@ -94,6 +94,16 @@
   pointer-events: auto;
 }
 
+/* The result-screen skill-tree tip sits above the results card and needs its
+   GOT IT button to be clickable through the (otherwise pass-through) layer. */
+.tutorial-layer-results-skill-tree {
+  z-index: 240;
+}
+
+.tutorial-callout-results-skill-tree {
+  pointer-events: auto;
+}
+
 .tutorial-next {
   margin-top: 12px;
   padding: 8px 14px;

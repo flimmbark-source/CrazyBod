@@ -724,8 +724,6 @@ function CafeInterior({ elapsed, active }) {
         ))}
       </group>
 
-      <Lamp position={[-4.2, 0, -88]} color="#f1c779" />
-      <Lamp position={[3.9, 0, -85]} color="#f1c779" />
       <pointLight position={[0, 4.4, -91]} intensity={2.4} color="#ffd5a0" distance={18} decay={2} />
     </group>
   )
