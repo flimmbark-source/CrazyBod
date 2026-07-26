@@ -10,11 +10,13 @@ let activeWindow = null
 let syntheticPointerRelease = false
 let autoTargetEnabled = false
 
-// Hold It Together: when on, clearing the focused minigame hands the keyboard
-// to the next one on screen instead of dropping focus, so a run can be played
-// without re-clicking each window.
+// Hold It Together: when on, keyboard focus always follows an on-screen
+// minigame so a run can be played without re-clicking each window. Targeting is
+// event-driven (spawn / despawn), never a per-frame poll — see rootObserver.
 export function setAutoTargetEnabled(enabled) {
   autoTargetEnabled = enabled
+  // Enabling mid-run (or on a fresh run) should grab whatever is already up.
+  if (needsAutoTarget()) queueMicrotask(autotargetNextMicrogame)
 }
 
 function shuffled(values) {
@@ -56,8 +58,10 @@ function setActive(windowElement) {
   activeWindow?.classList.add('keyboard-active')
 }
 
-function autotargetEnabled() {
-  return autoTargetEnabled
+// True when autotarget is on but nothing is currently focused, so a minigame on
+// screen is going unplayed and should be picked up.
+function needsAutoTarget() {
+  return autoTargetEnabled && !activeWindow?.isConnected
 }
 
 function autotargetNextMicrogame() {
@@ -296,28 +300,34 @@ function onKeyUp(event) {
 }
 
 const rootObserver = new MutationObserver((records) => {
-  let activeGameWasRemoved = false
+  let microgameChanged = false
   for (const record of records) {
     for (const node of record.removedNodes) {
       if (!(node instanceof Element)) continue
-      if (node === activeWindow || node.contains(activeWindow)) activeGameWasRemoved = true
       if (node.matches('.microgame')) node.__crazyBodCleanup?.()
       node.querySelectorAll?.('.microgame').forEach((game) => game.__crazyBodCleanup?.())
+      if (node.matches('.microgame') || node.querySelector?.('.microgame')) microgameChanged = true
     }
     for (const node of record.addedNodes) {
       if (!(node instanceof Element)) continue
       if (node.matches('.microgame')) setupMicrogame(node)
       scanForMicrogames(node)
+      if (node.matches('.microgame') || node.querySelector?.('.microgame')) microgameChanged = true
     }
   }
 
   if (activeWindow && !activeWindow.isConnected) {
     activeWindow.__crazyBodCleanup?.()
     setActive(null)
+  }
 
-    if (activeGameWasRemoved && autotargetEnabled()) {
-      queueMicrotask(autotargetNextMicrogame)
-    }
+  // Only react to the DOM changes that matter — a minigame spawning or
+  // despawning — so autotarget stays event-driven, never a per-frame poll. When
+  // one is up and nothing is focused, hand it the keyboard; while a game is
+  // being played (activeWindow still connected) needsAutoTarget() is false, so
+  // focus is never stolen mid-game.
+  if (microgameChanged && needsAutoTarget()) {
+    queueMicrotask(autotargetNextMicrogame)
   }
 })
 
