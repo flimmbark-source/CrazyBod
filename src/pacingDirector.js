@@ -1,4 +1,8 @@
-import { OPENING_INTERVAL, pacingPhaseById } from './pacingConfig.js'
+import {
+  OPENING_INTERVAL,
+  PAIR_CHANCE_PENALTY_PER_UPGRADE,
+  pacingPhaseById,
+} from './pacingConfig.js'
 
 function mulberry32(seed) {
   let value = seed >>> 0
@@ -83,13 +87,18 @@ function nextDelay(director, phase) {
 // `phaseId` is the day phase (derived from dayElapsed) and selects the weights,
 // interval and pair chance. Keeping the two inputs separate is what lets
 // unscored technique time change pacing without changing the day.
-export function takeSpawnBatch(director, { spawnElapsed, phaseId }) {
+export function takeSpawnBatch(director, { spawnElapsed, phaseId, purchasedUpgrades = 0 }) {
   const phase = pacingPhaseById(phaseId)
 
   const firstKind = drawKind(director, phase)
   const kinds = [{ kind: firstKind, slot: 'first' }]
 
-  const pairSpawned = director.random() < phase.pairChance
+  // Every owned upgrade globally reduces the chance of a paired spawn.
+  const pairChance = Math.max(
+    0,
+    phase.pairChance - purchasedUpgrades * PAIR_CHANCE_PENALTY_PER_UPGRADE,
+  )
+  const pairSpawned = director.random() < pairChance
 
   if (pairSpawned) {
     kinds.push({ kind: drawKind(director, phase, [firstKind]), slot: 'pair' })

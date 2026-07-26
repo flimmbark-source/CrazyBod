@@ -1,5 +1,9 @@
 export const OPENING_INTERVAL = [2, 3]
 
+// Each owned upgrade shaves this much off the active phase's pair chance,
+// applied globally across every phase.
+export const PAIR_CHANCE_PENALTY_PER_UPGRADE = 0.05
+
 export const TUTORIAL_SEQUENCE = [
   { role: 'first', at: 2.5, kind: 'fatigue' },
   { role: 'second', at: 6.5, kind: 'brainFog' },

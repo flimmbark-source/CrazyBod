@@ -550,9 +550,10 @@ function App() {
     const batch = takeSpawnBatch(director, {
       spawnElapsed,
       phaseId: currentPhaseId,
+      purchasedUpgrades: progression.purchasedNodeIds.length,
     })
     requestSpawns(batch.kinds)
-  }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns])
+  }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns, progression.purchasedNodeIds.length])
 
   // Release pending (staggered) spawns once their delay has elapsed.
   useEffect(() => {
