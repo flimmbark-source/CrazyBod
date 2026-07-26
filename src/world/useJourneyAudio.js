@@ -36,7 +36,9 @@ function startClip(audio) {
   } catch {
     // The clip may not be seekable until its metadata loads.
   }
-  audio.play().catch(() => {})
+  audio.play().catch((error) => {
+    console.warn('Journey audio playback failed:', error)
+  })
 }
 
 function stopClip(audio) {
@@ -47,6 +49,27 @@ function stopClip(audio) {
   } catch {
     // Resetting an unloaded clip is harmless.
   }
+}
+
+function unlockClip(audio) {
+  if (!audio) return
+
+  const originalVolume = audio.volume
+  audio.volume = 0
+  audio.play()
+    .then(() => {
+      audio.pause()
+      try {
+        audio.currentTime = 0
+      } catch {
+        // Metadata may still be loading; the real playback resets it later.
+      }
+      audio.volume = originalVolume
+    })
+    .catch((error) => {
+      audio.volume = originalVolume
+      console.warn('Journey audio unlock failed:', error)
+    })
 }
 
 function readJourneyState() {
@@ -187,6 +210,25 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
   }
 
   useEffect(() => {
+    let unlocked = false
+    const unlockJourneyAudio = () => {
+      if (unlocked) return
+      unlocked = true
+      allClips().forEach(unlockClip)
+      window.removeEventListener('pointerdown', unlockJourneyAudio, true)
+      window.removeEventListener('keydown', unlockJourneyAudio, true)
+    }
+
+    window.addEventListener('pointerdown', unlockJourneyAudio, true)
+    window.addEventListener('keydown', unlockJourneyAudio, true)
+    return () => {
+      window.removeEventListener('pointerdown', unlockJourneyAudio, true)
+      window.removeEventListener('keydown', unlockJourneyAudio, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
     const previous = prevStatusRef.current
     prevStatusRef.current = status
     if (status === previous) return
@@ -272,7 +314,9 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
         }
       })
     } else {
-      paused.forEach((audio) => audio.play().catch(() => {}))
+      paused.forEach((audio) => audio.play().catch((error) => {
+        console.warn('Journey audio resume failed:', error)
+      }))
       paused.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
