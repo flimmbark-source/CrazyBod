@@ -324,7 +324,7 @@ function CameraRig({ elapsed, active, dialogueStage }) {
       camera.fov = nextFov
       camera.updateProjectionMatrix()
     }
-  })
+  }, -1)
 
   return null
 }
@@ -703,7 +703,8 @@ function CafeInterior({ elapsed, active }) {
 
       <group position={[4.2, 0, -90]}>
         <Table position={[0, 0, 0]} size={[2.55, 0.16, 1.75]} color="#b48261" />
-        <Chair position={[0, 0, -1.6]} color="#684c45" />
+        <Chair position={[0, 0, -1.6]} rotation={[0, Math.PI, 0]} color="#684c45" />
+        <Chair position={[0, 0, 1.6]} color="#684c45" />
         <Cylinder position={[-0.35, 1.18, -0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
         <Cylinder position={[0.35, 1.18, 0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
       </group>
