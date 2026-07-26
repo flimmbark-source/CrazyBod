@@ -208,11 +208,13 @@ function App() {
   //  - dayElapsed  : scored day time. Drives score, phase, world, completion.
   //                  Pauses during techniques, tutorial and order dialogue.
   //  - spawnElapsed: the spawn clock. Advances only while spawning is enabled.
-  //  - runElapsed  : real time since the run began. Drives technique scheduling
-  //                  and run statistics.
+  //  - runElapsed  : real time since the run began. Kept in a ref only
+  //                  (runElapsedRef) and read at end-of-run for statistics.
+  //                  It is never rendered, so it must not be React state — a
+  //                  per-tick setState here forced the whole tree (including the
+  //                  3D café) to reconcile ten times a second.
   const [dayElapsed, setDayElapsed] = useState(0)
   const [spawnElapsed, setSpawnElapsed] = useState(0)
-  const [runElapsed, setRunElapsed] = useState(0)
   const [activeTechnique, setActiveTechnique] = useState(null)
   const [microgames, setMicrogames] = useState([])
   const [dialogueOpen, setDialogueOpen] = useState(false)
@@ -330,7 +332,6 @@ function App() {
     runFinishedRef.current = false
     setDayElapsed(0)
     setSpawnElapsed(0)
-    setRunElapsed(0)
     setActiveTechnique(null)
     setRunCapacityBonus(0)
     setSpawnPaused(false)
@@ -472,7 +473,9 @@ function App() {
         spawnElapsedRef.current += delta
       }
 
-      setRunElapsed(runElapsedRef.current)
+      // runElapsedRef is intentionally not mirrored into state: it is only read
+      // once, at end-of-run, for statistics. Keeping it out of the render path
+      // avoids ten forced reconciliations per second.
       setDayElapsed(dayElapsedRef.current)
       setSpawnElapsed(spawnElapsedRef.current)
     }, 100)
