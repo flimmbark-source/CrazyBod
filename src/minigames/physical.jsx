@@ -64,7 +64,7 @@ export function BalanceGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame balance-game">
-      <small>FIGHT THE PULL. KEEP IT CENTERED.</small>
+      <small>KEEP IT CENTERED.</small>
       <div className="balance-track">
         <i className="balance-zone" />
         <b style={{ left: `${marker}%` }} />
@@ -174,7 +174,7 @@ export function JointSlipGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame joint-game">
-      <small>DRAG INTO THE DOTTED CIRCLE</small>
+      <small>DRAG TO THE CIRCLE</small>
       <div className="joint-field">
         <i className={socketed ? 'joint-socket filled' : 'joint-socket'} />
         <button
@@ -225,7 +225,7 @@ export function MuscleLockGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame muscle-game">
-      <small>ALTERNATE TO RELEASE</small>
+      <small>ALTERNATE PRESSES</small>
       <div className="muscle-coil" style={{ '--release': steps / 10 }}>
         {Array.from({ length: 5 }).map((_, index) => <i key={index} />)}
       </div>
@@ -336,7 +336,7 @@ export function DizzinessGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame dizziness-game">
-      <small>LEVEL THE HORIZON</small>
+      <small>STEADY THE HORIZON</small>
       <div className="horizon" style={{ transform: `rotate(${tilt}deg)` }}><i /></div>
       <div className="mini-button-row">
         <button type="button" onClick={() => nudge(-4)}>A</button>
@@ -420,7 +420,7 @@ export function SpiralGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame spiral-game">
-      <small>PULL OUT. HOLD THE EDGE.</small>
+      <small>PULL TO THE EDGE.</small>
       <div className="spiral-field">
         <i className="spiral-rings" />
         <button

@@ -43,14 +43,13 @@ export const PACING_PHASES = [
       discomfort: 2,
       brainFog: 2,
       lightSensitivity: 1,
-      interruptedThought: 1,
     },
   },
   {
     id: 'walking',
     start: 15,
     end: 30,
-    interval: [1.5, 3],
+    interval: [10, 11],
     pairChance: 0.20,
     weights: {
       balance: 4,
@@ -65,13 +64,14 @@ export const PACING_PHASES = [
       brainFog: 2,
       discomfort: 1,
       spiral: 1,
+      interruptedThought: 1,
     },
   },
   {
     id: 'ordering',
     start: 30,
     end: 42,
-    interval: [1, 2],
+    interval: [10, 12],
     pairChance: 0.20,
     weights: {
       anxiety: 4,
@@ -93,7 +93,7 @@ export const PACING_PHASES = [
     id: 'sitting',
     start: 42,
     end: Number.POSITIVE_INFINITY,
-    interval: [1, 2],
+    interval: [10, 12],
     pairChance: 0.30,
     weights: {
       fatigue: 3,
