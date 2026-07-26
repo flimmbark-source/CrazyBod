@@ -11,8 +11,8 @@ const CAFE_DOOR_OPENS_AT = 28.75
 const OVERLOAD_STING_MS = 2000
 const OVERLOAD_MUSIC_FILE = 'sonican-big-band-detective-30-seconds-486239.mp3'
 const PROGRESS_IDLE_MS = 180
-const MIN_PROGRESS_RATE = 0.82
-const MAX_PROGRESS_RATE = 1.72
+const MIN_PROGRESS_RATE = 1.35
+const MAX_PROGRESS_RATE = 2.6
 
 function makeAudio(url, volume = 0.45, { loop = false } = {}) {
   if (typeof Audio === 'undefined') return null
