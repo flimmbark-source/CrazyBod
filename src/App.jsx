@@ -2,6 +2,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
+import useJourneyAudio from './world/useJourneyAudio.js'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
@@ -236,6 +237,9 @@ function App() {
   const [tutorialStep, setTutorialStep] = useState('none')
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
+  // Bumped once per run start; the audio hook keys its reset (and the silencing
+  // of the lingering results-page tracks) off this.
+  const [runToken, setRunToken] = useState(0)
   const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
   const [firstUnlockPending, setFirstUnlockPending] = useState(false)
   const [treeFirstView, setTreeFirstView] = useState(false)
@@ -356,6 +360,7 @@ function App() {
     setDirectorReady(!withTutorial)
     setStartCue('ready')
     setStatus('countdown')
+    setRunToken((token) => token + 1)
   }, [])
 
   const startGame = useCallback(() => {
@@ -891,6 +896,15 @@ function App() {
   const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
     ? microgames.find((game) => game.tutorialRole === tutorialStep)
     : null
+
+  useJourneyAudio({
+    status,
+    startCue,
+    dayElapsed,
+    load,
+    tutorialPaused,
+    runToken,
+  })
 
   return (
     <main className={`game-shell status-${status} load-${Math.min(load, 5)} cafe-beat-${cafeBeatPhase}`}>

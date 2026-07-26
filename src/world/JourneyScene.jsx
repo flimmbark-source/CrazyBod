@@ -694,13 +694,23 @@ function CafeInterior({ elapsed, active }) {
         active={active}
         phase={1.1}
       />
+      {/* A second barista works the register end, plainly behind the counter. */}
+      <AnimatedPerson
+        position={[1.95, 0, -95.3]}
+        rotation={[0, 0, 0]}
+        color="#4f7a6a"
+        accent="#39323f"
+        mode="idle"
+        active={active}
+        phase={3.4}
+      />
 
       <group position={[-4.25, 0, -84.8]}>
         <Table position={[0, 0, 0]} size={[2.2, 0.16, 1.55]} color="#b48261" />
         <Chair position={[-1.45, 0, 0]} rotation={[0, Math.PI / 2, 0]} />
         <Chair position={[1.45, 0, 0]} rotation={[0, -Math.PI / 2, 0]} />
-        <AnimatedPerson position={[-1.45, 0.72, 0]} rotation={[0, Math.PI / 2, 0]} color="#637f91" accent="#3e4650" mode="seated" active={active} phase={2.2} scale={0.92} />
-        <AnimatedPerson position={[1.45, 0.72, 0]} rotation={[0, -Math.PI / 2, 0]} color="#bc7d62" accent="#50434b" mode="seated" active={active} phase={5.1} scale={0.94} />
+        <AnimatedPerson position={[-1.45, 0, 0]} rotation={[0, Math.PI / 2, 0]} color="#637f91" accent="#3e4650" mode="seated" active={active} phase={2.2} scale={0.92} />
+        <AnimatedPerson position={[1.45, 0, 0]} rotation={[0, -Math.PI / 2, 0]} color="#bc7d62" accent="#50434b" mode="seated" active={active} phase={5.1} scale={0.94} />
       </group>
 
       <group position={[4.2, 0, -90]}>
