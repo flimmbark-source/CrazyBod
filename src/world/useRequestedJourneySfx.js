@@ -6,6 +6,7 @@ import doorUrl from './dragon-studio-open-door-stock-sfx-454246.mp3'
 import achievementUrl from './Orchestral-hit-achievement-sound-effect.mp3'
 import progressUrl from './universfield-new-notification-059-494262.mp3'
 import completionUrl from './universfield-new-notification-04-326127.mp3'
+import startCueUrl from './floraphonic-silly-trumpet-3-187810.mp3'
 
 const APARTMENT_DOOR_OPENS_AT = 13.05
 const CAFE_DOOR_OPENS_AT = 28.75
@@ -92,11 +93,13 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
       achievement: makeAudio(achievementUrl, 0.58),
       progress: makeAudio(progressUrl, 0.34),
       completion: makeAudio(completionUrl, 0.52),
+      startCue: makeAudio(startCueUrl, 0.5),
     }
   }
 
   const previousLoadRef = useRef(load)
   const previousElapsedRef = useRef(dayElapsed)
+  const previousStartStatusRef = useRef(status)
   const firedDoorsRef = useRef(new Set())
   const overloadTimerRef = useRef(null)
   const delayedOverloadMusicRef = useRef(null)
@@ -132,6 +135,16 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
       originalPlayRef.current = null
     }
   }, [volume])
+
+  // A day always begins by entering the countdown, whichever button launched it
+  // (Start the Day, Try Another Day, the skill tree). Greet it with the trumpet.
+  useEffect(() => {
+    const previous = previousStartStatusRef.current
+    previousStartStatusRef.current = status
+    if (status === 'countdown' && previous !== 'countdown') {
+      playAudio(clipsRef.current.startCue)
+    }
+  }, [status])
 
   useEffect(() => {
     const clips = clipsRef.current
