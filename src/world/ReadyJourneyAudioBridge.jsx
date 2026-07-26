@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { DAY_ELAPSED_EVENT } from '../config/gameConfig.js'
 import useJourneyAudio from './useJourneyAudio.js'
+import useRequestedJourneySfx from './useRequestedJourneySfx.js'
 
 function readJourneyState() {
   const shell = document.querySelector('.game-shell')
@@ -86,6 +87,7 @@ export default function ReadyJourneyAudioBridge() {
     }
   }, [])
 
+  useRequestedJourneySfx(signals)
   useJourneyAudio(signals)
   return null
 }
