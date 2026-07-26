@@ -25,6 +25,7 @@ function makeAudio(url, { loop = false, volume = 0.3 } = {}) {
   const audio = new Audio(url)
   audio.loop = loop
   audio.volume = volume
+  audio.__crazyBodBaseVolume = volume
   audio.preload = 'auto'
   return audio
 }
@@ -158,7 +159,7 @@ export function JourneyAudioBridge() {
   return null
 }
 
-export default function useJourneyAudio({ status, startCueToken, dayElapsed, load, tutorialPaused }) {
+export default function useJourneyAudio({ status, startCueToken, dayElapsed, load, tutorialPaused, volume = 1 }) {
   const clipsRef = useRef(null)
   if (clipsRef.current === null) {
     clipsRef.current = {
@@ -195,6 +196,14 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       ...clips.outside,
     ].filter(Boolean)
   }
+
+  useEffect(() => {
+    allClips().forEach((audio) => {
+      const baseVolume = Number(audio.__crazyBodBaseVolume ?? audio.volume)
+      audio.volume = Math.min(1, Math.max(0, baseVolume * volume))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volume])
 
   const stopInRunClips = () => {
     const clips = clipsRef.current
