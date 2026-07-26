@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { DAY_LENGTH } from '../config/gameConfig.js'
+import { DAY_ELAPSED_EVENT } from '../config/gameConfig.js'
 
 import gravelUrl from './kokoreli777-walking-on-a-gravel-169409.mp3'
 import alarmUrl from './freesound_community-alarm-clock-beep-close-perspective-7092.mp3'
@@ -57,11 +57,8 @@ function readJourneyState() {
   const status = statusClass?.slice('status-'.length) ?? 'intro'
   const tutorialPaused = Boolean(document.querySelector('.tutorial-layer'))
   const load = document.querySelectorAll('.load-pips i.filled').length
-  const timeText = document.querySelector('.hud .hud-panel strong')?.textContent ?? ''
-  const remaining = Number.parseFloat(timeText)
-  const dayElapsed = Number.isFinite(remaining) ? Math.max(0, DAY_LENGTH - remaining) : 0
 
-  return { status, tutorialPaused, load, dayElapsed }
+  return { status, tutorialPaused, load }
 }
 
 function mutationShowsStartCue(record) {
@@ -82,16 +79,28 @@ function mutationShowsStartCue(record) {
 export function JourneyAudioBridge() {
   const [signals, setSignals] = useState(() => ({
     ...readJourneyState(),
+    dayElapsed: 0,
     startCueToken: 0,
   }))
+
+  useEffect(() => {
+    const handleDayElapsed = (event) => {
+      const exactElapsed = Number(event.detail)
+      if (!Number.isFinite(exactElapsed)) return
+      setSignals((current) => ({ ...current, dayElapsed: exactElapsed }))
+    }
+
+    window.addEventListener(DAY_ELAPSED_EVENT, handleDayElapsed)
+    return () => window.removeEventListener(DAY_ELAPSED_EVENT, handleDayElapsed)
+  }, [])
 
   useEffect(() => {
     let frame = 0
     const update = () => {
       frame = 0
       setSignals((current) => ({
+        ...current,
         ...readJourneyState(),
-        startCueToken: current.startCueToken,
       }))
     }
     const scheduleUpdate = () => {
@@ -101,6 +110,7 @@ export function JourneyAudioBridge() {
       const startCueAppeared = records.some(mutationShowsStartCue)
       if (startCueAppeared) {
         setSignals((current) => ({
+          ...current,
           ...readJourneyState(),
           startCueToken: current.startCueToken + 1,
         }))
