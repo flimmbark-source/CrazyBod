@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
-import { JourneyAudioBridge } from './world/useJourneyAudio.js'
+import ReadyJourneyAudioBridge from './world/ReadyJourneyAudioBridge.jsx'
 import './styles.css'
 import './compat.css'
 import './microgameEnhancements.css'
@@ -24,7 +24,7 @@ import './tutorialFocusGuide.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <JourneyAudioBridge />
+    <ReadyJourneyAudioBridge />
     <App />
   </StrictMode>,
 )
