@@ -12,10 +12,10 @@ const CAFE_DOOR_OPENS_AT = 28.75
 const OVERLOAD_STING_MS = 1300
 const OVERLOAD_MUSIC_FILE = 'sonican-big-band-detective-30-seconds-486239.mp3'
 const PROGRESS_IDLE_MS = 180
-const MIN_PROGRESS_RATE = 1.1
-const MAX_PROGRESS_RATE = 1.9
-const MAX_PROGRESS_INTERVAL_MS = 125
-const MIN_PROGRESS_INTERVAL_MS = 42
+const PROGRESS_INTERVAL_MS = 140
+const PROGRESS_BASE_RATE = 1
+const PROGRESS_RATE_STEP = 0.06
+const PROGRESS_MAX_RATE = 2
 
 function makeAudio(url, volume = 0.45, { loop = false } = {}) {
   if (typeof Audio === 'undefined') return null
@@ -200,10 +200,11 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
     const lastMovingAt = new WeakMap()
     let frame = 0
     let lastTriggerAt = Number.NEGATIVE_INFINITY
+    let pitchStep = 0
 
     const tick = (now) => {
       const bars = Array.from(document.querySelectorAll('.mini-progress > i, .tiny-progress > i'))
-      let highestMovingProgress = -1
+      let anyMoving = false
 
       bars.forEach((bar) => {
         const current = progressPercentage(bar)
@@ -215,23 +216,25 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
 
         const movedAt = lastMovingAt.get(bar)
         if (Number.isFinite(movedAt) && now - movedAt <= PROGRESS_IDLE_MS) {
-          highestMovingProgress = Math.max(highestMovingProgress, current)
+          anyMoving = true
         }
       })
 
-      if (status === 'playing' && highestMovingProgress >= 0 && progressAudio) {
-        const ratio = highestMovingProgress / 100
-        const interval = MAX_PROGRESS_INTERVAL_MS
-          - (MAX_PROGRESS_INTERVAL_MS - MIN_PROGRESS_INTERVAL_MS) * ratio
-        progressAudio.playbackRate = MIN_PROGRESS_RATE
-          + (MAX_PROGRESS_RATE - MIN_PROGRESS_RATE) * ratio
-
-        if (now - lastTriggerAt >= interval) {
+      if (status === 'playing' && anyMoving && progressAudio) {
+        // Steady cadence, but each retrigger steps up a notch in pitch so the
+        // loop climbs while the bar fills instead of just speeding up.
+        if (now - lastTriggerAt >= PROGRESS_INTERVAL_MS) {
           lastTriggerAt = now
+          progressAudio.playbackRate = Math.min(
+            PROGRESS_MAX_RATE,
+            PROGRESS_BASE_RATE + pitchStep * PROGRESS_RATE_STEP,
+          )
           playClone(progressAudio)
+          pitchStep += 1
         }
       } else {
         lastTriggerAt = Number.NEGATIVE_INFINITY
+        pitchStep = 0
       }
 
       frame = window.requestAnimationFrame(tick)
