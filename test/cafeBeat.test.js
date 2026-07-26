@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   CAFE_BEAT_PHASES,
+  CAFE_BEAT_START_AT,
   CAFE_BEAT_TIMINGS,
   CAFE_DIALOGUE,
   advanceCafeConversation,
@@ -31,8 +32,16 @@ test('every answer follows the same fixed conversation sequence', () => {
   })
 })
 
+test('the café conversation begins five seconds before the day ends', () => {
+  assert.equal(CAFE_BEAT_START_AT, 45)
+})
+
 test('dialogue interludes give each exchange five seconds of space', () => {
   assert.equal(CAFE_BEAT_TIMINGS.interludeMs, 5000)
+})
+
+test('the celebration appears before results', () => {
+  assert.equal(CAFE_BEAT_TIMINGS.celebrationMs, 1800)
 })
 
 test('microgames freeze only after the rupture begins', () => {
@@ -42,4 +51,5 @@ test('microgames freeze only after the rupture begins', () => {
   assert.equal(isCafeBeatFrozen(CAFE_BEAT_PHASES.RUPTURE), true)
   assert.equal(isCafeBeatFrozen(CAFE_BEAT_PHASES.DEPARTURE), true)
   assert.equal(isCafeBeatFrozen(CAFE_BEAT_PHASES.AFTERMATH), true)
+  assert.equal(isCafeBeatFrozen(CAFE_BEAT_PHASES.CELEBRATION), true)
 })

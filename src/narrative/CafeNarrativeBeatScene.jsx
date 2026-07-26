@@ -8,7 +8,7 @@ const STANDING_POSITION = new THREE.Vector3(4.2, 0.08, -91.6)
 const AISLE_POSITION = new THREE.Vector3(6.05, 0, -90.5)
 const EXIT_POSITION = new THREE.Vector3(0.15, 0, -75.4)
 const CAMERA_POSITION = new THREE.Vector3(4.2, 1.38, -88.25)
-const EMPTY_CHAIR_LOOK = new THREE.Vector3(4.2, 1.08, -91.55)
+const CAFE_DOOR_LOOK = new THREE.Vector3(0, 1.65, -73.5)
 const FACE_OFFSET = new THREE.Vector3(0, 1.62, 0)
 
 function clamp01(value) {
@@ -106,7 +106,7 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
   const friendPosition = useMemo(() => new THREE.Vector3(), [])
   const cameraTarget = useMemo(() => new THREE.Vector3(), [])
   const lookTarget = useMemo(() => new THREE.Vector3(), [])
-  const smoothedLook = useMemo(() => EMPTY_CHAIR_LOOK.clone(), [])
+  const smoothedLook = useMemo(() => CAFE_DOOR_LOOK.clone(), [])
 
   useEffect(() => {
     phaseRef.current = phase
@@ -129,7 +129,8 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
         rootRef.current.position.copy(friendPosition)
         rootRef.current.rotation.y = progress < 0.32 ? -Math.PI / 2 : Math.PI
         rootRef.current.visible = progress < 0.98
-      } else if (currentPhase === CAFE_BEAT_PHASES.AFTERMATH) {
+      } else if (currentPhase === CAFE_BEAT_PHASES.AFTERMATH
+        || currentPhase === CAFE_BEAT_PHASES.CELEBRATION) {
         rootRef.current.visible = false
       } else {
         rootRef.current.position.copy(SEATED_POSITION)
@@ -144,8 +145,9 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
     if (currentPhase === CAFE_BEAT_PHASES.DEPARTURE) {
       sampleDeparture(phaseElapsedRef.current / (CAFE_BEAT_TIMINGS.departureMs / 1000), friendPosition)
       lookTarget.copy(friendPosition).add(FACE_OFFSET)
-    } else if (currentPhase === CAFE_BEAT_PHASES.AFTERMATH) {
-      lookTarget.copy(EMPTY_CHAIR_LOOK)
+    } else if (currentPhase === CAFE_BEAT_PHASES.AFTERMATH
+      || currentPhase === CAFE_BEAT_PHASES.CELEBRATION) {
+      lookTarget.copy(CAFE_DOOR_LOOK)
     } else {
       lookTarget.copy(rootRef.current?.position ?? SEATED_POSITION).add(FACE_OFFSET)
     }
@@ -155,7 +157,9 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
     smoothedLook.lerp(lookTarget, 1 - Math.exp(-delta * (snap ? 18 : 8)))
     camera.lookAt(smoothedLook)
 
-    const targetFov = currentPhase === CAFE_BEAT_PHASES.AFTERMATH ? 61 : 57
+    const lookingAtDoor = currentPhase === CAFE_BEAT_PHASES.AFTERMATH
+      || currentPhase === CAFE_BEAT_PHASES.CELEBRATION
+    const targetFov = lookingAtDoor ? 61 : 57
     const nextFov = THREE.MathUtils.lerp(camera.fov, targetFov, 1 - Math.exp(-delta * 6))
     if (Math.abs(nextFov - camera.fov) > 0.01) {
       camera.fov = nextFov

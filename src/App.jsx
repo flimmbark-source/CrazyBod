@@ -37,6 +37,7 @@ import DialogueBox from './dialogue/DialogueBox.jsx'
 import CafeNarrativeBeatScene from './narrative/CafeNarrativeBeatScene.jsx'
 import {
   CAFE_BEAT_PHASES,
+  CAFE_BEAT_START_AT,
   CAFE_BEAT_TIMINGS,
   CAFE_DIALOGUE,
   CAFE_RUPTURE_DIALOGUE,
@@ -282,6 +283,8 @@ function App() {
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
   const orderingPaused = status === 'playing' && orderDialogueOpen
   const cafeBeatActive = status === 'playing' && cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE
+  const cafeBeatKeepsDayMoving = cafeBeatPhase === CAFE_BEAT_PHASES.CONVERSATION
+    || cafeBeatPhase === CAFE_BEAT_PHASES.INTERLUDE
   const cafeBeatFrozen = isCafeBeatFrozen(cafeBeatPhase)
   const gameplayPaused = tutorialPaused || orderingPaused || cafeBeatFrozen
   // Subsystem gates. Techniques (added later) can pause the day and/or spawns
@@ -290,7 +293,7 @@ function App() {
     && !tutorialPaused
     && !orderingPaused
     && !suppressing
-    && !cafeBeatActive
+    && (!cafeBeatActive || cafeBeatKeepsDayMoving)
     && !activeTechnique?.pausesDay
   const spawningEnabled = status === 'playing'
     && directorReady
@@ -727,7 +730,7 @@ function App() {
   }, [load, dayElapsed, status, capacity, suppressing, cafeBeatActive, progression.enabledNodeIds, finishRun])
 
   useEffect(() => {
-    if (status !== 'playing' || dayElapsed < DAY_LENGTH || cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE) return
+    if (status !== 'playing' || dayElapsed < CAFE_BEAT_START_AT || cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE) return
     pendingSpawnsRef.current = []
     setActiveTechnique(null)
     setSuppressing(false)
@@ -759,8 +762,15 @@ function App() {
     }
     if (cafeBeatPhase === CAFE_BEAT_PHASES.AFTERMATH) {
       const timer = window.setTimeout(
-        () => finishRun('complete'),
+        () => setCafeBeatPhase(CAFE_BEAT_PHASES.CELEBRATION),
         CAFE_BEAT_TIMINGS.aftermathMs,
+      )
+      return () => window.clearTimeout(timer)
+    }
+    if (cafeBeatPhase === CAFE_BEAT_PHASES.CELEBRATION) {
+      const timer = window.setTimeout(
+        () => finishRun('complete'),
+        CAFE_BEAT_TIMINGS.celebrationMs,
       )
       return () => window.clearTimeout(timer)
     }
@@ -990,6 +1000,12 @@ function App() {
               className="cafe-rupture-dialogue"
               ariaLabel="Mara is shouting"
             />
+          )}
+
+          {cafeBeatPhase === CAFE_BEAT_PHASES.CELEBRATION && (
+            <section className="cafe-celebration" role="status" aria-live="assertive">
+              <strong>YOU DID IT!</strong>
+            </section>
           )}
 
           {activeTechnique?.id === 'rehearsal' && (

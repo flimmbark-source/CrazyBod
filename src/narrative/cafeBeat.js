@@ -5,13 +5,17 @@ export const CAFE_BEAT_PHASES = Object.freeze({
   RUPTURE: 'rupture',
   DEPARTURE: 'departure',
   AFTERMATH: 'aftermath',
+  CELEBRATION: 'celebration',
 })
+
+export const CAFE_BEAT_START_AT = 45
 
 export const CAFE_BEAT_TIMINGS = Object.freeze({
   interludeMs: 5000,
   ruptureMs: 2100,
   departureMs: 2300,
   aftermathMs: 3000,
+  celebrationMs: 1800,
 })
 
 export const CAFE_DIALOGUE = Object.freeze([
@@ -72,4 +76,5 @@ export function isCafeBeatFrozen(phase) {
   return phase === CAFE_BEAT_PHASES.RUPTURE
     || phase === CAFE_BEAT_PHASES.DEPARTURE
     || phase === CAFE_BEAT_PHASES.AFTERMATH
+    || phase === CAFE_BEAT_PHASES.CELEBRATION
 }
