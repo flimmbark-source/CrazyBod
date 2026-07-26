@@ -286,7 +286,7 @@ function WalkingNpc({ start, end, duration, offset, color, accent, active, scale
   )
 }
 
-function CameraRig({ elapsed, active, dialogueStage }) {
+function CameraRig({ elapsed, active, enabled, dialogueStage }) {
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
@@ -295,6 +295,7 @@ function CameraRig({ elapsed, active, dialogueStage }) {
   const wasActiveRef = useRef(false)
 
   useFrame(({ camera }, delta) => {
+    if (!enabled) return
     if (active) {
       if (!wasActiveRef.current) cameraElapsedRef.current = elapsed
       gaitTimeRef.current += delta
@@ -751,7 +752,12 @@ function World({ elapsed, active }) {
   )
 }
 
-export function AuthoredJourneyScene({ elapsed, active, dialogueStage = null }) {
+export function AuthoredJourneyScene({
+  elapsed,
+  active,
+  cameraEnabled = true,
+  dialogueStage = null,
+}) {
   return (
     <>
       <SceneWarmup />
@@ -771,7 +777,12 @@ export function AuthoredJourneyScene({ elapsed, active, dialogueStage = null }) 
         shadow-camera-near={1}
         shadow-camera-far={45}
       />
-      <CameraRig elapsed={elapsed} active={active} dialogueStage={dialogueStage} />
+      +<CameraRig
+  elapsed={elapsed}
+  active={active}
+  enabled={cameraEnabled}
+  dialogueStage={dialogueStage}
+/>
       <World elapsed={elapsed} active={active} />
     </>
   )

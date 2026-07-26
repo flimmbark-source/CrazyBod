@@ -881,6 +881,7 @@ function App() {
           <AuthoredJourneyScene
             elapsed={dayElapsed}
             active={dayAdvancing}
+            cameraEnabled={!cafeBeatActive}
             dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
           />
           <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
