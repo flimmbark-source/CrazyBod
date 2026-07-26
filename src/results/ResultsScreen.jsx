@@ -182,7 +182,7 @@ function SkillTreeTutorialTip({ onDismiss }) {
         <i className="tutorial-pointer" aria-hidden="true" />
         <span>NEW: SKILL TREE</span>
         <strong>Spend your points.</strong>
-        <p>You banked points from your day. Open the skill tree to spend them upgrading your character.</p>
+        <p>Open the skill tree to upgrade your character.</p>
         <button className="tutorial-next" type="button" onClick={onDismiss}>GOT IT</button>
       </aside>
     </section>
