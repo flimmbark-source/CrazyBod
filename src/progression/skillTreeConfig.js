@@ -142,7 +142,7 @@ export const SKILL_TREE_NODES = [
     icon: 'stretch',
     hook: 'scheduledTechnique',
     description: 'Loosen up to thin the aches early in the walk.',
-    detail: 'Nobody tells you leaving the house needs a warm-up. You have stopped expecting them to.',
+    detail: 'Warm the ol\' bod up with a few stretches before leaving.',
     effect: {
       techniqueId: 'stretch',
       triggerDay: 10.5,
