@@ -17,6 +17,7 @@ import './progression/skillTreeTweaks.css'
 import './techniques/techniques.css'
 import './results/homeReturn.css'
 import './results/resultsCleanup.css'
+import './cafeBeat.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
 
