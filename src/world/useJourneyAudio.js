@@ -20,7 +20,7 @@ const ENTERS_CAFE_AT = 29
 const ALARM_MS = 2000
 const OUTSIDE_SOUND_CHANCE = 0.5
 
-function makeAudio(url, { loop = false, volume = 0.5 } = {}) {
+function makeAudio(url, { loop = false, volume = 0.3 } = {}) {
   if (typeof Audio === 'undefined') return null
   const audio = new Audio(url)
   audio.loop = loop
