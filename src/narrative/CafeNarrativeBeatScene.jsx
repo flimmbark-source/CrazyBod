@@ -11,10 +11,11 @@ const CAMERA_POSITION = new THREE.Vector3(4.2, 1.58, -88.25)
 const CAFE_DOOR_LOOK = new THREE.Vector3(0, 1.65, -73.5)
 const FACE_OFFSET = new THREE.Vector3(0, 1.62, 0)
 
-// Mara walks in from the aisle behind her chair and lowers into the seat before
-// the conversation opens, instead of popping into place.
-const MARA_ENTRANCE_POSITION = new THREE.Vector3(5.6, 0, -94.4)
-const MARA_ENTRANCE_START = 42 // dayElapsed seconds
+// Mara walks in from behind and to the player's left, crossing past their seat
+// to lower into the chair across the table before the conversation opens,
+// instead of popping into place.
+const MARA_ENTRANCE_POSITION = new THREE.Vector3(1.5, 0, -85.5)
+const MARA_ENTRANCE_START = 41 // dayElapsed seconds
 const MARA_ENTRANCE_WALK = 2.3 // seconds spent walking to the chair
 const MARA_ENTRANCE_SIT = 0.75 // seconds spent lowering into the seat
 const MARA_ENTRANCE_HEADING = Math.atan2(
@@ -118,6 +119,7 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
   const phaseRef = useRef(phase)
   const phaseElapsedRef = useRef(0)
   const entranceRef = useRef(0)
+  const enteredBeatRef = useRef(false)
   const friendPosition = useMemo(() => new THREE.Vector3(), [])
   const cameraTarget = useMemo(() => new THREE.Vector3(), [])
   const lookTarget = useMemo(() => new THREE.Vector3(), [])
@@ -177,7 +179,12 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
       }
     }
 
-    if (currentPhase === CAFE_BEAT_PHASES.INACTIVE) return
+    if (currentPhase === CAFE_BEAT_PHASES.INACTIVE) {
+      // Off-stage: the beat camera is dormant, so arm the entry snap for the
+      // moment the conversation actually opens.
+      enteredBeatRef.current = false
+      return
+    }
 
     cameraTarget.copy(CAMERA_POSITION)
     if (currentPhase === CAFE_BEAT_PHASES.DEPARTURE) {
@@ -190,9 +197,18 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
       lookTarget.copy(rootRef.current?.position ?? SEATED_POSITION).add(FACE_OFFSET)
     }
 
-    const snap = currentPhase === CAFE_BEAT_PHASES.RUPTURE
-    camera.position.lerp(cameraTarget, 1 - Math.exp(-delta * (snap ? 13 : 7)))
-    smoothedLook.lerp(lookTarget, 1 - Math.exp(-delta * (snap ? 18 : 8)))
+    if (!enteredBeatRef.current) {
+      // First frame of the beat: the smoothed look target has been parked at the
+      // café door while the beat was dormant. Snap straight to Mara so the view
+      // does not whip across the interior walls as the conversation opens.
+      enteredBeatRef.current = true
+      camera.position.copy(cameraTarget)
+      smoothedLook.copy(lookTarget)
+    } else {
+      const snap = currentPhase === CAFE_BEAT_PHASES.RUPTURE
+      camera.position.lerp(cameraTarget, 1 - Math.exp(-delta * (snap ? 13 : 7)))
+      smoothedLook.lerp(lookTarget, 1 - Math.exp(-delta * (snap ? 18 : 8)))
+    }
     camera.lookAt(smoothedLook)
 
     // Screen shake: a violent jolt as Mara stands, then heavy footfalls that

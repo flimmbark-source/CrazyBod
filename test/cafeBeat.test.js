@@ -33,10 +33,11 @@ test('every answer follows the same fixed conversation sequence', () => {
   })
 })
 
-test('the café conversation begins exactly as the day timer runs out', () => {
-  // The finale is tied to the day length so the on-screen countdown reaches
-  // zero as Mara speaks, instead of freezing partway through the conversation.
-  assert.equal(CAFE_BEAT_START_AT, DAY_LENGTH)
+test('the café conversation begins five seconds before the day timer runs out', () => {
+  // The finale is pulled forward from the exact end of the day so it lands a
+  // little earlier, while still deriving from the day length so the two never
+  // drift apart.
+  assert.equal(CAFE_BEAT_START_AT, DAY_LENGTH - 5)
 })
 
 test('dialogue interludes give each exchange five seconds of space', () => {
