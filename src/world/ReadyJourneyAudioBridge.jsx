@@ -133,11 +133,15 @@ export default function ReadyJourneyAudioBridge() {
       }
     })
 
+    // Every derived signal (status class, tutorial layer, load pips, ready cue)
+    // comes from class or childList changes. Filtering to the class attribute
+    // and dropping characterData avoids waking on the per-frame HUD text and
+    // inline-style updates that would otherwise fire this observer ~60x/second.
     observer.observe(document.body, {
       subtree: true,
       childList: true,
       attributes: true,
-      characterData: true,
+      attributeFilter: ['class'],
     })
     scheduleUpdate()
 

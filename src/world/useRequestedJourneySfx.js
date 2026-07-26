@@ -176,8 +176,11 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
   }, [])
 
   useEffect(() => {
+    // Completion bursts only appear during play; skip observing the whole body
+    // (and reacting to unrelated DOM churn) on every other screen.
+    if (status !== 'playing') return undefined
+
     const observer = new MutationObserver((records) => {
-      if (status !== 'playing') return
       const completed = records.reduce((total, record) => (
         total + Array.from(record.addedNodes).reduce(
           (count, node) => count + countCompletionBursts(node),
@@ -195,6 +198,10 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
   }, [status])
 
   useEffect(() => {
+    // The progress loop only scans bars during play; don't run a per-frame DOM
+    // query on the intro, results, or overload screens.
+    if (status !== 'playing') return undefined
+
     const progressAudio = clipsRef.current.progress
     const previousValues = new WeakMap()
     const lastMovingAt = new WeakMap()
@@ -220,7 +227,7 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
         }
       })
 
-      if (status === 'playing' && anyMoving && progressAudio) {
+      if (anyMoving && progressAudio) {
         // Steady cadence, but each retrigger steps up a notch in pitch so the
         // loop climbs while the bar fills instead of just speeding up.
         if (now - lastTriggerAt >= PROGRESS_INTERVAL_MS) {

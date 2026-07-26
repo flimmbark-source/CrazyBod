@@ -1194,10 +1194,15 @@ function TutorialCallout({ step, target, onProceed }) {
         top: clampTop(candidate.top),
       }))
 
-      const blockedRects = [
-        ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
-        targetRect,
-      ]
+      // The Go Home lesson fires while play is paused and the board is crowded
+      // with idle minigames; ignore them as blockers so the callout stays pinned
+      // to the Go Home button instead of fleeing to a far corner.
+      const blockedRects = step === 'home'
+        ? [targetRect]
+        : [
+            ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
+            targetRect,
+          ]
       const candidateRect = (candidate) => ({
         left: candidate.left,
         top: candidate.top,
