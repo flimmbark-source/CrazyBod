@@ -20,7 +20,7 @@ const ENTERS_CAFE_AT = 29
 const ALARM_MS = 1000
 const OUTSIDE_SOUND_CHANCE = 0.5
 
-function makeAudio(url, { loop = false, volume = 1 } = {}) {
+function makeAudio(url, { loop = false, volume = 0.5 } = {}) {
   if (typeof Audio === 'undefined') return null
   const audio = new Audio(url)
   audio.loop = loop
@@ -167,9 +167,9 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       rustle: makeAudio(rustleUrl, { loop: true }),
       goHome: makeAudio(goHomeUrl),
       overloaded: makeAudio(overloadedUrl),
-      cafe: makeAudio(cafeUrl, { loop: true, volume: 0.85 }),
+      cafe: makeAudio(cafeUrl, { loop: true, volume: 0.425 }),
       outside: [barkUrl, busIdleUrl, busPassUrl, carnivalUrl, cityUrl, motorcycleUrl]
-        .map((url) => makeAudio(url, { volume: 0.7 }))
+        .map((url) => makeAudio(url, { volume: 0.35 }))
         .filter(Boolean),
     }
   }
