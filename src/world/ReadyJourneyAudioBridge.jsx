@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { DAY_ELAPSED_EVENT } from '../config/gameConfig.js'
 import useJourneyAudio from './useJourneyAudio.js'
 import useRequestedJourneySfx from './useRequestedJourneySfx.js'
@@ -41,12 +42,12 @@ function mutationShowsReadyCue(record) {
   ))
 }
 
-function AudioSettings({ volume, onVolumeChange }) {
+function AudioSettings({ volume, onVolumeChange, embedded = false }) {
   const [open, setOpen] = useState(false)
   const percentage = Math.round(volume * 100)
 
   return (
-    <aside className={`audio-settings${open ? ' audio-settings-open' : ''}`}>
+    <aside className={`audio-settings${embedded ? ' audio-settings-embedded' : ''}${open ? ' audio-settings-open' : ''}`}>
       <button
         className="audio-settings-gear"
         type="button"
@@ -146,7 +147,19 @@ export default function ReadyJourneyAudioBridge() {
   useRequestedJourneySfx({ ...signals, volume })
   useJourneyAudio({ ...signals, volume })
 
-  return signals.status === 'home'
-    ? <AudioSettings volume={volume} onVolumeChange={changeVolume} />
-    : null
+  if (signals.status === 'home') {
+    return <AudioSettings volume={volume} onVolumeChange={changeVolume} />
+  }
+
+  if (signals.status === 'intro') {
+    const startingContainer = document.querySelector('.status-intro .overlay-card')
+    if (startingContainer) {
+      return createPortal(
+        <AudioSettings embedded volume={volume} onVolumeChange={changeVolume} />,
+        startingContainer,
+      )
+    }
+  }
+
+  return null
 }
