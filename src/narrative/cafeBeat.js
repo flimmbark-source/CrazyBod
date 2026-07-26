@@ -1,12 +1,14 @@
 export const CAFE_BEAT_PHASES = Object.freeze({
   INACTIVE: 'inactive',
   CONVERSATION: 'conversation',
+  INTERLUDE: 'interlude',
   RUPTURE: 'rupture',
   DEPARTURE: 'departure',
   AFTERMATH: 'aftermath',
 })
 
 export const CAFE_BEAT_TIMINGS = Object.freeze({
+  interludeMs: 5000,
   ruptureMs: 2100,
   departureMs: 2300,
   aftermathMs: 3000,
@@ -55,7 +57,7 @@ export function advanceCafeConversation(dialogueIndex) {
 
   if (dialogueIndex < CAFE_DIALOGUE.length - 1) {
     return {
-      phase: CAFE_BEAT_PHASES.CONVERSATION,
+      phase: CAFE_BEAT_PHASES.INTERLUDE,
       dialogueIndex: dialogueIndex + 1,
     }
   }

@@ -736,6 +736,13 @@ function App() {
   }, [dayElapsed, status, cafeBeatPhase])
 
   useEffect(() => {
+    if (cafeBeatPhase === CAFE_BEAT_PHASES.INTERLUDE) {
+      const timer = window.setTimeout(
+        () => setCafeBeatPhase(CAFE_BEAT_PHASES.CONVERSATION),
+        CAFE_BEAT_TIMINGS.interludeMs,
+      )
+      return () => window.clearTimeout(timer)
+    }
     if (cafeBeatPhase === CAFE_BEAT_PHASES.RUPTURE) {
       const timer = window.setTimeout(
         () => setCafeBeatPhase(CAFE_BEAT_PHASES.DEPARTURE),

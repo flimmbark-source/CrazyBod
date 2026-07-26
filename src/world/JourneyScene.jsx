@@ -29,14 +29,12 @@ const PLAYER_PATH = [
   // Ordering: turn toward the counter, approach the barista and stop for the order.
   { at: 33.4, position: [0, 1.65, -85], look: [-1.3, 1.48, -95.15], walk: 0.78, fov: 67 },
   { at: 35, position: [-0.6, 1.65, -89], look: [-1.3, 1.48, -95.15], walk: 0.45, fov: 65 },
-  { at: 36, position: [-0.6, 1.65, -89], look: [5.7, 1.35, -86.3], walk: 0, fov: 66 },
+  { at: 36, position: [-0.6, 1.65, -89], look: [4.2, 1.42, -91.6], walk: 0, fov: 66 },
 
-  // Sitting down: use the aisle beside the table, approach the seat from behind, then lower into it.
-  { at: 40.5, position: [5.7, 1.65, -86.3], look: [5.7, 1.3, -90], walk: 0.74, fov: 66 },
-  { at: 44, position: [5.7, 1.65, -88.25], look: [4.2, 1.25, -90], walk: 0.58, fov: 65 },
-  { at: 46, position: [4.2, 1.65, -88.25], look: [0.5, 1.3, -90], walk: 0.35, fov: 64 },
-  { at: 48, position: [4.2, 1.15, -88.25], look: [0.5, 1.25, -90], walk: 0, fov: 63 },
-  { at: 50, position: [4.2, 1.15, -88.25], look: [0.5, 1.25, -90], walk: 0, fov: 63 },
+  // Sitting down: move directly to the player's side of the table, then settle.
+  { at: 40.5, position: [4.2, 1.65, -88.25], look: [4.2, 1.42, -91.6], walk: 0.78, fov: 64 },
+  { at: 41.2, position: [4.2, 1.38, -88.25], look: [4.2, 1.42, -91.6], walk: 0, fov: 63 },
+  { at: 50, position: [4.2, 1.38, -88.25], look: [4.2, 1.42, -91.6], walk: 0, fov: 63 },
 ]
 
 const BEDROOM_COLOR = new THREE.Color('#b8a7bb')

@@ -7,7 +7,7 @@ const SEATED_POSITION = new THREE.Vector3(4.2, 0, -91.6)
 const STANDING_POSITION = new THREE.Vector3(4.2, 0.08, -91.6)
 const AISLE_POSITION = new THREE.Vector3(6.05, 0, -90.5)
 const EXIT_POSITION = new THREE.Vector3(0.15, 0, -75.4)
-const CAMERA_POSITION = new THREE.Vector3(4.2, 1.18, -88.15)
+const CAMERA_POSITION = new THREE.Vector3(4.2, 1.38, -88.25)
 const EMPTY_CHAIR_LOOK = new THREE.Vector3(4.2, 1.08, -91.55)
 const FACE_OFFSET = new THREE.Vector3(0, 1.62, 0)
 
