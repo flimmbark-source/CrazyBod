@@ -1,12 +1,12 @@
 const FOCUS_COPY = {
   first: {
-    eyebrow: 'FOCUS THE MINIGAME',
-    title: 'Click the frame.',
-    body: 'Click a minigame to FOCUS on it.',
+    eyebrow: 'FOCUS ON THE MINIGAME',
+    title: 'Click Here.',
+    body: 'Click to FOCUS.',
   },
   second: {
-    eyebrow: 'FOCUS IT FIRST',
-    title: 'Click the frame.',
+    eyebrow: 'FOCUS FIRST',
+    title: 'Click Here.',
     body: 'Click to FOCUS.',
   },
 }
@@ -14,13 +14,13 @@ const FOCUS_COPY = {
 const PLAY_COPY = {
   first: {
     eyebrow: 'FIRST MINIGAME',
-    title: 'Hold to clear it.',
-    body: 'Hold and Release the button or Space until it clears.',
+    title: 'Hold to Clear.',
+    body: 'Hold the button or Space.',
   },
   second: {
     eyebrow: 'A DIFFERENT MINIGAME',
-    title: 'This one uses movement.',
-    body: 'Use the Arrow keys or WASD to reach the exit.',
+    title: 'Use WSAD or Arrow Keys.',
+    body: 'Reach the exit with the Circle.',
   },
 }
 

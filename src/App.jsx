@@ -739,7 +739,7 @@ function App() {
       setTutorialStep('none')
     }
     if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
-      setTutorialStep('home')
+      setTutorialStep('summary')
     }
   }, [tutorialRun, tutorialStep])
 
@@ -769,8 +769,8 @@ function App() {
   }
 
   const advanceTutorial = () => {
-  if (tutorialStep === 'home') {
-    setTutorialStep('summary')
+  if (tutorialStep === 'summary') {
+    setTutorialStep('home')
     return
   }
   finishTutorial()
@@ -1075,8 +1075,7 @@ function TutorialCallout({ step, target, onProceed }) {
           <span>HOW THE DAY WORKS</span>
           <strong>Keep the screen clear.</strong>
           <p>
-            More minigames will appear as the day continues. Clear them before six pile up
-            and you become overwhelmed.
+            More minigames will appear as the day continues.
           </p>
           <button type="button" onClick={onProceed}>PROCEED</button>
         </div>

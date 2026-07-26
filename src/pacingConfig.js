@@ -2,7 +2,7 @@ export const OPENING_INTERVAL = [2, 3]
 
 export const TUTORIAL_SEQUENCE = [
   { role: 'first', at: 2.5, kind: 'fatigue' },
-  { role: 'second', at: 8.5, kind: 'brainFog' },
+  { role: 'second', at: 6.5, kind: 'brainFog' },
 ]
 
 export const PACING_PHASES = [
