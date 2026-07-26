@@ -30,3 +30,27 @@ test('unknown phaseId falls back to the last phase without throwing', () => {
   const batch = takeSpawnBatch(director, { spawnElapsed: 0, phaseId: 'nonsense' })
   assert.equal(batch.phase, 'sitting')
 })
+
+test('owned upgrades globally reduce the paired-spawn chance', () => {
+  // Count paired batches over many draws for a fixed seed, with and without
+  // owned upgrades. 'sitting' has the highest base pair chance (0.30), so six
+  // upgrades (6 * 0.05 = 0.30) should drive it to zero.
+  const countPaired = (purchasedUpgrades) => {
+    const director = createPacingDirector(7)
+    let paired = 0
+    for (let i = 0; i < 200; i += 1) {
+      const batch = takeSpawnBatch(director, {
+        spawnElapsed: i,
+        phaseId: 'sitting',
+        purchasedUpgrades,
+      })
+      if (batch.paired) paired += 1
+    }
+    return paired
+  }
+
+  const withoutUpgrades = countPaired(0)
+  assert.ok(withoutUpgrades > 0, 'expected some pairs with no upgrades')
+  assert.ok(countPaired(2) < withoutUpgrades, 'upgrades should reduce pairs')
+  assert.equal(countPaired(6), 0, 'six upgrades should eliminate pairs')
+})
