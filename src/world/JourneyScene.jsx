@@ -29,14 +29,13 @@ const PLAYER_PATH = [
   // Ordering: turn toward the counter, approach the barista and stop for the order.
   { at: 33.4, position: [0, 1.65, -85], look: [-1.3, 1.48, -95.15], walk: 0.78, fov: 67 },
   { at: 35, position: [-0.6, 1.65, -89], look: [-1.3, 1.48, -95.15], walk: 0.45, fov: 65 },
-  { at: 36, position: [-0.6, 1.65, -89], look: [5.7, 1.35, -86.3], walk: 0, fov: 66 },
+  { at: 36, position: [-0.6, 1.65, -89], look: [4.2, 1.42, -91.6], walk: 0, fov: 66 },
 
-  // Sitting down: use the aisle beside the table, approach the seat from behind, then lower into it.
-  { at: 40.5, position: [5.7, 1.65, -86.3], look: [5.7, 1.3, -90], walk: 0.74, fov: 66 },
-  { at: 44, position: [5.7, 1.65, -88.25], look: [4.2, 1.25, -90], walk: 0.58, fov: 65 },
-  { at: 46, position: [4.2, 1.65, -88.25], look: [0.5, 1.3, -90], walk: 0.35, fov: 64 },
-  { at: 48, position: [4.2, 1.15, -88.25], look: [0.5, 1.25, -90], walk: 0, fov: 63 },
-  { at: 50, position: [4.2, 1.15, -88.25], look: [0.5, 1.25, -90], walk: 0, fov: 63 },
+  // Sitting down: move to the player's side of the table, then settle so the
+  // seated eyeline rises to meet Mara's head across the table.
+  { at: 40.5, position: [4.2, 1.65, -88.25], look: [4.2, 1.55, -91.6], walk: 0.78, fov: 64 },
+  { at: 41.2, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
+  { at: 50, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
 ]
 
 const BEDROOM_COLOR = new THREE.Color('#b8a7bb')
@@ -151,11 +150,11 @@ function Door({ position, color, progress, openAngle = -Math.PI * 0.48, width = 
   )
 }
 
-function Chair({ position, rotation = [0, 0, 0], color = '#6b4f45' }) {
+function Chair({ position, rotation = [0, 0, 0], color = '#6b4f45', backless = false }) {
   return (
     <group position={position} rotation={rotation}>
       <Box position={[0, 0.72, 0]} size={[1.05, 0.14, 1.05]} color={color} />
-      <Box position={[0, 1.35, 0.45]} size={[1.05, 1.2, 0.14]} color={color} />
+      {!backless && <Box position={[0, 1.35, 0.45]} size={[1.05, 1.2, 0.14]} color={color} />}
       {[-0.42, 0.42].flatMap((x) => [-0.42, 0.42].map((z) => (
         <Box key={`${x}-${z}`} position={[x, 0.34, z]} size={[0.12, 0.72, 0.12]} color="#493b3b" />
       )))}
@@ -287,7 +286,7 @@ function WalkingNpc({ start, end, duration, offset, color, accent, active, scale
   )
 }
 
-function CameraRig({ elapsed, active, dialogueStage }) {
+function CameraRig({ elapsed, active, enabled, dialogueStage }) {
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
@@ -296,6 +295,7 @@ function CameraRig({ elapsed, active, dialogueStage }) {
   const wasActiveRef = useRef(false)
 
   useFrame(({ camera }, delta) => {
+    if (!enabled) return
     if (active) {
       if (!wasActiveRef.current) cameraElapsedRef.current = elapsed
       gaitTimeRef.current += delta
@@ -326,7 +326,7 @@ function CameraRig({ elapsed, active, dialogueStage }) {
       camera.fov = nextFov
       camera.updateProjectionMatrix()
     }
-  })
+  }, -1)
 
   return null
 }
@@ -705,7 +705,10 @@ function CafeInterior({ elapsed, active }) {
 
       <group position={[4.2, 0, -90]}>
         <Table position={[0, 0, 0]} size={[2.55, 0.16, 1.75]} color="#b48261" />
-        <Chair position={[0, 0, -1.6]} color="#684c45" />
+        <Chair position={[0, 0, -1.6]} rotation={[0, Math.PI, 0]} color="#684c45" />
+        {/* Player's chair: the back rail sat right in the camera and blocked the
+            conversation, so this seat is rendered backless. */}
+        <Chair position={[0, 0, 1.6]} color="#684c45" backless />
         <Cylinder position={[-0.35, 1.18, -0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
         <Cylinder position={[0.35, 1.18, 0.08]} args={[0.14, 0.12, 0.28, 9]} color="#eee1d2" />
       </group>
@@ -721,8 +724,6 @@ function CafeInterior({ elapsed, active }) {
         ))}
       </group>
 
-      <Lamp position={[-4.2, 0, -88]} color="#f1c779" />
-      <Lamp position={[3.9, 0, -85]} color="#f1c779" />
       <pointLight position={[0, 4.4, -91]} intensity={2.4} color="#ffd5a0" distance={18} decay={2} />
     </group>
   )
@@ -749,7 +750,12 @@ function World({ elapsed, active }) {
   )
 }
 
-export function AuthoredJourneyScene({ elapsed, active, dialogueStage = null }) {
+export function AuthoredJourneyScene({
+  elapsed,
+  active,
+  cameraEnabled = true,
+  dialogueStage = null,
+}) {
   return (
     <>
       <SceneWarmup />
@@ -769,7 +775,12 @@ export function AuthoredJourneyScene({ elapsed, active, dialogueStage = null }) 
         shadow-camera-near={1}
         shadow-camera-far={45}
       />
-      <CameraRig elapsed={elapsed} active={active} dialogueStage={dialogueStage} />
+      <CameraRig
+        elapsed={elapsed}
+        active={active}
+        enabled={cameraEnabled}
+        dialogueStage={dialogueStage}
+      />
       <World elapsed={elapsed} active={active} />
     </>
   )

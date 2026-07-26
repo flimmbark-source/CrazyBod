@@ -1,7 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 // React-owned results screen. Everything here is driven by the result object
 // created by finishRun, so the summary does not infer state from rendered DOM.
+
+// Shown once, the first time a result screen offers the skill tree, so the
+// player learns they can spend their banked points on upgrades.
+const SKILL_TREE_TIP_STORAGE_KEY = 'crazybod:skill-tree-tip-seen'
+
+function skillTreeTipSeen() {
+  try {
+    return window.localStorage.getItem(SKILL_TREE_TIP_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function markSkillTreeTipSeen() {
+  try {
+    window.localStorage.setItem(SKILL_TREE_TIP_STORAGE_KEY, 'true')
+  } catch {
+    // Storage is best-effort; the tip simply reappears next run if it fails.
+  }
+}
 
 const RESULT_COPY = {
   overload: {
@@ -14,7 +34,7 @@ const RESULT_COPY = {
   },
   complete: {
     eyebrow: 'DAY RESULT',
-    title: 'MADE IT',
+    title: 'YOU DID IT!',
   },
 }
 
@@ -27,9 +47,8 @@ function prefersReducedMotion() {
 }
 
 function resultSummary(result) {
+  if (result.outcome === 'complete') return 'You made it to the café.'
   const duration = `${result.dayElapsed.toFixed(1)} seconds`
-  if (result.outcome === 'overload') return `after ${duration}.`
-  if (result.outcome === 'home') return `after ${duration}.`
   return `after ${duration}.`
 }
 
@@ -113,6 +132,63 @@ function HomeReturn({ capacity, activeAtEnd }) {
   )
 }
 
+// A tutorial-style callout, matching the in-run tutorial steps, that points at
+// the skill tree button on the first result screen and explains upgrades.
+function SkillTreeTutorialTip({ onDismiss }) {
+  const calloutRef = useRef(null)
+  const [placement, setPlacement] = useState({ left: 0, top: 0, direction: 'above', ready: false })
+
+  useLayoutEffect(() => {
+    const position = () => {
+      const callout = calloutRef.current
+      const target = document.querySelector('.results-skill-tree')
+      if (!callout || !target) return
+      const rect = target.getBoundingClientRect()
+      const width = callout.offsetWidth
+      const height = callout.offsetHeight
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const edge = 12
+      const gap = 24
+      const centerX = rect.left + rect.width / 2
+      const clampLeft = (left) => Math.max(edge, Math.min(left, viewportWidth - width - edge))
+      const clampTop = (top) => Math.max(edge, Math.min(top, viewportHeight - height - edge))
+      // Prefer sitting above the button; drop below it when there is no room.
+      const aboveTop = rect.top - height - gap
+      const direction = aboveTop < edge ? 'below' : 'above'
+      const top = direction === 'below' ? rect.bottom + gap : aboveTop
+      setPlacement({ left: clampLeft(centerX - width / 2), top: clampTop(top), direction, ready: true })
+    }
+
+    const frame = window.requestAnimationFrame(position)
+    window.addEventListener('resize', position)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', position)
+    }
+  }, [])
+
+  return (
+    <section className="tutorial-layer tutorial-layer-results-skill-tree" aria-live="polite">
+      <aside
+        ref={calloutRef}
+        className={`tutorial-callout tutorial-callout-results-skill-tree placement-${placement.direction}`}
+        style={{
+          left: `${placement.left}px`,
+          top: `${placement.top}px`,
+          visibility: placement.ready ? 'visible' : 'hidden',
+        }}
+      >
+        <i className="tutorial-pointer" aria-hidden="true" />
+        <span>NEW: SKILL TREE</span>
+        <strong>Spend your points.</strong>
+        <p>Open the skill tree to upgrade your character.</p>
+        <button className="tutorial-next" type="button" onClick={onDismiss}>GOT IT</button>
+      </aside>
+    </section>
+  )
+}
+
 function ResultsCard({
   result,
   capacity,
@@ -121,6 +197,7 @@ function ResultsCard({
   onTutorial,
   onSkillTree,
   emphasizeSkillTree,
+  highlightSkillTree = false,
 }) {
   const copy = RESULT_COPY[result.outcome]
   const actionClass = `results-actions${onSkillTree ? ' has-skill-tree' : ''}`
@@ -142,7 +219,7 @@ function ResultsCard({
           </button>
           {onSkillTree && (
             <button
-              className={`results-skill-tree${emphasizeSkillTree ? ' is-new' : ''}`}
+              className={`results-skill-tree${emphasizeSkillTree ? ' is-new' : ''}${highlightSkillTree ? ' tutorial-target' : ''}`}
               type="button"
               onClick={onSkillTree}
             >
@@ -170,6 +247,17 @@ export default function ResultsScreen({
   const isOverload = result.outcome === 'overload'
   const isHome = result.outcome === 'home'
   const [phase, setPhase] = useState(isOverload ? 'bust' : isHome ? 'home' : 'results')
+  // Coach the player once, the first time a result screen can reach the skill
+  // tree. The tree unlocks as this screen mounts, so onSkillTree may only become
+  // truthy a render after mount — react to it rather than reading it once.
+  const [showSkillTreeTip, setShowSkillTreeTip] = useState(false)
+
+  useEffect(() => {
+    if (phase === 'results' && onSkillTree && !skillTreeTipSeen()) {
+      markSkillTreeTipSeen()
+      setShowSkillTreeTip(true)
+    }
+  }, [phase, onSkillTree])
 
   useEffect(() => {
     if (phase !== 'bust' && phase !== 'home') return undefined
@@ -195,15 +283,21 @@ export default function ResultsScreen({
       ) : phase === 'home' ? (
         <HomeReturn capacity={capacity} activeAtEnd={result.activeAtEnd} />
       ) : (
-        <ResultsCard
-          result={result}
-          capacity={capacity}
-          banked={banked}
-          onRestart={onRestart}
-          onTutorial={onTutorial}
-          onSkillTree={onSkillTree}
-          emphasizeSkillTree={emphasizeSkillTree}
-        />
+        <>
+          <ResultsCard
+            result={result}
+            capacity={capacity}
+            banked={banked}
+            onRestart={onRestart}
+            onTutorial={onTutorial}
+            onSkillTree={onSkillTree}
+            emphasizeSkillTree={emphasizeSkillTree}
+            highlightSkillTree={showSkillTreeTip}
+          />
+          {showSkillTreeTip && onSkillTree && (
+            <SkillTreeTutorialTip onDismiss={() => setShowSkillTreeTip(false)} />
+          )}
+        </>
       )}
     </div>
   )

@@ -43,7 +43,6 @@ export const PACING_PHASES = [
       discomfort: 2,
       brainFog: 2,
       lightSensitivity: 1,
-      interruptedThought: 1,
     },
   },
   {
@@ -65,6 +64,7 @@ export const PACING_PHASES = [
       brainFog: 2,
       discomfort: 1,
       spiral: 1,
+      interruptedThought: 1,
     },
   },
   {

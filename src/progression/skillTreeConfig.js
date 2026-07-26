@@ -18,7 +18,7 @@ const PALETTES = {
 export const SKILL_TREE_NODES = [
   {
     id: 'thisIsNormal',
-    name: 'Its Normal',
+    name: 'Overload Capacity +1',
     tagline: 'Passive',
     category: 'passive',
     palette: PALETTES.passive,
@@ -28,13 +28,13 @@ export const SKILL_TREE_NODES = [
     y: 50,
     icon: 'plus',
     hook: 'capacity',
-    description: 'Overload Capacity +1.',
-    detail: '',
+    description: '',
+    detail: 'Its like this for everyone.',
     effect: { capacityBonus: 1 },
   },
   {
     id: 'rehearse',
-    name: 'Reherse Lines (+10s)',
+    name: 'Overload Capacity +2',
     tagline: '',
     category: 'preparation',
     palette: PALETTES.preparation,
@@ -44,8 +44,8 @@ export const SKILL_TREE_NODES = [
     y: 33,
     icon: 'chat',
     hook: 'scheduledTechnique',
-    description: 'Overload Capacity +2.',
-    detail: 'Spawn 1 minigames on failure.',
+    description: '',
+    detail: 'Rehease lines in the mirror for 10 seconds during the Ready Up phase.',
     effect: {
       techniqueId: 'rehearsal',
       triggerDay: 7.35,
@@ -56,7 +56,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'plan',
-    name: 'Run Through Plan',
+    name: 'Each minigame spawn has a 20% chance delay for 3s.',
     tagline: '',
     category: 'preparation',
     palette: PALETTES.preparation,
@@ -66,8 +66,8 @@ export const SKILL_TREE_NODES = [
     y: 18,
     icon: 'list',
     hook: 'scheduledTechnique',
-    description: '+3s Spawn delay (20%)',
-    detail: 'Minigames have a 20% to have a 3s delay.',
+    description: '',
+    detail: 'Before you leave, tap everything in the right order.',
     effect: {
       techniqueId: 'plan',
       triggerDay: 13.1,
@@ -78,7 +78,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'autotarget',
-    name: 'Put on Gameface',
+    name: 'Autotarget minigames.',
     tagline: '',
     category: 'automatic',
     palette: PALETTES.automatic,
@@ -88,8 +88,8 @@ export const SKILL_TREE_NODES = [
     y: 68,
     icon: 'target',
     hook: 'onMicrogameClear',
-    description: 'Autotarget minigames.',
-    detail: '',
+    description: '',
+    detail: 'Auto detects when you feel uncomforable.',
     effect: {
       autotargetAfterClear: true,
       // App.jsx still performs a legacy getNode('hold') lookup. A zero value
@@ -99,7 +99,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'adrenaline',
-    name: 'ADRENALINE',
+    name: 'Each minigame spawn has a 20% to slow spawns for 4s',
     tagline: '',
     category: 'automatic',
     palette: PALETTES.automatic,
@@ -110,12 +110,12 @@ export const SKILL_TREE_NODES = [
     icon: 'bolt',
     hook: 'onLoadChanged',
     description: '+4s Game Pause (20%)',
-    detail: '20% to pause for 4s on each minigame spawn',
+    detail: 'Get your adrenaline pumping to slow down time.',
     effect: { belowLimit: 1, pauseSeconds: 4 },
   },
   {
     id: 'suppress',
-    name: 'Suppress Feelings',
+    name: 'Prevent Overload once, mash Space to destroy minigames.',
     tagline: '',
     category: 'emergency',
     palette: PALETTES.emergency,
@@ -125,8 +125,8 @@ export const SKILL_TREE_NODES = [
     y: 77,
     icon: 'shield',
     hook: 'onBeforeOverload',
-    description: 'Prevent Overload once, mash Space to destroy minigames.',
-    detail: '',
+    description: '',
+    detail: 'Ignore the feelings your body is telling you to just get it done.',
     effect: { techniqueId: 'suppression', requiredPresses: 12 },
   },
 ]

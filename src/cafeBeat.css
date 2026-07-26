@@ -1,0 +1,128 @@
+.cafe-conversation-dialogue {
+  z-index: 48;
+}
+
+.cafe-rupture-dialogue {
+  z-index: 56;
+  bottom: 28px;
+  width: min(720px, calc(100% - 44px));
+  box-shadow: 10px 11px 0 rgba(40, 35, 49, 0.82);
+}
+
+.cafe-rupture-dialogue .dialogue-options {
+  display: none;
+}
+
+.cafe-beat-rupture .microgame,
+.cafe-beat-departure .microgame,
+.cafe-beat-aftermath .microgame,
+.cafe-beat-celebration .microgame {
+  /* Mara's outburst shoves the minigames clean off screen: overshoot the edge
+     offset and add a hard spin, with an anticipation-then-fling easing so they
+     snap away violently instead of drifting. */
+  transform:
+    translate(calc(var(--beat-x) * 1.9), calc(var(--beat-y) * 1.9))
+    rotate(calc((var(--window-index) - 2) * 7deg))
+    scale(0.82);
+  pointer-events: none;
+  transition: transform 300ms cubic-bezier(.7, -0.42, .9, .35), opacity 280ms ease 120ms;
+}
+
+.cafe-beat-rupture .microgame *,
+.cafe-beat-departure .microgame *,
+.cafe-beat-aftermath .microgame *,
+.cafe-beat-celebration .microgame * {
+  animation-play-state: paused !important;
+}
+
+.cafe-beat-departure .microgame,
+.cafe-beat-aftermath .microgame,
+.cafe-beat-celebration .microgame {
+  opacity: 0.72;
+}
+
+.cafe-beat-conversation .go-home,
+.cafe-beat-rupture .go-home,
+.cafe-beat-departure .go-home,
+.cafe-beat-aftermath .go-home,
+.cafe-beat-celebration .go-home {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The HUD and overload meter stay on screen through the whole conversation so
+   the day chrome does not disappear the moment Mara starts talking. They are
+   frozen (day time no longer advances once the beat locks), just still visible. */
+
+@media (max-width: 820px) {
+  .cafe-rupture-dialogue {
+    bottom: 18px;
+    width: calc(100% - 20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cafe-beat-rupture .microgame,
+  .cafe-beat-departure .microgame,
+  .cafe-beat-aftermath .microgame,
+.cafe-beat-celebration .microgame {
+    transform: rotate(calc((var(--window-index) - 2) * 0.35deg));
+    opacity: 0.38;
+    transition: opacity 160ms linear;
+  }
+}
+
+
+.cafe-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.cafe-celebration::before {
+  content: '';
+  position: absolute;
+  width: min(68vw, 760px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 244, 181, 0.44), rgba(255, 244, 181, 0) 68%);
+  animation: cafe-celebration-flash 1800ms ease-out both;
+}
+
+.cafe-celebration strong {
+  position: relative;
+  font-size: clamp(4rem, 12vw, 10rem);
+  line-height: 0.9;
+  text-align: center;
+  letter-spacing: -0.055em;
+  color: #fff4b5;
+  -webkit-text-stroke: 3px #302b38;
+  text-shadow: 8px 9px 0 #302b38, 14px 16px 0 rgba(48, 43, 56, 0.28);
+  transform-origin: center;
+  animation: cafe-celebration-pop 1800ms cubic-bezier(.16,.9,.25,1) both;
+}
+
+@keyframes cafe-celebration-pop {
+  0% { opacity: 0; transform: scale(0.42) rotate(-4deg); }
+  18% { opacity: 1; transform: scale(1.14) rotate(1deg); }
+  32% { transform: scale(0.98) rotate(0); }
+  78% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+
+@keyframes cafe-celebration-flash {
+  0% { opacity: 0; transform: scale(0.45); }
+  22% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cafe-celebration::before,
+  .cafe-celebration strong {
+    animation: none;
+  }
+}
