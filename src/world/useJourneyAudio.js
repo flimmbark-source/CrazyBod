@@ -18,6 +18,7 @@ import motorcycleUrl from './OutsideSounds/universfield-fast-motorcycle-pass-by-
 const STEPS_OUTSIDE_AT = 15
 const ENTERS_CAFE_AT = 29
 const ALARM_MS = 1000
+const OUTSIDE_SOUND_CHANCE = 0.5
 
 function makeAudio(url, { loop = false, volume = 1 } = {}) {
   if (typeof Audio === 'undefined') return null
@@ -54,29 +55,59 @@ function readJourneyState() {
     ? Array.from(shell.classList).find((name) => name.startsWith('status-'))
     : null
   const status = statusClass?.slice('status-'.length) ?? 'intro'
-  const startCue = document.querySelector('.race-start-cue-start') ? 'start' : null
   const tutorialPaused = Boolean(document.querySelector('.tutorial-layer'))
   const load = document.querySelectorAll('.load-pips i.filled').length
   const timeText = document.querySelector('.hud .hud-panel strong')?.textContent ?? ''
   const remaining = Number.parseFloat(timeText)
   const dayElapsed = Number.isFinite(remaining) ? Math.max(0, DAY_LENGTH - remaining) : 0
 
-  return { status, startCue, tutorialPaused, load, dayElapsed }
+  return { status, tutorialPaused, load, dayElapsed }
+}
+
+function mutationShowsStartCue(record) {
+  if (record.type === 'attributes') {
+    return record.target instanceof Element
+      && record.target.classList.contains('race-start-cue-start')
+  }
+
+  return Array.from(record.addedNodes).some((node) => (
+    node instanceof Element
+    && (
+      node.classList.contains('race-start-cue-start')
+      || Boolean(node.querySelector('.race-start-cue-start'))
+    )
+  ))
 }
 
 export function JourneyAudioBridge() {
-  const [signals, setSignals] = useState(() => readJourneyState())
+  const [signals, setSignals] = useState(() => ({
+    ...readJourneyState(),
+    startCueToken: 0,
+  }))
 
   useEffect(() => {
     let frame = 0
     const update = () => {
       frame = 0
-      setSignals(readJourneyState())
+      setSignals((current) => ({
+        ...readJourneyState(),
+        startCueToken: current.startCueToken,
+      }))
     }
     const scheduleUpdate = () => {
       if (!frame) frame = window.requestAnimationFrame(update)
     }
-    const observer = new MutationObserver(scheduleUpdate)
+    const observer = new MutationObserver((records) => {
+      const startCueAppeared = records.some(mutationShowsStartCue)
+      if (startCueAppeared) {
+        setSignals((current) => ({
+          ...readJourneyState(),
+          startCueToken: current.startCueToken + 1,
+        }))
+      } else {
+        scheduleUpdate()
+      }
+    })
     observer.observe(document.body, {
       subtree: true,
       childList: true,
@@ -94,7 +125,7 @@ export function JourneyAudioBridge() {
   return null
 }
 
-export default function useJourneyAudio({ status, startCue, dayElapsed, load, tutorialPaused }) {
+export default function useJourneyAudio({ status, startCueToken, dayElapsed, load, tutorialPaused }) {
   const clipsRef = useRef(null)
   if (clipsRef.current === null) {
     clipsRef.current = {
@@ -113,7 +144,6 @@ export default function useJourneyAudio({ status, startCue, dayElapsed, load, tu
   const statusRef = useRef(status)
   statusRef.current = status
   const prevStatusRef = useRef(status)
-  const prevStartCueRef = useRef(startCue)
   const outsideFiredRef = useRef(false)
   const cafeFiredRef = useRef(false)
   const prevLoadRef = useRef(load)
@@ -173,12 +203,11 @@ export default function useJourneyAudio({ status, startCue, dayElapsed, load, tu
   }, [status])
 
   useEffect(() => {
-    const previous = prevStartCueRef.current
-    prevStartCueRef.current = startCue
-    if (startCue !== 'start' || previous === 'start') return
+    if (startCueToken <= 0) return
 
     const clips = clipsRef.current
     startClip(clips.alarm)
+    if (alarmTimerRef.current) window.clearTimeout(alarmTimerRef.current)
     alarmTimerRef.current = window.setTimeout(() => {
       alarmTimerRef.current = null
       stopClip(clips.alarm)
@@ -186,7 +215,7 @@ export default function useJourneyAudio({ status, startCue, dayElapsed, load, tu
         startClip(clips.rustle)
       }
     }, ALARM_MS)
-  }, [startCue])
+  }, [startCueToken])
 
   useEffect(() => {
     if (status !== 'playing') return
@@ -209,7 +238,14 @@ export default function useJourneyAudio({ status, startCue, dayElapsed, load, tu
   }, [dayElapsed, status])
 
   useEffect(() => {
-    if (status === 'playing' && load > prevLoadRef.current) {
+    const loadIncreased = load > prevLoadRef.current
+    if (
+      status === 'playing'
+      && outsideFiredRef.current
+      && !cafeFiredRef.current
+      && loadIncreased
+      && Math.random() < OUTSIDE_SOUND_CHANCE
+    ) {
       const pool = clipsRef.current.outside
       if (pool.length) startClip(pool[Math.floor(Math.random() * pool.length)])
     }
