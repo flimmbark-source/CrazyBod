@@ -131,7 +131,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'stretch',
-    name: 'Stretch every joint before you leave.',
+    name: 'Reduce the amount of physical minigames.',
     tagline: 'Getting Ready',
     category: 'preparation',
     palette: PALETTES.preparation,
@@ -141,7 +141,7 @@ export const SKILL_TREE_NODES = [
     y: 46,
     icon: 'stretch',
     hook: 'scheduledTechnique',
-    description: 'Loosen up to thin the aches early in the walk.',
+    description: '',
     detail: 'Warm the ol\' bod up with a few stretches before leaving.',
     effect: {
       techniqueId: 'stretch',
