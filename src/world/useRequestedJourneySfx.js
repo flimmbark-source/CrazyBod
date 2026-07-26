@@ -9,7 +9,7 @@ import completionUrl from './universfield-new-notification-04-326127.mp3'
 
 const APARTMENT_DOOR_OPENS_AT = 13.05
 const CAFE_DOOR_OPENS_AT = 28.75
-const OVERLOAD_STING_MS = 2000
+const OVERLOAD_STING_MS = 1300
 const OVERLOAD_MUSIC_FILE = 'sonican-big-band-detective-30-seconds-486239.mp3'
 const PROGRESS_IDLE_MS = 180
 const MIN_PROGRESS_RATE = 1.1
