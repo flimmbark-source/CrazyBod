@@ -33,6 +33,16 @@ import ResultsScreen from './results/ResultsScreen.jsx'
 import { useProgression } from './progression/useProgression.js'
 import { computeCapacity } from './progression/progressionStore.js'
 import SkillTreeScreen from './progression/SkillTreeScreen.jsx'
+import DialogueBox from './dialogue/DialogueBox.jsx'
+import CafeNarrativeBeatScene from './narrative/CafeNarrativeBeatScene.jsx'
+import {
+  CAFE_BEAT_PHASES,
+  CAFE_BEAT_TIMINGS,
+  CAFE_DIALOGUE,
+  CAFE_RUPTURE_DIALOGUE,
+  advanceCafeConversation,
+  isCafeBeatFrozen,
+} from './narrative/cafeBeat.js'
 
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 const READY_CUE_MS = 1150
@@ -168,18 +178,27 @@ function positionFor(seed, index, existingGames) {
   }
 }
 
-function scrambleText(text, intensity) {
-  if (intensity <= 0) return text
-  const words = text.split(' ')
-  if (intensity >= 2 && words.length > 4) {
-    const second = words[1]
-    words[1] = words[3]
-    words[3] = second
+function edgeOffsetFor(position) {
+  const { viewportWidth, viewportHeight, width, height } = microgameViewportSize()
+  const left = (Number.parseFloat(position.left) / 100) * viewportWidth
+  const top = (Number.parseFloat(position.top) / 100) * viewportHeight
+  const centerX = left + width / 2
+  const centerY = top + height / 2
+  const horizontal = centerX - viewportWidth / 2
+  const vertical = centerY - viewportHeight / 2
+  const edge = 12
+
+  if (Math.abs(horizontal) >= Math.abs(vertical)) {
+    return {
+      x: horizontal < 0 ? edge - left : viewportWidth - width - edge - left,
+      y: 0,
+    }
   }
-  if (intensity >= 3) {
-    for (let i = 2; i < words.length; i += 4) words[i] = '▒▒▒'
+
+  return {
+    x: 0,
+    y: vertical < 0 ? edge - top : viewportHeight - height - edge - top,
   }
-  return words.join(' ')
 }
 
 function App() {
@@ -199,6 +218,8 @@ function App() {
   const [dialogueAnswered, setDialogueAnswered] = useState(false)
   const [orderDialogueOpen, setOrderDialogueOpen] = useState(false)
   const [orderDialogueAnswered, setOrderDialogueAnswered] = useState(false)
+  const [cafeBeatPhase, setCafeBeatPhase] = useState(CAFE_BEAT_PHASES.INACTIVE)
+  const [cafeDialogueIndex, setCafeDialogueIndex] = useState(0)
   const [result, setResult] = useState(null)
   const [completionEffects, setCompletionEffects] = useState([])
   const [tutorialEnabled, setTutorialEnabled] = useState(() => {
@@ -260,13 +281,16 @@ function App() {
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
   const orderingPaused = status === 'playing' && orderDialogueOpen
-  const gameplayPaused = tutorialPaused || orderingPaused
+  const cafeBeatActive = status === 'playing' && cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE
+  const cafeBeatFrozen = isCafeBeatFrozen(cafeBeatPhase)
+  const gameplayPaused = tutorialPaused || orderingPaused || cafeBeatFrozen
   // Subsystem gates. Techniques (added later) can pause the day and/or spawns
   // independently; the tutorial and order dialogue pause both.
   const dayAdvancing = status === 'playing'
     && !tutorialPaused
     && !orderingPaused
     && !suppressing
+    && !cafeBeatActive
     && !activeTechnique?.pausesDay
   const spawningEnabled = status === 'playing'
     && directorReady
@@ -274,6 +298,7 @@ function App() {
     && !orderingPaused
     && !spawnPaused
     && !suppressing
+    && !cafeBeatActive
     && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
@@ -313,6 +338,8 @@ function App() {
     setDialogueAnswered(false)
     setOrderDialogueOpen(false)
     setOrderDialogueAnswered(false)
+    setCafeBeatPhase(CAFE_BEAT_PHASES.INACTIVE)
+    setCafeDialogueIndex(0)
     setResult(null)
     setTutorialRun(withTutorial)
     setTutorialStep('none')
@@ -493,7 +520,7 @@ function App() {
 
   // Release pending (staggered) spawns once their delay has elapsed.
   useEffect(() => {
-    if (status !== 'playing' || spawnPaused) return
+    if (status !== 'playing' || spawnPaused || cafeBeatActive) return
     const queue = pendingSpawnsRef.current
     if (queue.length === 0) return
 
@@ -507,7 +534,7 @@ function App() {
       pendingSpawnsRef.current = rest
       ready.forEach((item) => spawnMicrogame(item.kind))
     }
-  }, [spawnElapsed, load, status, spawnPaused, spawnMicrogame])
+  }, [spawnElapsed, load, status, spawnPaused, cafeBeatActive, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
@@ -595,12 +622,12 @@ function App() {
   // Fire the rehearsal once per run, at its configured day-time trigger, but
   // only when the node is enabled and nothing else is active.
   useEffect(() => {
-    if (status !== 'playing' || activeTechnique || rehearsalFiredRef.current) return
+    if (status !== 'playing' || cafeBeatActive || activeTechnique || rehearsalFiredRef.current) return
     if (!progression.enabledNodeIds.includes('rehearse')) return
     if (dayElapsed < getNode('rehearse').effect.triggerDay) return
     rehearsalFiredRef.current = true
     setActiveTechnique({ id: 'rehearsal', pausesDay: true, pausesSpawns: false })
-  }, [status, activeTechnique, dayElapsed, progression.enabledNodeIds])
+  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
 
   const completeRehearsal = useCallback((outcome) => {
     const node = getNode('rehearse')
@@ -620,12 +647,12 @@ function App() {
 
   // Run Through the Plan: scheduled technique that staggers the next pairs.
   useEffect(() => {
-    if (status !== 'playing' || activeTechnique || planFiredRef.current) return
+    if (status !== 'playing' || cafeBeatActive || activeTechnique || planFiredRef.current) return
     if (!progression.enabledNodeIds.includes('plan')) return
     if (dayElapsed < getNode('plan').effect.triggerDay) return
     planFiredRef.current = true
     setActiveTechnique({ id: 'plan', pausesDay: true, pausesSpawns: false })
-  }, [status, activeTechnique, dayElapsed, progression.enabledNodeIds])
+  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
 
   const completePlan = useCallback((outcome) => {
     const node = getNode('plan')
@@ -646,14 +673,14 @@ function App() {
   // Run on Adrenaline: pause new spawns for a window when load reaches one
   // below capacity. Day and score keep going; existing minigames stay.
   useEffect(() => {
-    if (status !== 'playing' || adrenalineFiredRef.current) return
+    if (status !== 'playing' || cafeBeatActive || adrenalineFiredRef.current) return
     if (!progression.enabledNodeIds.includes('adrenaline')) return
     const belowLimit = getNode('adrenaline').effect.belowLimit ?? 1
     if (load < capacity - belowLimit) return
     adrenalineFiredRef.current = true
     techniqueOutcomesRef.current.adrenaline = 'used'
     setSpawnPaused(true)
-  }, [load, capacity, status, progression.enabledNodeIds])
+  }, [load, capacity, status, cafeBeatActive, progression.enabledNodeIds])
 
   useEffect(() => {
     if (!spawnPaused) return undefined
@@ -690,19 +717,48 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (status !== 'playing' || load < capacity || suppressing) return
+    if (status !== 'playing' || dayElapsed >= DAY_LENGTH || cafeBeatActive || load < capacity || suppressing) return
     if (!suppressUsedRef.current && progression.enabledNodeIds.includes('suppress')) {
       suppressUsedRef.current = true
       setSuppressing(true)
       return
     }
     finishRun('overload')
-  }, [load, status, capacity, suppressing, progression.enabledNodeIds, finishRun])
+  }, [load, dayElapsed, status, capacity, suppressing, cafeBeatActive, progression.enabledNodeIds, finishRun])
 
   useEffect(() => {
-    if (status !== 'playing' || dayElapsed < DAY_LENGTH) return
-    finishRun('complete')
-  }, [dayElapsed, status, finishRun])
+    if (status !== 'playing' || dayElapsed < DAY_LENGTH || cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE) return
+    pendingSpawnsRef.current = []
+    setActiveTechnique(null)
+    setSuppressing(false)
+    setCafeDialogueIndex(0)
+    setCafeBeatPhase(CAFE_BEAT_PHASES.CONVERSATION)
+  }, [dayElapsed, status, cafeBeatPhase])
+
+  useEffect(() => {
+    if (cafeBeatPhase === CAFE_BEAT_PHASES.RUPTURE) {
+      const timer = window.setTimeout(
+        () => setCafeBeatPhase(CAFE_BEAT_PHASES.DEPARTURE),
+        CAFE_BEAT_TIMINGS.ruptureMs,
+      )
+      return () => window.clearTimeout(timer)
+    }
+    if (cafeBeatPhase === CAFE_BEAT_PHASES.DEPARTURE) {
+      const timer = window.setTimeout(
+        () => setCafeBeatPhase(CAFE_BEAT_PHASES.AFTERMATH),
+        CAFE_BEAT_TIMINGS.departureMs,
+      )
+      return () => window.clearTimeout(timer)
+    }
+    if (cafeBeatPhase === CAFE_BEAT_PHASES.AFTERMATH) {
+      const timer = window.setTimeout(
+        () => finishRun('complete'),
+        CAFE_BEAT_TIMINGS.aftermathMs,
+      )
+      return () => window.clearTimeout(timer)
+    }
+    return undefined
+  }, [cafeBeatPhase, finishRun])
 
   const resolveMicrogame = useCallback((id) => {
     if (resolvedGamesRef.current.has(id)) return
@@ -757,6 +813,12 @@ function App() {
     setOrderDialogueOpen(false)
   }
 
+  const answerCafeDialogue = () => {
+    const next = advanceCafeConversation(cafeDialogueIndex)
+    setCafeDialogueIndex(next.dialogueIndex)
+    setCafeBeatPhase(next.phase)
+  }
+
   const finishTutorial = () => {
     try {
       window.localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true')
@@ -781,7 +843,7 @@ function App() {
     : null
 
   return (
-    <main className={`game-shell status-${status} load-${Math.min(load, 5)}`}>
+    <main className={`game-shell status-${status} load-${Math.min(load, 5)} cafe-beat-${cafeBeatPhase}`}>
       <div className="world-layer">
         <Canvas
           shadows="basic"
@@ -801,6 +863,7 @@ function App() {
             active={dayAdvancing}
             dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
           />
+          <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
         </Canvas>
       </div>
 
@@ -849,7 +912,12 @@ function App() {
             </div>
           </div>
 
-          <section className="microgame-layer" aria-live="polite">
+          <section
+            className="microgame-layer"
+            aria-live="polite"
+            aria-hidden={cafeBeatFrozen || undefined}
+            inert={cafeBeatFrozen ? true : undefined}
+          >
             {microgames.map((game, index) => (
               <MicrogameWindow
                 key={game.id}
@@ -858,6 +926,7 @@ function App() {
                 load={load}
                 tutorialTarget={tutorialTarget?.id === game.id}
                 onResolve={resolveMicrogame}
+                frozen={cafeBeatFrozen}
               />
             ))}
           </section>
@@ -894,6 +963,28 @@ function App() {
             />
           )}
 
+          {cafeBeatPhase === CAFE_BEAT_PHASES.CONVERSATION && (
+            <DialogueBox
+              dialogue={CAFE_DIALOGUE[cafeDialogueIndex]}
+              load={load}
+              distortion={distortion}
+              onAnswer={answerCafeDialogue}
+              className="cafe-conversation-dialogue"
+              ariaLabel={`Conversation with Mara, part ${cafeDialogueIndex + 1} of ${CAFE_DIALOGUE.length}`}
+            />
+          )}
+
+          {cafeBeatPhase === CAFE_BEAT_PHASES.RUPTURE && (
+            <DialogueBox
+              dialogue={CAFE_RUPTURE_DIALOGUE}
+              load={load}
+              distortion={0}
+              onAnswer={() => {}}
+              className="cafe-rupture-dialogue"
+              ariaLabel="Mara is shouting"
+            />
+          )}
+
           {activeTechnique?.id === 'rehearsal' && (
             <RehearsalTechnique
               prompts={REHEARSAL_SEQUENCE.prompts}
@@ -921,7 +1012,7 @@ function App() {
             className={`go-home${tutorialStep === 'home' ? ' tutorial-target tutorial-home-target' : ''}`}
             type="button"
             onClick={goHome}
-            disabled={gameplayPaused}
+            disabled={gameplayPaused || cafeBeatActive}
             style={{
               '--overload': overloadRatio,
               '--home-scale': 1 + overloadRatio * 0.1,
@@ -1133,32 +1224,6 @@ function OverlayCard({ eyebrow, title, children }) {
   )
 }
 
-function DialogueBox({ dialogue, load, distortion, onAnswer }) {
-  return (
-    <section className={`dialogue-box distortion-${distortion}`}>
-      <div className="speaker-row">
-        <span className="portrait">{dialogue.speaker.slice(0, 1)}</span>
-        <div>
-          <strong>{dialogue.speaker}</strong>
-          <p>{scrambleText(dialogue.line, distortion)}</p>
-        </div>
-      </div>
-      <div className="dialogue-options">
-        {dialogue.options.map((option, index) => (
-          <button
-            key={option}
-            type="button"
-            style={{ '--option-index': index, '--load': load }}
-            onClick={onAnswer}
-          >
-            {scrambleText(option, distortion >= 3 ? 2 : distortion - 1)}
-          </button>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 function CompletionBurst({ effect }) {
   return (
     <div
@@ -1185,8 +1250,11 @@ function CompletionBurst({ effect }) {
   )
 }
 
-const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutorialTarget, onResolve }) {
-  const resolve = useCallback(() => onResolve(game.id), [game.id, onResolve])
+const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutorialTarget, onResolve, frozen = false }) {
+  const resolve = useCallback(() => {
+    if (!frozen) onResolve(game.id)
+  }, [frozen, game.id, onResolve])
+  const beatOffset = useMemo(() => edgeOffsetFor(game.position), [game.position])
 
   return (
     <article
@@ -1200,6 +1268,8 @@ const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutor
         '--load': load,
         '--jitter': `${Math.max(0, load - 3)}px`,
         '--jitter-duration': `${Math.max(0.2, 0.5 - Math.min(load, 4) * 0.06)}s`,
+        '--beat-x': `${beatOffset.x}px`,
+        '--beat-y': `${beatOffset.y}px`,
       }}
     >
       <div className="microgame-header">
@@ -1210,7 +1280,7 @@ const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutor
         {game.kind === 'discomfort' && <DiscomfortGame onResolve={resolve} />}
         {game.kind === 'anxiety' && <AnxietyGame onResolve={resolve} />}
         {game.kind === 'brainFog' && <BrainFogGame onResolve={resolve} />}
-        {game.kind === 'fatigue' && <FatigueGame onResolve={resolve} />}
+        {game.kind === 'fatigue' && <FatigueGame onResolve={resolve} paused={frozen} />}
         <NewMicrogameContent kind={game.kind} onResolve={resolve} />
       </div>
     </article>
@@ -1306,7 +1376,7 @@ function BrainFogGame({ onResolve }) {
   )
 }
 
-function FatigueGame({ onResolve }) {
+function FatigueGame({ onResolve, paused = false }) {
   const [held, setHeld] = useState(0)
   const holdingRef = useRef(false)
   const lastRef = useRef(0)
@@ -1318,7 +1388,7 @@ function FatigueGame({ onResolve }) {
       if (!lastRef.current) lastRef.current = now
       const delta = now - lastRef.current
       lastRef.current = now
-      if (holdingRef.current) {
+      if (holdingRef.current && !paused) {
         setHeld((current) => {
           const next = Math.min(current + delta, needed)
           if (next >= needed) queueMicrotask(onResolve)
@@ -1329,7 +1399,7 @@ function FatigueGame({ onResolve }) {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [onResolve])
+  }, [onResolve, paused])
 
   const stopHolding = () => {
     holdingRef.current = false
