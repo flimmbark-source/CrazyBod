@@ -10,17 +10,30 @@ const EXIT_POSITION = new THREE.Vector3(0.15, 0, -75.4)
 const CAMERA_POSITION = new THREE.Vector3(4.2, 1.58, -88.25)
 const CAFE_DOOR_LOOK = new THREE.Vector3(0, 1.65, -73.5)
 const FACE_OFFSET = new THREE.Vector3(0, 1.62, 0)
+// The seated conversation is framed a little lower than eye level so the dark
+// café ceiling stays above the top of the frame (it otherwise fills the empty
+// headroom above Mara, especially on tall/portrait screens).
+const CONVO_FACE_OFFSET = new THREE.Vector3(0, 1.34, 0)
 
-// Mara walks in from behind and to the player's left, crossing past their seat
-// to lower into the chair across the table before the conversation opens,
-// instead of popping into place.
+// Mara walks in from behind and to the player's left, then rounds the left end
+// of the table before lowering into the chair across from the player, instead
+// of cutting straight through the table (or popping into place). The walk runs
+// in two legs via a waypoint so she skirts the table rather than clipping it.
 const MARA_ENTRANCE_POSITION = new THREE.Vector3(1.5, 0, -85.5)
-const MARA_ENTRANCE_START = 41 // dayElapsed seconds
-const MARA_ENTRANCE_WALK = 2.3 // seconds spent walking to the chair
-const MARA_ENTRANCE_SIT = 0.75 // seconds spent lowering into the seat
-const MARA_ENTRANCE_HEADING = Math.atan2(
-  STANDING_POSITION.x - MARA_ENTRANCE_POSITION.x,
-  STANDING_POSITION.z - MARA_ENTRANCE_POSITION.z,
+const MARA_ENTRANCE_WAYPOINT = new THREE.Vector3(2.1, 0, -91.35)
+const MARA_ENTRANCE_START = 40.5 // dayElapsed seconds
+const MARA_ENTRANCE_WALK = 2.9 // seconds spent walking to the chair
+const MARA_ENTRANCE_SIT = 0.7 // seconds spent lowering into the seat
+// Fraction of the walk spent on the first leg (up alongside the table to the
+// waypoint); the remainder crosses behind the table to the chair.
+const MARA_ENTRANCE_LEG1 = 0.72
+const MARA_ENTRANCE_HEADING_1 = Math.atan2(
+  MARA_ENTRANCE_WAYPOINT.x - MARA_ENTRANCE_POSITION.x,
+  MARA_ENTRANCE_WAYPOINT.z - MARA_ENTRANCE_POSITION.z,
+)
+const MARA_ENTRANCE_HEADING_2 = Math.atan2(
+  STANDING_POSITION.x - MARA_ENTRANCE_WAYPOINT.x,
+  STANDING_POSITION.z - MARA_ENTRANCE_WAYPOINT.z,
 )
 
 function clamp01(value) {
@@ -163,18 +176,33 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
         rootRef.current.visible = true
         const walkProgress = clamp01(entranceRef.current / MARA_ENTRANCE_WALK)
         if (walkProgress < 1) {
-          rootRef.current.position.lerpVectors(
-            MARA_ENTRANCE_POSITION,
-            STANDING_POSITION,
-            smoothstep(walkProgress),
-          )
-          rootRef.current.rotation.y = MARA_ENTRANCE_HEADING
+          if (walkProgress < MARA_ENTRANCE_LEG1) {
+            // Leg one: come up the player's left, alongside the table.
+            const legT = smoothstep(walkProgress / MARA_ENTRANCE_LEG1)
+            rootRef.current.position.lerpVectors(
+              MARA_ENTRANCE_POSITION,
+              MARA_ENTRANCE_WAYPOINT,
+              legT,
+            )
+            rootRef.current.rotation.y = MARA_ENTRANCE_HEADING_1
+          } else {
+            // Leg two: round the far end of the table across to the chair.
+            const legT = smoothstep(
+              (walkProgress - MARA_ENTRANCE_LEG1) / (1 - MARA_ENTRANCE_LEG1),
+            )
+            rootRef.current.position.lerpVectors(
+              MARA_ENTRANCE_WAYPOINT,
+              STANDING_POSITION,
+              legT,
+            )
+            rootRef.current.rotation.y = MARA_ENTRANCE_HEADING_2
+          }
         } else {
           const sitProgress = smoothstep(
             clamp01((entranceRef.current - MARA_ENTRANCE_WALK) / MARA_ENTRANCE_SIT),
           )
           rootRef.current.position.lerpVectors(STANDING_POSITION, SEATED_POSITION, sitProgress)
-          rootRef.current.rotation.y = THREE.MathUtils.lerp(MARA_ENTRANCE_HEADING, 0, sitProgress)
+          rootRef.current.rotation.y = THREE.MathUtils.lerp(MARA_ENTRANCE_HEADING_2, 0, sitProgress)
         }
       }
     }
@@ -194,7 +222,7 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
       || currentPhase === CAFE_BEAT_PHASES.CELEBRATION) {
       lookTarget.copy(CAFE_DOOR_LOOK)
     } else {
-      lookTarget.copy(rootRef.current?.position ?? SEATED_POSITION).add(FACE_OFFSET)
+      lookTarget.copy(rootRef.current?.position ?? SEATED_POSITION).add(CONVO_FACE_OFFSET)
     }
 
     if (!enteredBeatRef.current) {
@@ -223,7 +251,10 @@ export default function CafeNarrativeBeatScene({ elapsed, phase }) {
 
     const lookingAtDoor = currentPhase === CAFE_BEAT_PHASES.AFTERMATH
       || currentPhase === CAFE_BEAT_PHASES.CELEBRATION
-    const targetFov = lookingAtDoor ? 61 : 57
+    const talking = currentPhase === CAFE_BEAT_PHASES.CONVERSATION
+      || currentPhase === CAFE_BEAT_PHASES.INTERLUDE
+    // A tighter lens on the seated exchange keeps the empty ceiling out of frame.
+    const targetFov = lookingAtDoor ? 61 : talking ? 46 : 57
     const nextFov = THREE.MathUtils.lerp(camera.fov, targetFov, 1 - Math.exp(-delta * 6))
     if (Math.abs(nextFov - camera.fov) > 0.01) {
       camera.fov = nextFov

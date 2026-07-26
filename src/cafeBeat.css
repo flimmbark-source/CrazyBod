@@ -50,23 +50,9 @@
   pointer-events: none;
 }
 
-/* The day timer has reached zero by the time Mara speaks, so the HUD and
-   overload meter are frozen. Fade them out for the finale instead of leaving a
-   stuck "0s" on screen while the conversation plays. */
-.cafe-beat-conversation .hud,
-.cafe-beat-rupture .hud,
-.cafe-beat-departure .hud,
-.cafe-beat-aftermath .hud,
-.cafe-beat-celebration .hud,
-.cafe-beat-conversation .load-meter,
-.cafe-beat-rupture .load-meter,
-.cafe-beat-departure .load-meter,
-.cafe-beat-aftermath .load-meter,
-.cafe-beat-celebration .load-meter {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 420ms ease;
-}
+/* The HUD and overload meter stay on screen through the whole conversation so
+   the day chrome does not disappear the moment Mara starts talking. They are
+   frozen (day time no longer advances once the beat locks), just still visible. */
 
 @media (max-width: 820px) {
   .cafe-rupture-dialogue {
