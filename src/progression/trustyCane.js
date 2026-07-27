@@ -2,6 +2,7 @@ import { getNode } from './skillTreeConfig.js'
 
 export const TRUSTY_CANE_NODE_ID = 'trustyCane'
 const PROGRESSION_STORAGE_KEY = 'crazybod:progression'
+const PRESENTATION_VERSION = '3'
 
 function readEnabledNodeIds() {
   if (typeof window === 'undefined') return []
@@ -34,38 +35,41 @@ export function scoreWithTrustyCane(dayElapsed, scorePerSecond, enabled = isTrus
   return Math.floor(normalScore + multipliedScore)
 }
 
-function caneMarkup(className) {
-  return `
-    <div class="${className}">
-      <span class="trusty-cane-facet trusty-cane-handle-a"></span>
-      <span class="trusty-cane-facet trusty-cane-handle-b"></span>
-      <span class="trusty-cane-facet trusty-cane-neck"></span>
-      <span class="trusty-cane-facet trusty-cane-shaft-a"></span>
-      <span class="trusty-cane-facet trusty-cane-shaft-b"></span>
-      <span class="trusty-cane-facet trusty-cane-tip"></span>
-    </div>
-  `
+function removeLegacyPresentation() {
+  document.querySelectorAll('.trusty-cane-pickup, .trusty-cane-badge').forEach((element) => {
+    if (element.dataset.trustyCaneVersion !== PRESENTATION_VERSION) element.remove()
+  })
 }
 
 function ensurePresentationElements() {
-  let pickup = document.querySelector('.trusty-cane-pickup')
+  removeLegacyPresentation()
+
+  let pickup = document.querySelector(`.trusty-cane-pickup[data-trusty-cane-version="${PRESENTATION_VERSION}"]`)
   if (!pickup) {
     pickup = document.createElement('div')
     pickup.className = 'trusty-cane-pickup'
+    pickup.dataset.trustyCaneVersion = PRESENTATION_VERSION
     pickup.setAttribute('aria-hidden', 'true')
     pickup.innerHTML = `
-      ${caneMarkup('trusty-cane-resting')}
+      <div class="trusty-cane-model">
+        <span class="trusty-cane-facet trusty-cane-handle-a"></span>
+        <span class="trusty-cane-facet trusty-cane-handle-b"></span>
+        <span class="trusty-cane-facet trusty-cane-neck"></span>
+        <span class="trusty-cane-facet trusty-cane-shaft-a"></span>
+        <span class="trusty-cane-facet trusty-cane-shaft-b"></span>
+        <span class="trusty-cane-facet trusty-cane-tip"></span>
+      </div>
       <div class="trusty-cane-hand"><span></span></div>
-      ${caneMarkup('trusty-cane-object')}
       <strong class="trusty-cane-popup">2x</strong>
     `
     document.body.appendChild(pickup)
   }
 
-  let badge = document.querySelector('.trusty-cane-badge')
+  let badge = document.querySelector(`.trusty-cane-badge[data-trusty-cane-version="${PRESENTATION_VERSION}"]`)
   if (!badge) {
     badge = document.createElement('span')
     badge.className = 'trusty-cane-badge'
+    badge.dataset.trustyCaneVersion = PRESENTATION_VERSION
     badge.textContent = '2x'
     badge.setAttribute('aria-label', 'Double score active')
     document.body.appendChild(badge)
@@ -101,12 +105,21 @@ function applyPresentation(dayElapsed) {
   if (enabled && dayElapsed >= pickupStartsAt && dayElapsed < activatesAt) state = 'picking'
   if (enabled && dayElapsed >= activatesAt) state = 'active'
 
-  if (pickup.dataset.state !== state) pickup.dataset.state = state
+  if (pickup.dataset.state !== state) {
+    pickup.dataset.state = state
+    // Restart the pickup animation only when entering the pickup state.
+    if (state === 'picking') {
+      pickup.classList.remove('is-animating')
+      void pickup.offsetWidth
+      pickup.classList.add('is-animating')
+    } else {
+      pickup.classList.remove('is-animating')
+    }
+  }
+
   badge.classList.toggle('is-active', state === 'active')
   positionBadge(badge)
   bindBadgePositioning(badge)
-  document.body.classList.toggle('trusty-cane-enabled', enabled)
-  document.body.classList.toggle('trusty-cane-active', state === 'active')
 }
 
 let queuedElapsed = null
