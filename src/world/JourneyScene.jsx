@@ -153,40 +153,93 @@ function Door({ position, color, progress, openAngle = -Math.PI * 0.48, width = 
   )
 }
 
-// The trusty cane, authored with its foot at the group origin so it can be
-// leant against the wall and then lifted into the player's hand. `pickup`
-// runs 0 (resting on the wall) -> ~0.55 (raised into hand) -> 1 (collected and
-// gone). Rendering nothing at the very end reads as "the player now has it".
-function Cane({ pickup = 0 }) {
-  const lift = smoothstep(Math.min(1, pickup / 0.55))
-  const fade = pickup > 0.72 ? smoothstep((pickup - 0.72) / 0.28) : 0
-  if (fade >= 1) return null
+// Progress at which the cane leaves the wall and transfers into the player's
+// hand. Before this it is a world-space prop; after, it rides the camera.
+const CANE_GRAB_AT = 0.5
 
-  const x = THREE.MathUtils.lerp(1.15, 0.5, lift)
-  const y = THREE.MathUtils.lerp(0, 1.02, lift)
-  const z = THREE.MathUtils.lerp(-14.3, -13.5, lift)
-  // Leaning against the wall (top toward +x) at rest, swung upright in hand.
-  const leanZ = THREE.MathUtils.lerp(-0.3, -0.04, lift)
-  const scale = 1 - fade
-
+// Shared cane geometry, authored with its foot at the group origin. `opacity`
+// lets the wall copy and the held copy cross-fade during the hand-off.
+function CaneMeshes({ opacity = 1 }) {
+  const transparent = opacity < 1
+  const material = (color, roughness) => (
+    <meshStandardMaterial
+      color={color}
+      roughness={roughness}
+      flatShading
+      transparent={transparent}
+      opacity={opacity}
+      depthWrite={opacity >= 1}
+    />
+  )
   return (
-    <group position={[x, y, z]} rotation={[0.04, 0, leanZ]} scale={scale}>
+    <>
       <mesh position={[0, 1.05, 0]} castShadow>
         <cylinderGeometry args={[0.05, 0.065, 2.1, 7]} />
-        <meshStandardMaterial color="#79523d" roughness={0.82} flatShading />
+        {material('#79523d', 0.82)}
       </mesh>
       <mesh position={[0, 0.05, 0]} castShadow>
         <cylinderGeometry args={[0.07, 0.07, 0.16, 7]} />
-        <meshStandardMaterial color="#34343d" roughness={0.9} flatShading />
+        {material('#34343d', 0.9)}
       </mesh>
       <mesh position={[0.22, 2.05, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
         <torusGeometry args={[0.24, 0.055, 6, 10, Math.PI * 1.15]} />
-        <meshStandardMaterial color="#936846" roughness={0.78} flatShading />
+        {material('#936846', 0.78)}
       </mesh>
       <mesh position={[0.02, 1.98, 0]} rotation={[0, 0, -0.38]} castShadow>
         <cylinderGeometry args={[0.05, 0.058, 0.4, 7]} />
-        <meshStandardMaterial color="#81583f" roughness={0.8} flatShading />
+        {material('#81583f', 0.8)}
       </mesh>
+    </>
+  )
+}
+
+// The cane while it still belongs to the room: leaning on the wall to the right
+// of the door, then lifting off it as the player reaches down. It fades out as
+// the hand takes over at CANE_GRAB_AT.
+function RestingCane({ pickup = 0 }) {
+  const lift = smoothstep(Math.min(1, pickup / CANE_GRAB_AT))
+  const opacity = pickup < 0.4 ? 1 : 1 - smoothstep((pickup - 0.4) / 0.12)
+  if (opacity <= 0) return null
+
+  const x = THREE.MathUtils.lerp(1.15, 0.9, lift)
+  const y = THREE.MathUtils.lerp(0, 0.55, lift)
+  const z = THREE.MathUtils.lerp(-14.3, -14.05, lift)
+  // Leaning against the wall (top toward +x) at rest, tipping upright as lifted.
+  const leanZ = THREE.MathUtils.lerp(-0.3, -0.16, lift)
+
+  return (
+    <group position={[x, y, z]} rotation={[0.04, 0, leanZ]}>
+      <CaneMeshes opacity={opacity} />
+    </group>
+  )
+}
+
+// The cane once it is in the player's left hand. It rides the camera so it
+// stays held as the player turns back to the door and walks on, sitting low in
+// the left of frame like a cane carried at the side.
+function HeldCane({ pickup = 0 }) {
+  const rigRef = useRef(null)
+
+  useFrame(({ camera }) => {
+    if (!rigRef.current) return
+    rigRef.current.position.copy(camera.position)
+    rigRef.current.quaternion.copy(camera.quaternion)
+  })
+
+  const settle = smoothstep(Math.min(1, (pickup - CANE_GRAB_AT) / 0.22))
+  const opacity = smoothstep(Math.min(1, (pickup - 0.44) / 0.12))
+  if (opacity <= 0) return null
+
+  // Camera-local placement: down and to the left, drifting up into grip as the
+  // hand closes. The cane hangs below the frame from the handle.
+  const y = THREE.MathUtils.lerp(-1.35, -1.18, settle)
+  const x = THREE.MathUtils.lerp(-0.28, -0.34, settle)
+
+  return (
+    <group ref={rigRef}>
+      <group position={[x, y, -0.85]} rotation={[0.16, 0.42, 0.16]} scale={0.5}>
+        <CaneMeshes opacity={opacity} />
+      </group>
     </group>
   )
 }
@@ -422,7 +475,6 @@ function Atmosphere({ elapsed }) {
 
 function Bedroom({ elapsed, caneEnabled = false, canePickupProgress = 0 }) {
   const apartmentDoorProgress = clamp01((elapsed - 13.05) / 1.15)
-  const caneVisible = caneEnabled && canePickupProgress < 1
 
   return (
     <group>
@@ -517,7 +569,12 @@ function Bedroom({ elapsed, caneEnabled = false, canePickupProgress = 0 }) {
         <Cylinder position={[-1.55, 1.72, -1.05]} args={[0.05, 0.05, 0.35, 7]} color="#4f4c52" castShadow={false} />
       </group>
 
-      {caneVisible && <Cane pickup={canePickupProgress} />}
+      {caneEnabled && canePickupProgress < CANE_GRAB_AT && (
+        <RestingCane pickup={canePickupProgress} />
+      )}
+      {caneEnabled && canePickupProgress >= 0.44 && (
+        <HeldCane pickup={canePickupProgress} />
+      )}
 
       <pointLight position={[-0.8, 3.4, 1.2]} intensity={1.45} color="#ffd99d" distance={13} decay={2} />
     </group>
