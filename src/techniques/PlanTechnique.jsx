@@ -72,8 +72,8 @@ export default function PlanTechnique({
 
   const timeRatio = Math.max(0, Math.min(1, remaining / timeLimitSeconds))
   const dialogue = {
-    speaker: 'The Plan',
-    line: 'Put the morning in order.',
+    speaker: 'Did you remember?',
+    line: 'Tap everything in the right order.',
     options: shuffled,
   }
 
