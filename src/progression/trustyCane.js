@@ -1,7 +1,7 @@
 import { getNode } from './skillTreeConfig.js'
-import { PROGRESSION_STORAGE_KEY } from './progressionStore.js'
 
 export const TRUSTY_CANE_NODE_ID = 'trustyCane'
+const PROGRESSION_STORAGE_KEY = 'crazybod:progression'
 
 function readEnabledNodeIds() {
   if (typeof window === 'undefined') return []
