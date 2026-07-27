@@ -34,6 +34,19 @@ export function scoreWithTrustyCane(dayElapsed, scorePerSecond, enabled = isTrus
   return Math.floor(normalScore + multipliedScore)
 }
 
+function caneMarkup(className) {
+  return `
+    <div class="${className}">
+      <span class="trusty-cane-facet trusty-cane-handle-a"></span>
+      <span class="trusty-cane-facet trusty-cane-handle-b"></span>
+      <span class="trusty-cane-facet trusty-cane-neck"></span>
+      <span class="trusty-cane-facet trusty-cane-shaft-a"></span>
+      <span class="trusty-cane-facet trusty-cane-shaft-b"></span>
+      <span class="trusty-cane-facet trusty-cane-tip"></span>
+    </div>
+  `
+}
+
 function ensurePresentationElements() {
   let pickup = document.querySelector('.trusty-cane-pickup')
   if (!pickup) {
@@ -41,17 +54,9 @@ function ensurePresentationElements() {
     pickup.className = 'trusty-cane-pickup'
     pickup.setAttribute('aria-hidden', 'true')
     pickup.innerHTML = `
-      <div class="trusty-cane-resting">
-        <span class="trusty-cane-hook"></span>
-        <span class="trusty-cane-shaft"></span>
-        <span class="trusty-cane-tip"></span>
-      </div>
+      ${caneMarkup('trusty-cane-resting')}
       <div class="trusty-cane-hand"><span></span></div>
-      <div class="trusty-cane-object">
-        <span class="trusty-cane-hook"></span>
-        <span class="trusty-cane-shaft"></span>
-        <span class="trusty-cane-tip"></span>
-      </div>
+      ${caneMarkup('trusty-cane-object')}
       <strong class="trusty-cane-popup">2x</strong>
     `
     document.body.appendChild(pickup)
@@ -69,6 +74,21 @@ function ensurePresentationElements() {
   return { pickup, badge }
 }
 
+function positionBadge(badge) {
+  const scorePanel = document.querySelector('.score-panel')
+  if (!scorePanel || !badge) return
+  const rect = scorePanel.getBoundingClientRect()
+  badge.style.left = `${Math.round(rect.left + 8)}px`
+  badge.style.top = `${Math.round(rect.top + 7)}px`
+}
+
+let resizeBound = false
+function bindBadgePositioning(badge) {
+  if (resizeBound) return
+  resizeBound = true
+  window.addEventListener('resize', () => positionBadge(badge), { passive: true })
+}
+
 function applyPresentation(dayElapsed) {
   const node = getNode(TRUSTY_CANE_NODE_ID)
   const pickupStartsAt = node?.effect?.pickupStartsAt ?? 13.6
@@ -77,11 +97,14 @@ function applyPresentation(dayElapsed) {
   const { pickup, badge } = ensurePresentationElements()
 
   let state = 'hidden'
+  if (enabled && dayElapsed >= 8 && dayElapsed < pickupStartsAt) state = 'resting'
   if (enabled && dayElapsed >= pickupStartsAt && dayElapsed < activatesAt) state = 'picking'
   if (enabled && dayElapsed >= activatesAt) state = 'active'
 
   if (pickup.dataset.state !== state) pickup.dataset.state = state
   badge.classList.toggle('is-active', state === 'active')
+  positionBadge(badge)
+  bindBadgePositioning(badge)
   document.body.classList.toggle('trusty-cane-enabled', enabled)
   document.body.classList.toggle('trusty-cane-active', state === 'active')
 }
