@@ -4,13 +4,19 @@
 // game (App.jsx) and the external result script (endScreens.js). That
 // duplication must not return: every subsystem imports from here.
 
+import {
+  scoreWithTrustyCane,
+  syncTrustyCanePresentation,
+} from '../progression/trustyCane.js'
+
 export const DAY_LENGTH = 50
 export const SCORE_PER_SECOND = 10
 export const BASE_OVERLOAD_LIMIT = 5
 export const DAY_ELAPSED_EVENT = 'crazybod:day-elapsed'
 
 // The maximum score is a function of the scored day length only. Unscored
-// technique time must never let the score exceed this ceiling.
+// technique time must never let the score exceed this ceiling. Skill effects
+// may exceed this base ceiling through their own explicit scoring rules.
 export const MAX_SCORE = DAY_LENGTH * SCORE_PER_SECOND
 
 // The fraction of the raw score that survives an overload.
@@ -41,6 +47,7 @@ export function phaseLabel(dayElapsed) {
 export function scoreForElapsed(dayElapsed) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(DAY_ELAPSED_EVENT, { detail: dayElapsed }))
+    syncTrustyCanePresentation(dayElapsed)
   }
-  return Math.min(MAX_SCORE, Math.floor(dayElapsed * SCORE_PER_SECOND))
+  return scoreWithTrustyCane(dayElapsed, SCORE_PER_SECOND)
 }
