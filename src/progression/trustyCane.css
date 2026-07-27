@@ -11,14 +11,31 @@
   opacity: 1;
 }
 
+.trusty-cane-resting,
 .trusty-cane-object {
   position: absolute;
-  left: 58%;
-  top: 54%;
+  left: 61%;
+  top: 42%;
   width: 42px;
   height: 230px;
   transform-origin: 50% 92%;
   filter: drop-shadow(0 12px 7px rgba(23, 17, 29, 0.42));
+}
+
+.trusty-cane-resting {
+  transform: translate(25vw, 15vh) rotate(11deg) scale(.72);
+  opacity: 0;
+}
+
+.trusty-cane-object {
+  opacity: 0;
+}
+
+.trusty-cane-pickup[data-state='picking'] .trusty-cane-resting {
+  animation: trusty-cane-resting 1.4s linear both;
+}
+
+.trusty-cane-pickup[data-state='picking'] .trusty-cane-object {
   animation: trusty-cane-grab 1.4s cubic-bezier(.2,.72,.2,1) both;
 }
 
@@ -60,6 +77,35 @@
   background: #34333c;
 }
 
+.trusty-cane-hand {
+  position: absolute;
+  right: -20vw;
+  bottom: -16vh;
+  width: 44vw;
+  max-width: 540px;
+  height: 34vh;
+  border-radius: 55% 0 0 0;
+  background: linear-gradient(135deg, #d5a27f 0 52%, #9f6f58 53% 100%);
+  transform: rotate(-18deg);
+  opacity: 0;
+  filter: drop-shadow(-10px -4px 12px rgba(28, 18, 26, .28));
+}
+
+.trusty-cane-hand span {
+  position: absolute;
+  left: 4%;
+  top: -16%;
+  width: 40%;
+  height: 28%;
+  border-radius: 999px;
+  background: #d5a27f;
+  transform: rotate(-24deg);
+}
+
+.trusty-cane-pickup[data-state='picking'] .trusty-cane-hand {
+  animation: trusty-cane-hand-reach 1.4s cubic-bezier(.2,.72,.2,1) both;
+}
+
 .trusty-cane-popup,
 .trusty-cane-badge {
   font-family: system-ui, sans-serif;
@@ -80,6 +126,9 @@
   font-size: clamp(76px, 14vw, 168px);
   transform: translate(-50%, -50%) scale(.25);
   opacity: 0;
+}
+
+.trusty-cane-pickup[data-state='picking'] .trusty-cane-popup {
   animation:
     trusty-cane-rainbow .52s linear infinite,
     trusty-cane-popup-flight 1.4s cubic-bezier(.18,.76,.22,1) both;
@@ -87,35 +136,48 @@
 
 .trusty-cane-badge {
   position: fixed;
+  right: 18px;
+  top: 72px;
   z-index: 49;
-  right: 4.3rem;
-  top: 3.35rem;
-  pointer-events: none;
   font-size: 18px;
   opacity: 0;
-  transform: translateY(-50%) scale(.5);
+  transform: scale(.5);
   transition: opacity 160ms ease, transform 220ms cubic-bezier(.2,.8,.2,1);
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .trusty-cane-badge.is-active {
   opacity: 1;
-  transform: translateY(-50%) scale(1);
+  transform: scale(1);
   animation: trusty-cane-rainbow 1.8s linear infinite;
 }
 
+@keyframes trusty-cane-resting {
+  0%, 28% { opacity: 1; }
+  45%, 100% { opacity: 0; }
+}
+
+@keyframes trusty-cane-hand-reach {
+  0% { transform: translate(30vw, 24vh) rotate(-18deg); opacity: 0; }
+  18% { opacity: 1; }
+  48% { transform: translate(-10vw, -8vh) rotate(-25deg); opacity: 1; }
+  78% { transform: translate(-18vw, 10vh) rotate(-15deg); opacity: 1; }
+  100% { transform: translate(-8vw, 34vh) rotate(-8deg); opacity: 0; }
+}
+
 @keyframes trusty-cane-grab {
-  0% { transform: translate(35vw, 18vh) rotate(11deg) scale(.72); opacity: .75; }
+  0%, 28% { transform: translate(25vw, 15vh) rotate(11deg) scale(.72); opacity: 1; }
   45% { transform: translate(7vw, 3vh) rotate(-8deg) scale(1.02); opacity: 1; }
   78% { transform: translate(-12vw, 26vh) rotate(-18deg) scale(1.18); opacity: 1; }
   100% { transform: translate(-18vw, 44vh) rotate(-22deg) scale(1.22); opacity: 0; }
 }
 
 @keyframes trusty-cane-popup-flight {
-  0%, 25% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
-  38% { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(3deg); }
-  62% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
-  100% { opacity: 1; left: calc(100% - 74px); top: 54px; transform: translate(-50%, -50%) scale(.18); }
+  0%, 44% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
+  55% { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(3deg); }
+  72% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+  100% { opacity: 1; left: calc(100% - 28px); top: 72px; transform: translate(-50%, -50%) scale(.18); }
 }
 
 @keyframes trusty-cane-rainbow {
@@ -123,18 +185,22 @@
 }
 
 @media (max-width: 720px) {
-  .trusty-cane-object { left: 48%; top: 51%; transform: scale(.82); }
-  .trusty-cane-badge { right: 2.7rem; top: 3rem; font-size: 15px; }
+  .trusty-cane-resting,
+  .trusty-cane-object { left: 51%; top: 46%; }
+  .trusty-cane-hand { width: 58vw; }
+  .trusty-cane-badge { right: 12px; top: 66px; font-size: 15px; }
   @keyframes trusty-cane-popup-flight {
-    0%, 25% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
-    38% { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(3deg); }
-    62% { opacity: 1; transform: translate(-50%, -50%) scale(.9) rotate(0); }
-    100% { opacity: 1; left: calc(100% - 47px); top: 48px; transform: translate(-50%, -50%) scale(.16); }
+    0%, 44% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
+    55% { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(3deg); }
+    72% { opacity: 1; transform: translate(-50%, -50%) scale(.9) rotate(0); }
+    100% { opacity: 1; left: calc(100% - 22px); top: 66px; transform: translate(-50%, -50%) scale(.16); }
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .trusty-cane-object { animation: none; opacity: 0; }
-  .trusty-cane-popup { animation: none; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .trusty-cane-pickup[data-state='picking'] .trusty-cane-resting,
+  .trusty-cane-pickup[data-state='picking'] .trusty-cane-object,
+  .trusty-cane-pickup[data-state='picking'] .trusty-cane-hand { animation: none; opacity: 0; }
+  .trusty-cane-pickup[data-state='picking'] .trusty-cane-popup { animation: none; opacity: 1; transform: translate(-50%, -50%) scale(1); }
   .trusty-cane-badge { transition: none; }
 }
