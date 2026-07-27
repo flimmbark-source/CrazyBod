@@ -98,6 +98,31 @@ export const SKILL_TREE_NODES = [
     },
   },
   {
+    id: 'trustyCane',
+    name: 'Earn 2x points after leaving home.',
+    tagline: 'Automatic',
+    category: 'automatic',
+    palette: PALETTES.automatic,
+    cost: 550,
+    parent: 'autotarget',
+    x: 68,
+    y: 88,
+    icon: 'cane',
+    hook: 'scoreMultiplier',
+    description: '2x score after the cane is collected.',
+    detail: 'Grab your trusty cane by the door on the way out for double score.',
+    effect: {
+      // Score earned after the day clock passes `activatesAt` (the 15s
+      // leave-home boundary) is multiplied. `pickupStartsAt` is when the
+      // in-world pickup pause fires at the apartment door, and `pickupSeconds`
+      // is how long the player stops to collect it.
+      multiplier: 2,
+      activatesAt: 15,
+      pickupStartsAt: 13.6,
+      pickupSeconds: 5,
+    },
+  },
+  {
     id: 'adrenaline',
     name: 'Each minigame spawn has a 20% to slow spawns for 4s',
     tagline: '',

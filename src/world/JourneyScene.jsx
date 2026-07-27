@@ -43,6 +43,9 @@ const STREET_COLOR = new THREE.Color('#9eb4c0')
 const CAFE_COLOR = new THREE.Color('#9f7e72')
 const MARA_LOOK = new THREE.Vector3(-2.2, 1.48, -70.9)
 const BARISTA_LOOK = new THREE.Vector3(-1.3, 1.48, -95.15)
+// Where the trusty cane rests against the wall on the right of the apartment
+// door. The camera dips toward this point while the player picks it up.
+const CANE_LOOK = new THREE.Vector3(1.3, 0.55, -14.2)
 const SHARED_BOX_GEOMETRY = new THREE.BoxGeometry(1, 1, 1)
 
 function clamp01(value) {
@@ -145,6 +148,44 @@ function Door({ position, color, progress, openAngle = -Math.PI * 0.48, width = 
       <mesh position={[width - 0.22, height * 0.52, 0.12]} castShadow>
         <sphereGeometry args={[0.08, 8, 6]} />
         <meshStandardMaterial color="#d4b15e" metalness={0.45} roughness={0.35} />
+      </mesh>
+    </group>
+  )
+}
+
+// The trusty cane, authored with its foot at the group origin so it can be
+// leant against the wall and then lifted into the player's hand. `pickup`
+// runs 0 (resting on the wall) -> ~0.55 (raised into hand) -> 1 (collected and
+// gone). Rendering nothing at the very end reads as "the player now has it".
+function Cane({ pickup = 0 }) {
+  const lift = smoothstep(Math.min(1, pickup / 0.55))
+  const fade = pickup > 0.72 ? smoothstep((pickup - 0.72) / 0.28) : 0
+  if (fade >= 1) return null
+
+  const x = THREE.MathUtils.lerp(1.15, 0.5, lift)
+  const y = THREE.MathUtils.lerp(0, 1.02, lift)
+  const z = THREE.MathUtils.lerp(-14.3, -13.5, lift)
+  // Leaning against the wall (top toward +x) at rest, swung upright in hand.
+  const leanZ = THREE.MathUtils.lerp(-0.3, -0.04, lift)
+  const scale = 1 - fade
+
+  return (
+    <group position={[x, y, z]} rotation={[0.04, 0, leanZ]} scale={scale}>
+      <mesh position={[0, 1.05, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.065, 2.1, 7]} />
+        <meshStandardMaterial color="#79523d" roughness={0.82} flatShading />
+      </mesh>
+      <mesh position={[0, 0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.07, 0.07, 0.16, 7]} />
+        <meshStandardMaterial color="#34343d" roughness={0.9} flatShading />
+      </mesh>
+      <mesh position={[0.22, 2.05, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <torusGeometry args={[0.24, 0.055, 6, 10, Math.PI * 1.15]} />
+        <meshStandardMaterial color="#936846" roughness={0.78} flatShading />
+      </mesh>
+      <mesh position={[0.02, 1.98, 0]} rotation={[0, 0, -0.38]} castShadow>
+        <cylinderGeometry args={[0.05, 0.058, 0.4, 7]} />
+        <meshStandardMaterial color="#81583f" roughness={0.8} flatShading />
       </mesh>
     </group>
   )
@@ -286,7 +327,7 @@ function WalkingNpc({ start, end, duration, offset, color, accent, active, scale
   )
 }
 
-function CameraRig({ elapsed, active, enabled, dialogueStage }) {
+function CameraRig({ elapsed, active, enabled, dialogueStage, canePickupProgress = 0 }) {
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
@@ -316,6 +357,14 @@ function CameraRig({ elapsed, active, enabled, dialogueStage }) {
       targetLook.lerp(MARA_LOOK, 0.82)
     }
     if (dialogueStage === 'order') targetLook.lerp(BARISTA_LOOK, 0.9)
+
+    // During the cane pickup the day clock is frozen, so drive the head turn
+    // straight from the pickup progress: dip toward the cane at the halfway
+    // point, then return to the door so the player faces the way out again.
+    if (canePickupProgress > 0 && canePickupProgress < 1) {
+      const reach = Math.sin(canePickupProgress * Math.PI)
+      targetLook.lerp(CANE_LOOK, reach * 0.85)
+    }
 
     camera.position.copy(targetPosition)
     smoothedLook.lerp(targetLook, 1 - Math.exp(-delta * 9.5))
@@ -371,8 +420,9 @@ function Atmosphere({ elapsed }) {
   return <fog attach="fog" args={['#b8a7bb', 10, 48]} />
 }
 
-function Bedroom({ elapsed }) {
+function Bedroom({ elapsed, caneEnabled = false, canePickupProgress = 0 }) {
   const apartmentDoorProgress = clamp01((elapsed - 13.05) / 1.15)
+  const caneVisible = caneEnabled && canePickupProgress < 1
 
   return (
     <group>
@@ -466,6 +516,8 @@ function Bedroom({ elapsed }) {
         <Cylinder position={[-1.55, 2.1, -1.05]} args={[0.05, 0.05, 0.35, 7]} color="#4f4c52" castShadow={false} />
         <Cylinder position={[-1.55, 1.72, -1.05]} args={[0.05, 0.05, 0.35, 7]} color="#4f4c52" castShadow={false} />
       </group>
+
+      {caneVisible && <Cane pickup={canePickupProgress} />}
 
       <pointLight position={[-0.8, 3.4, 1.2]} intensity={1.45} color="#ffd99d" distance={13} decay={2} />
     </group>
@@ -729,7 +781,7 @@ function CafeInterior({ elapsed, active }) {
   )
 }
 
-function World({ elapsed, active }) {
+function World({ elapsed, active, caneEnabled, canePickupProgress }) {
   const bedroomVisible = elapsed < 19
   const streetVisible = elapsed >= 10 && elapsed < 35
   const cafeVisible = elapsed >= 18
@@ -737,7 +789,11 @@ function World({ elapsed, active }) {
   return (
     <group>
       <group visible={bedroomVisible}>
-        <Bedroom elapsed={elapsed} />
+        <Bedroom
+          elapsed={elapsed}
+          caneEnabled={caneEnabled}
+          canePickupProgress={canePickupProgress}
+        />
       </group>
       <group visible={streetVisible}>
         <Street active={active && streetVisible} />
@@ -755,6 +811,8 @@ export function AuthoredJourneyScene({
   active,
   cameraEnabled = true,
   dialogueStage = null,
+  caneEnabled = false,
+  canePickupProgress = 0,
 }) {
   return (
     <>
@@ -780,8 +838,14 @@ export function AuthoredJourneyScene({
         active={active}
         enabled={cameraEnabled}
         dialogueStage={dialogueStage}
+        canePickupProgress={canePickupProgress}
       />
-      <World elapsed={elapsed} active={active} />
+      <World
+        elapsed={elapsed}
+        active={active}
+        caneEnabled={caneEnabled}
+        canePickupProgress={canePickupProgress}
+      />
     </>
   )
 }

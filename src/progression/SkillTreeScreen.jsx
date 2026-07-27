@@ -30,6 +30,7 @@ const ICONS = {
       <path d="M12 8v6M12 11l-5 2M12 11l5 2M12 14l-3 6M12 14l3 6" />
     </>
   ),
+  cane: <path d="M15 5c-3.3 0-5 2.2-5 5v9" />,
 }
 
 function NodeIcon({ icon }) {

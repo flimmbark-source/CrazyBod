@@ -31,10 +31,12 @@ import { setAutoTargetEnabled } from './microgameEnhancements.js'
 import {
   DAY_LENGTH,
   OVERLOAD_SCORE_MULTIPLIER,
+  SCORE_PER_SECOND,
   phaseFor,
   phaseLabel,
   scoreForElapsed,
 } from './config/gameConfig.js'
+import { TRUSTY_CANE_NODE_ID, scoreWithTrustyCane } from './progression/trustyCane.js'
 import ResultsScreen from './results/ResultsScreen.jsx'
 import { useProgression } from './progression/useProgression.js'
 import { computeCapacity } from './progression/progressionStore.js'
@@ -248,14 +250,19 @@ function App() {
   const [runCapacityBonus, setRunCapacityBonus] = useState(0)
   const [spawnPaused, setSpawnPaused] = useState(false)
   const [suppressing, setSuppressing] = useState(false)
+  // Trusty Cane pickup: 0 rests on the wall, (0,1) is the in-world pickup, 1 is
+  // collected. It drives the scene's cane prop; the pickup also pauses the day.
+  const [canePickupProgress, setCanePickupProgress] = useState(0)
   const suppressUsedRef = useRef(false)
   const prevUnlockedRef = useRef(progression.treeUnlocked)
   const capacityRef = useRef(0)
+  const caneEnabledRef = useRef(false)
   const rehearsalFiredRef = useRef(false)
   const planFiredRef = useRef(false)
   const adrenalineFiredRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   const stretchFiredRef = useRef(false)
+  const canePickupFiredRef = useRef(false)
   // While the day clock is below this value, a completed stretch thins the
   // physical-symptom spawns. 0 means the benefit is inactive.
   const stretchThinUntilRef = useRef(0)
@@ -281,7 +288,15 @@ function App() {
   const suppressedCountRef = useRef(0)
   const runFinishedRef = useRef(false)
 
-  const score = scoreForElapsed(dayElapsed)
+  const caneEnabled = progression.enabledNodeIds.includes(TRUSTY_CANE_NODE_ID)
+  // scoreForElapsed also dispatches the day-elapsed event the audio bridges
+  // listen to, so keep calling it. The cane's 2x multiplier only reshapes the
+  // displayed/banked score once the cane is owned.
+  const baseScore = scoreForElapsed(dayElapsed)
+  const score = caneEnabled
+    ? scoreWithTrustyCane(dayElapsed, SCORE_PER_SECOND, true)
+    : baseScore
+  caneEnabledRef.current = caneEnabled
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
   const currentPhaseId = phaseFor(dayElapsed).id
   // Capacity is derived from the enabled skill nodes plus any per-run bonus
@@ -335,6 +350,7 @@ function App() {
     adrenalineFiredRef.current = false
     planStaggerRemainingRef.current = 0
     stretchFiredRef.current = false
+    canePickupFiredRef.current = false
     stretchThinUntilRef.current = 0
     pendingSpawnsRef.current = []
     suppressUsedRef.current = false
@@ -354,6 +370,7 @@ function App() {
     setRunCapacityBonus(0)
     setSpawnPaused(false)
     setSuppressing(false)
+    setCanePickupProgress(0)
     setMicrogames([])
     setCompletionEffects([])
     setDialogueOpen(false)
@@ -597,7 +614,9 @@ function App() {
     runFinishedRef.current = true
 
     const finishedDay = Math.min(DAY_LENGTH, dayElapsedRef.current)
-    const rawScore = scoreForElapsed(finishedDay)
+    const rawScore = caneEnabledRef.current
+      ? scoreWithTrustyCane(finishedDay, SCORE_PER_SECOND, true)
+      : scoreForElapsed(finishedDay)
     const capacity = capacityRef.current
     const finalScore = outcome === 'overload'
       ? Math.floor(rawScore * OVERLOAD_SCORE_MULTIPLIER)
@@ -720,6 +739,40 @@ function App() {
     if (success) planStaggerRemainingRef.current = node.effect.staggerPairs ?? 2
     setActiveTechnique(null)
   }, [])
+
+  // Trusty Cane: on the way out, the player stops at the apartment door and
+  // spends a few seconds collecting the cane leaning against the wall. Reusing
+  // the technique pause freezes the day (and spawns) so nothing downstream
+  // desyncs; unlike the other techniques it has no HUD dialog — the whole
+  // beat plays out in the 3D scene.
+  useEffect(() => {
+    if (status !== 'playing' || cafeBeatActive || activeTechnique || canePickupFiredRef.current) return
+    if (!progression.enabledNodeIds.includes(TRUSTY_CANE_NODE_ID)) return
+    if (dayElapsed < getNode(TRUSTY_CANE_NODE_ID).effect.pickupStartsAt) return
+    canePickupFiredRef.current = true
+    setCanePickupProgress(0)
+    setActiveTechnique({ id: TRUSTY_CANE_NODE_ID, pausesDay: true, pausesSpawns: true })
+  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
+
+  // Drive the pickup animation. Progress runs 0 -> 1 over `pickupSeconds` of
+  // real time; reaching 1 ends the pause and leaves the cane collected.
+  useEffect(() => {
+    if (activeTechnique?.id !== TRUSTY_CANE_NODE_ID) return undefined
+    const durationMs = (getNode(TRUSTY_CANE_NODE_ID).effect.pickupSeconds ?? 5) * 1000
+    const start = performance.now()
+    let frame = 0
+    const tick = (now) => {
+      const progress = Math.min(1, (now - start) / durationMs)
+      setCanePickupProgress(progress)
+      if (progress >= 1) {
+        setActiveTechnique(null)
+        return
+      }
+      frame = window.requestAnimationFrame(tick)
+    }
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
+  }, [activeTechnique])
 
   // Auto Target: while enabled during a run, clearing the focused
   // minigame moves keyboard focus to the next one on screen.
@@ -960,6 +1013,8 @@ function App() {
             active={dayAdvancing}
             cameraEnabled={!cafeBeatActive}
             dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
+            caneEnabled={caneEnabled}
+            canePickupProgress={canePickupProgress}
           />
           <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
         </Canvas>
