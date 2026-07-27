@@ -1,6 +1,7 @@
 import {
   OPENING_INTERVAL,
   PAIR_CHANCE_PENALTY_PER_UPGRADE,
+  SPAWN_DELAY_BONUS_PER_UPGRADE,
   pacingPhaseById,
 } from './pacingConfig.js'
 
@@ -79,8 +80,9 @@ export function initializePacingDirector(director, spawnElapsed = 0) {
   director.nextSpawnAt = spawnElapsed + randomBetween(director.random, OPENING_INTERVAL)
 }
 
-function nextDelay(director, phase) {
+function nextDelay(director, phase, purchasedUpgrades) {
   return randomBetween(director.random, phase.interval)
+    + purchasedUpgrades * SPAWN_DELAY_BONUS_PER_UPGRADE
 }
 
 // `spawnElapsed` is the spawn clock (advances only while spawning is enabled);
@@ -104,7 +106,7 @@ export function takeSpawnBatch(director, { spawnElapsed, phaseId, purchasedUpgra
     kinds.push({ kind: drawKind(director, phase, [firstKind]), slot: 'pair' })
   }
 
-  director.nextSpawnAt = spawnElapsed + nextDelay(director, phase)
+  director.nextSpawnAt = spawnElapsed + nextDelay(director, phase, purchasedUpgrades)
 
   return {
     kinds,
