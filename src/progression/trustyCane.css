@@ -1,127 +1,14 @@
-.trusty-cane-pickup {
+.trusty-cane-3d-overlay {
   position: fixed;
   inset: 0;
-  z-index: 48;
+  z-index: 47;
   pointer-events: none;
-  opacity: 0;
-  overflow: hidden;
-  perspective: 900px;
 }
 
-.trusty-cane-pickup[data-state='resting'],
-.trusty-cane-pickup[data-state='picking'] {
-  opacity: 1;
-}
-
-.trusty-cane-model {
-  position: absolute;
-  left: calc(50% - 150px);
-  top: 34%;
-  width: 82px;
-  height: 286px;
-  transform-origin: 50% 94%;
-  transform: rotate(9deg) scale(.82) rotateY(-9deg);
-  opacity: 0;
-  filter: drop-shadow(12px 16px 8px rgba(28, 20, 28, .34));
-}
-
-.trusty-cane-pickup[data-state='resting'] .trusty-cane-model {
-  opacity: 1;
-}
-
-.trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-model {
-  animation: trusty-cane-pickup 1.4s cubic-bezier(.2,.72,.2,1) both;
-}
-
-.trusty-cane-facet {
-  position: absolute;
+.trusty-cane-3d-overlay canvas {
+  width: 100% !important;
+  height: 100% !important;
   display: block;
-  border: 1px solid rgba(38, 26, 31, .7);
-  box-shadow: inset 3px 0 rgba(255,255,255,.12), inset -4px -2px rgba(31,21,26,.24);
-}
-
-.trusty-cane-shaft-a {
-  left: 31px;
-  top: 63px;
-  width: 15px;
-  height: 192px;
-  background: #8b6247;
-  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
-}
-
-.trusty-cane-shaft-b {
-  left: 41px;
-  top: 63px;
-  width: 10px;
-  height: 192px;
-  background: #5b4035;
-  clip-path: polygon(0 0, 100% 5%, 72% 100%, 0 100%);
-}
-
-.trusty-cane-neck {
-  left: 28px;
-  top: 43px;
-  width: 24px;
-  height: 35px;
-  background: #75503d;
-  clip-path: polygon(14% 0, 84% 10%, 100% 100%, 0 100%);
-}
-
-.trusty-cane-handle-a {
-  left: 29px;
-  top: 7px;
-  width: 48px;
-  height: 45px;
-  background: #a97850;
-  clip-path: polygon(0 8%, 63% 0, 100% 20%, 89% 48%, 59% 37%, 31% 45%, 7% 70%);
-}
-
-.trusty-cane-handle-b {
-  left: 48px;
-  top: 18px;
-  width: 31px;
-  height: 37px;
-  background: #654538;
-  clip-path: polygon(0 0, 100% 9%, 83% 56%, 49% 44%, 18% 100%);
-}
-
-.trusty-cane-tip {
-  left: 29px;
-  top: 250px;
-  width: 24px;
-  height: 18px;
-  background: #35343d;
-  clip-path: polygon(9% 0, 91% 0, 100% 74%, 75% 100%, 17% 94%, 0 68%);
-}
-
-.trusty-cane-hand {
-  position: absolute;
-  right: -20vw;
-  bottom: -16vh;
-  width: 44vw;
-  max-width: 540px;
-  height: 34vh;
-  border-radius: 55% 0 0 0;
-  background: linear-gradient(145deg, #d7a982 0 48%, #ba8468 49% 70%, #8f6354 71% 100%);
-  clip-path: polygon(0 38%, 23% 17%, 61% 0, 100% 22%, 100% 100%, 11% 100%);
-  transform: rotate(-18deg);
-  opacity: 0;
-  filter: drop-shadow(-10px -4px 12px rgba(28, 18, 26, .28));
-}
-
-.trusty-cane-hand span {
-  position: absolute;
-  left: 4%;
-  top: -14%;
-  width: 40%;
-  height: 28%;
-  background: #d7a982;
-  clip-path: polygon(0 42%, 72% 0, 100% 38%, 76% 88%, 20% 100%);
-  transform: rotate(-24deg);
-}
-
-.trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-hand {
-  animation: trusty-cane-hand-reach 1.4s cubic-bezier(.2,.72,.2,1) both;
 }
 
 .trusty-cane-popup,
@@ -135,18 +22,20 @@
   background-clip: text;
   -webkit-background-clip: text;
   filter: drop-shadow(0 3px 0 #332b42) drop-shadow(0 8px 14px rgba(25, 16, 38, .55));
+  pointer-events: none;
 }
 
 .trusty-cane-popup {
-  position: absolute;
+  position: fixed;
   left: 50%;
   top: 50%;
+  z-index: 48;
   font-size: clamp(76px, 14vw, 168px);
   transform: translate(-50%, -50%) scale(.25);
   opacity: 0;
 }
 
-.trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-popup {
+.trusty-cane-popup.is-animating {
   animation:
     trusty-cane-rainbow .52s linear infinite,
     trusty-cane-popup-flight 1.4s cubic-bezier(.18,.76,.22,1) both;
@@ -161,48 +50,12 @@
   transform-origin: left top;
   transition: opacity 160ms ease, transform 220ms cubic-bezier(.2,.8,.2,1);
   white-space: nowrap;
-  pointer-events: none;
 }
 
 .trusty-cane-badge.is-active {
   opacity: 1;
   transform: scale(1);
   animation: trusty-cane-rainbow 1.8s linear infinite;
-}
-
-@keyframes trusty-cane-pickup {
-  0%, 24% {
-    left: calc(50% - 150px);
-    top: 34%;
-    transform: rotate(9deg) scale(.82) rotateY(-9deg);
-    opacity: 1;
-  }
-  48% {
-    left: 57%;
-    top: 43%;
-    transform: rotate(-7deg) scale(1.02) rotateY(5deg);
-    opacity: 1;
-  }
-  78% {
-    left: 38%;
-    top: 67%;
-    transform: rotate(-18deg) scale(1.18) rotateY(12deg);
-    opacity: 1;
-  }
-  100% {
-    left: 32%;
-    top: 88%;
-    transform: rotate(-22deg) scale(1.22) rotateY(18deg);
-    opacity: 0;
-  }
-}
-
-@keyframes trusty-cane-hand-reach {
-  0% { transform: translate(30vw, 24vh) rotate(-18deg); opacity: 0; }
-  18% { opacity: 1; }
-  48% { transform: translate(-10vw, -8vh) rotate(-25deg); opacity: 1; }
-  78% { transform: translate(-18vw, 10vh) rotate(-15deg); opacity: 1; }
-  100% { transform: translate(-8vw, 34vh) rotate(-8deg); opacity: 0; }
 }
 
 @keyframes trusty-cane-popup-flight {
@@ -217,55 +70,14 @@
 }
 
 @media (max-width: 720px) {
-  .trusty-cane-model {
-    left: calc(50% - 96px);
-    top: 38%;
-    transform: rotate(9deg) scale(.66);
-  }
-
-  .trusty-cane-hand { width: 58vw; }
   .trusty-cane-badge { font-size: 15px; }
-
-  @keyframes trusty-cane-pickup {
-    0%, 24% {
-      left: calc(50% - 96px);
-      top: 38%;
-      transform: rotate(9deg) scale(.66);
-      opacity: 1;
-    }
-    48% {
-      left: 51%;
-      top: 46%;
-      transform: rotate(-7deg) scale(.86);
-      opacity: 1;
-    }
-    78% {
-      left: 35%;
-      top: 69%;
-      transform: rotate(-18deg) scale(1);
-      opacity: 1;
-    }
-    100% {
-      left: 28%;
-      top: 90%;
-      transform: rotate(-22deg) scale(1.08);
-      opacity: 0;
-    }
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-model,
-  .trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-hand {
-    animation: none;
-    opacity: 0;
-  }
-
-  .trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-popup {
+  .trusty-cane-popup.is-animating {
     animation: none;
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
-
   .trusty-cane-badge { transition: none; }
 }
