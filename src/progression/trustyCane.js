@@ -2,7 +2,6 @@ import { getNode } from './skillTreeConfig.js'
 
 export const TRUSTY_CANE_NODE_ID = 'trustyCane'
 const PROGRESSION_STORAGE_KEY = 'crazybod:progression'
-const PRESENTATION_VERSION = '3'
 
 function readEnabledNodeIds() {
   if (typeof window === 'undefined') return []
@@ -20,6 +19,17 @@ export function isTrustyCaneEnabled() {
   return readEnabledNodeIds().includes(TRUSTY_CANE_NODE_ID)
 }
 
+export function getTrustyCaneState(dayElapsed, enabled = isTrustyCaneEnabled()) {
+  if (!enabled) return 'hidden'
+  const node = getNode(TRUSTY_CANE_NODE_ID)
+  const pickupStartsAt = node?.effect?.pickupStartsAt ?? 13.6
+  const activatesAt = node?.effect?.activatesAt ?? 15
+  if (dayElapsed < 8) return 'hidden'
+  if (dayElapsed < pickupStartsAt) return 'resting'
+  if (dayElapsed < activatesAt) return 'picking'
+  return 'active'
+}
+
 export function scoreWithTrustyCane(dayElapsed, scorePerSecond, enabled = isTrustyCaneEnabled()) {
   const node = getNode(TRUSTY_CANE_NODE_ID)
   const activatesAt = node?.effect?.activatesAt ?? 15
@@ -35,47 +45,34 @@ export function scoreWithTrustyCane(dayElapsed, scorePerSecond, enabled = isTrus
   return Math.floor(normalScore + multipliedScore)
 }
 
-function removeLegacyPresentation() {
-  document.querySelectorAll('.trusty-cane-pickup, .trusty-cane-badge').forEach((element) => {
-    if (element.dataset.trustyCaneVersion !== PRESENTATION_VERSION) element.remove()
-  })
+function removeLegacyCaneElements() {
+  document.querySelectorAll(
+    '.trusty-cane-pickup, .trusty-cane-model, .trusty-cane-resting, .trusty-cane-object, .trusty-cane-hand',
+  ).forEach((element) => element.remove())
 }
 
-function ensurePresentationElements() {
-  removeLegacyPresentation()
+function ensureUiElements() {
+  removeLegacyCaneElements()
 
-  let pickup = document.querySelector(`.trusty-cane-pickup[data-trusty-cane-version="${PRESENTATION_VERSION}"]`)
-  if (!pickup) {
-    pickup = document.createElement('div')
-    pickup.className = 'trusty-cane-pickup'
-    pickup.dataset.trustyCaneVersion = PRESENTATION_VERSION
-    pickup.setAttribute('aria-hidden', 'true')
-    pickup.innerHTML = `
-      <div class="trusty-cane-model">
-        <span class="trusty-cane-facet trusty-cane-handle-a"></span>
-        <span class="trusty-cane-facet trusty-cane-handle-b"></span>
-        <span class="trusty-cane-facet trusty-cane-neck"></span>
-        <span class="trusty-cane-facet trusty-cane-shaft-a"></span>
-        <span class="trusty-cane-facet trusty-cane-shaft-b"></span>
-        <span class="trusty-cane-facet trusty-cane-tip"></span>
-      </div>
-      <div class="trusty-cane-hand"><span></span></div>
-      <strong class="trusty-cane-popup">2x</strong>
-    `
-    document.body.appendChild(pickup)
+  let popup = document.querySelector('.trusty-cane-popup')
+  if (!popup) {
+    popup = document.createElement('strong')
+    popup.className = 'trusty-cane-popup'
+    popup.textContent = '2x'
+    popup.setAttribute('aria-hidden', 'true')
+    document.body.appendChild(popup)
   }
 
-  let badge = document.querySelector(`.trusty-cane-badge[data-trusty-cane-version="${PRESENTATION_VERSION}"]`)
+  let badge = document.querySelector('.trusty-cane-badge')
   if (!badge) {
     badge = document.createElement('span')
     badge.className = 'trusty-cane-badge'
-    badge.dataset.trustyCaneVersion = PRESENTATION_VERSION
     badge.textContent = '2x'
     badge.setAttribute('aria-label', 'Double score active')
     document.body.appendChild(badge)
   }
 
-  return { pickup, badge }
+  return { popup, badge }
 }
 
 function positionBadge(badge) {
@@ -94,26 +91,15 @@ function bindBadgePositioning(badge) {
 }
 
 function applyPresentation(dayElapsed) {
-  const node = getNode(TRUSTY_CANE_NODE_ID)
-  const pickupStartsAt = node?.effect?.pickupStartsAt ?? 13.6
-  const activatesAt = node?.effect?.activatesAt ?? 15
-  const enabled = isTrustyCaneEnabled()
-  const { pickup, badge } = ensurePresentationElements()
+  const state = getTrustyCaneState(dayElapsed)
+  const { popup, badge } = ensureUiElements()
 
-  let state = 'hidden'
-  if (enabled && dayElapsed >= 8 && dayElapsed < pickupStartsAt) state = 'resting'
-  if (enabled && dayElapsed >= pickupStartsAt && dayElapsed < activatesAt) state = 'picking'
-  if (enabled && dayElapsed >= activatesAt) state = 'active'
-
-  if (pickup.dataset.state !== state) {
-    pickup.dataset.state = state
-    // Restart the pickup animation only when entering the pickup state.
+  if (popup.dataset.state !== state) {
+    popup.dataset.state = state
+    popup.classList.remove('is-animating')
     if (state === 'picking') {
-      pickup.classList.remove('is-animating')
-      void pickup.offsetWidth
-      pickup.classList.add('is-animating')
-    } else {
-      pickup.classList.remove('is-animating')
+      void popup.offsetWidth
+      popup.classList.add('is-animating')
     }
   }
 
