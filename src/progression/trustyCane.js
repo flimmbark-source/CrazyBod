@@ -51,22 +51,19 @@ function ensurePresentationElements() {
     document.body.appendChild(pickup)
   }
 
-  const scorePanel = document.querySelector('.score-panel')
-  let badge = scorePanel?.querySelector('.trusty-cane-badge')
-  if (scorePanel && !badge) {
+  let badge = document.querySelector('.trusty-cane-badge')
+  if (!badge) {
     badge = document.createElement('span')
     badge.className = 'trusty-cane-badge'
     badge.textContent = '2x'
     badge.setAttribute('aria-label', 'Double score active')
-    scorePanel.appendChild(badge)
+    document.body.appendChild(badge)
   }
 
   return { pickup, badge }
 }
 
-export function syncTrustyCanePresentation(dayElapsed) {
-  if (typeof document === 'undefined') return
-
+function applyPresentation(dayElapsed) {
   const node = getNode(TRUSTY_CANE_NODE_ID)
   const pickupStartsAt = node?.effect?.pickupStartsAt ?? 13.6
   const activatesAt = node?.effect?.activatesAt ?? 15
@@ -78,7 +75,25 @@ export function syncTrustyCanePresentation(dayElapsed) {
   if (enabled && dayElapsed >= activatesAt) state = 'active'
 
   if (pickup.dataset.state !== state) pickup.dataset.state = state
-  badge?.classList.toggle('is-active', state === 'active')
+  badge.classList.toggle('is-active', state === 'active')
   document.body.classList.toggle('trusty-cane-enabled', enabled)
   document.body.classList.toggle('trusty-cane-active', state === 'active')
+}
+
+let queuedElapsed = null
+let presentationQueued = false
+
+export function syncTrustyCanePresentation(dayElapsed) {
+  if (typeof document === 'undefined') return
+
+  queuedElapsed = dayElapsed
+  if (presentationQueued) return
+  presentationQueued = true
+
+  queueMicrotask(() => {
+    presentationQueued = false
+    const elapsed = queuedElapsed
+    queuedElapsed = null
+    applyPresentation(elapsed)
+  })
 }
