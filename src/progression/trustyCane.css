@@ -86,9 +86,11 @@
 }
 
 .trusty-cane-badge {
-  position: absolute;
-  right: -34px;
-  top: 50%;
+  position: fixed;
+  z-index: 49;
+  right: 4.3rem;
+  top: 3.35rem;
+  pointer-events: none;
   font-size: 18px;
   opacity: 0;
   transform: translateY(-50%) scale(.5);
@@ -122,7 +124,7 @@
 
 @media (max-width: 720px) {
   .trusty-cane-object { left: 48%; top: 51%; transform: scale(.82); }
-  .trusty-cane-badge { right: -27px; font-size: 15px; }
+  .trusty-cane-badge { right: 2.7rem; top: 3rem; font-size: 15px; }
   @keyframes trusty-cane-popup-flight {
     0%, 25% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
     38% { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(3deg); }
