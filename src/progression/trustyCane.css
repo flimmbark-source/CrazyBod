@@ -13,39 +13,24 @@
   opacity: 1;
 }
 
-.trusty-cane-resting,
-.trusty-cane-object {
+.trusty-cane-model {
   position: absolute;
+  left: calc(50% - 150px);
+  top: 34%;
   width: 82px;
   height: 286px;
   transform-origin: 50% 94%;
+  transform: rotate(9deg) scale(.82) rotateY(-9deg);
+  opacity: 0;
   filter: drop-shadow(12px 16px 8px rgba(28, 20, 28, .34));
 }
 
-/* Staged against the apartment wall while the player approaches the door. */
-.trusty-cane-resting {
-  left: calc(50% - 150px);
-  top: 34%;
-  transform: rotate(9deg) scale(.82) rotateY(-9deg);
-  opacity: 0;
-}
-
-.trusty-cane-pickup[data-state='resting'] .trusty-cane-resting {
+.trusty-cane-pickup[data-state='resting'] .trusty-cane-model {
   opacity: 1;
 }
 
-.trusty-cane-object {
-  left: 57%;
-  top: 43%;
-  opacity: 0;
-}
-
-.trusty-cane-pickup[data-state='picking'] .trusty-cane-resting {
-  animation: trusty-cane-resting-vanish 1.4s linear both;
-}
-
-.trusty-cane-pickup[data-state='picking'] .trusty-cane-object {
-  animation: trusty-cane-grab 1.4s cubic-bezier(.2,.72,.2,1) both;
+.trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-model {
+  animation: trusty-cane-pickup 1.4s cubic-bezier(.2,.72,.2,1) both;
 }
 
 .trusty-cane-facet {
@@ -135,7 +120,7 @@
   transform: rotate(-24deg);
 }
 
-.trusty-cane-pickup[data-state='picking'] .trusty-cane-hand {
+.trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-hand {
   animation: trusty-cane-hand-reach 1.4s cubic-bezier(.2,.72,.2,1) both;
 }
 
@@ -161,7 +146,7 @@
   opacity: 0;
 }
 
-.trusty-cane-pickup[data-state='picking'] .trusty-cane-popup {
+.trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-popup {
   animation:
     trusty-cane-rainbow .52s linear infinite,
     trusty-cane-popup-flight 1.4s cubic-bezier(.18,.76,.22,1) both;
@@ -185,9 +170,31 @@
   animation: trusty-cane-rainbow 1.8s linear infinite;
 }
 
-@keyframes trusty-cane-resting-vanish {
-  0%, 24% { opacity: 1; transform: rotate(9deg) scale(.82) rotateY(-9deg); }
-  42%, 100% { opacity: 0; transform: rotate(5deg) scale(.88) translate(-12px, -8px); }
+@keyframes trusty-cane-pickup {
+  0%, 24% {
+    left: calc(50% - 150px);
+    top: 34%;
+    transform: rotate(9deg) scale(.82) rotateY(-9deg);
+    opacity: 1;
+  }
+  48% {
+    left: 57%;
+    top: 43%;
+    transform: rotate(-7deg) scale(1.02) rotateY(5deg);
+    opacity: 1;
+  }
+  78% {
+    left: 38%;
+    top: 67%;
+    transform: rotate(-18deg) scale(1.18) rotateY(12deg);
+    opacity: 1;
+  }
+  100% {
+    left: 32%;
+    top: 88%;
+    transform: rotate(-22deg) scale(1.22) rotateY(18deg);
+    opacity: 0;
+  }
 }
 
 @keyframes trusty-cane-hand-reach {
@@ -196,13 +203,6 @@
   48% { transform: translate(-10vw, -8vh) rotate(-25deg); opacity: 1; }
   78% { transform: translate(-18vw, 10vh) rotate(-15deg); opacity: 1; }
   100% { transform: translate(-8vw, 34vh) rotate(-8deg); opacity: 0; }
-}
-
-@keyframes trusty-cane-grab {
-  0%, 28% { transform: translate(22vw, 12vh) rotate(9deg) scale(.82) rotateY(-9deg); opacity: 1; }
-  45% { transform: translate(5vw, 1vh) rotate(-7deg) scale(1.02) rotateY(5deg); opacity: 1; }
-  78% { transform: translate(-12vw, 26vh) rotate(-18deg) scale(1.18) rotateY(12deg); opacity: 1; }
-  100% { transform: translate(-18vw, 44vh) rotate(-22deg) scale(1.22) rotateY(18deg); opacity: 0; }
 }
 
 @keyframes trusty-cane-popup-flight {
@@ -217,16 +217,55 @@
 }
 
 @media (max-width: 720px) {
-  .trusty-cane-resting { left: calc(50% - 96px); top: 38%; transform: rotate(9deg) scale(.66); }
-  .trusty-cane-object { left: 51%; top: 46%; }
+  .trusty-cane-model {
+    left: calc(50% - 96px);
+    top: 38%;
+    transform: rotate(9deg) scale(.66);
+  }
+
   .trusty-cane-hand { width: 58vw; }
   .trusty-cane-badge { font-size: 15px; }
+
+  @keyframes trusty-cane-pickup {
+    0%, 24% {
+      left: calc(50% - 96px);
+      top: 38%;
+      transform: rotate(9deg) scale(.66);
+      opacity: 1;
+    }
+    48% {
+      left: 51%;
+      top: 46%;
+      transform: rotate(-7deg) scale(.86);
+      opacity: 1;
+    }
+    78% {
+      left: 35%;
+      top: 69%;
+      transform: rotate(-18deg) scale(1);
+      opacity: 1;
+    }
+    100% {
+      left: 28%;
+      top: 90%;
+      transform: rotate(-22deg) scale(1.08);
+      opacity: 0;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .trusty-cane-pickup[data-state='picking'] .trusty-cane-resting,
-  .trusty-cane-pickup[data-state='picking'] .trusty-cane-object,
-  .trusty-cane-pickup[data-state='picking'] .trusty-cane-hand { animation: none; opacity: 0; }
-  .trusty-cane-pickup[data-state='picking'] .trusty-cane-popup { animation: none; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-model,
+  .trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-hand {
+    animation: none;
+    opacity: 0;
+  }
+
+  .trusty-cane-pickup[data-state='picking'].is-animating .trusty-cane-popup {
+    animation: none;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
   .trusty-cane-badge { transition: none; }
 }
