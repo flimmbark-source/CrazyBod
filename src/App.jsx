@@ -316,6 +316,12 @@ function App() {
   const cafeBeatWalkingOut = cafeBeatPhase === CAFE_BEAT_PHASES.RUPTURE
     || cafeBeatPhase === CAFE_BEAT_PHASES.DEPARTURE
   const cafeBeatFrozen = isCafeBeatFrozen(cafeBeatPhase)
+  // The conversation and its interludes are still "live" gameplay: the day
+  // clock holds, but the world keeps spawning symptoms so the same load ->
+  // distortion pressure that scrambles the street dialogue also scrambles what
+  // Mara is saying. Only the walk-out phases (rupture onward) truly freeze.
+  const cafeConversationLive = cafeBeatPhase === CAFE_BEAT_PHASES.CONVERSATION
+    || cafeBeatPhase === CAFE_BEAT_PHASES.INTERLUDE
   const gameplayPaused = tutorialPaused || orderingPaused || cafeBeatFrozen
   // Subsystem gates. Techniques (added later) can pause the day and/or spawns
   // independently; the tutorial and order dialogue pause both.
@@ -334,7 +340,7 @@ function App() {
     && !orderingPaused
     && !spawnPaused
     && !suppressing
-    && !cafeBeatActive
+    && (!cafeBeatActive || cafeConversationLive)
     && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
@@ -574,7 +580,7 @@ function App() {
 
   // Release pending (staggered) spawns once their delay has elapsed.
   useEffect(() => {
-    if (status !== 'playing' || spawnPaused || cafeBeatActive) return
+    if (status !== 'playing' || spawnPaused || (cafeBeatActive && !cafeConversationLive)) return
     const queue = pendingSpawnsRef.current
     if (queue.length === 0) return
 
@@ -588,7 +594,7 @@ function App() {
       pendingSpawnsRef.current = rest
       ready.forEach((item) => spawnMicrogame(item.kind))
     }
-  }, [spawnElapsed, load, status, spawnPaused, cafeBeatActive, spawnMicrogame])
+  }, [spawnElapsed, load, status, spawnPaused, cafeBeatActive, cafeConversationLive, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
