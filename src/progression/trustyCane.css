@@ -5,8 +5,10 @@
   pointer-events: none;
   opacity: 0;
   overflow: hidden;
+  perspective: 900px;
 }
 
+.trusty-cane-pickup[data-state='resting'],
 .trusty-cane-pickup[data-state='picking'] {
   opacity: 1;
 }
@@ -14,67 +16,97 @@
 .trusty-cane-resting,
 .trusty-cane-object {
   position: absolute;
-  left: 61%;
-  top: 42%;
-  width: 42px;
-  height: 230px;
-  transform-origin: 50% 92%;
-  filter: drop-shadow(0 12px 7px rgba(23, 17, 29, 0.42));
+  width: 82px;
+  height: 286px;
+  transform-origin: 50% 94%;
+  filter: drop-shadow(12px 16px 8px rgba(28, 20, 28, .34));
 }
 
+/* Staged against the apartment wall while the player approaches the door. */
 .trusty-cane-resting {
-  transform: translate(25vw, 15vh) rotate(11deg) scale(.72);
+  left: calc(50% - 150px);
+  top: 34%;
+  transform: rotate(9deg) scale(.82) rotateY(-9deg);
   opacity: 0;
 }
 
+.trusty-cane-pickup[data-state='resting'] .trusty-cane-resting {
+  opacity: 1;
+}
+
 .trusty-cane-object {
+  left: 57%;
+  top: 43%;
   opacity: 0;
 }
 
 .trusty-cane-pickup[data-state='picking'] .trusty-cane-resting {
-  animation: trusty-cane-resting 1.4s linear both;
+  animation: trusty-cane-resting-vanish 1.4s linear both;
 }
 
 .trusty-cane-pickup[data-state='picking'] .trusty-cane-object {
   animation: trusty-cane-grab 1.4s cubic-bezier(.2,.72,.2,1) both;
 }
 
-.trusty-cane-shaft,
-.trusty-cane-tip,
-.trusty-cane-hook {
+.trusty-cane-facet {
   position: absolute;
   display: block;
-  background: linear-gradient(90deg, #50382e, #b38358 42%, #5a3d31 78%);
-  border: 2px solid rgba(32, 23, 27, 0.72);
+  border: 1px solid rgba(38, 26, 31, .7);
+  box-shadow: inset 3px 0 rgba(255,255,255,.12), inset -4px -2px rgba(31,21,26,.24);
 }
 
-.trusty-cane-shaft {
-  left: 15px;
-  top: 35px;
-  width: 14px;
-  height: 184px;
-  border-radius: 8px;
+.trusty-cane-shaft-a {
+  left: 31px;
+  top: 63px;
+  width: 15px;
+  height: 192px;
+  background: #8b6247;
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
 }
 
-.trusty-cane-hook {
-  left: 14px;
-  top: 4px;
-  width: 52px;
-  height: 44px;
-  border-left: 0;
-  border-bottom: 0;
-  border-radius: 0 34px 0 0;
-  background: transparent;
-  box-shadow: inset -12px 11px 0 #8b6247;
+.trusty-cane-shaft-b {
+  left: 41px;
+  top: 63px;
+  width: 10px;
+  height: 192px;
+  background: #5b4035;
+  clip-path: polygon(0 0, 100% 5%, 72% 100%, 0 100%);
+}
+
+.trusty-cane-neck {
+  left: 28px;
+  top: 43px;
+  width: 24px;
+  height: 35px;
+  background: #75503d;
+  clip-path: polygon(14% 0, 84% 10%, 100% 100%, 0 100%);
+}
+
+.trusty-cane-handle-a {
+  left: 29px;
+  top: 7px;
+  width: 48px;
+  height: 45px;
+  background: #a97850;
+  clip-path: polygon(0 8%, 63% 0, 100% 20%, 89% 48%, 59% 37%, 31% 45%, 7% 70%);
+}
+
+.trusty-cane-handle-b {
+  left: 48px;
+  top: 18px;
+  width: 31px;
+  height: 37px;
+  background: #654538;
+  clip-path: polygon(0 0, 100% 9%, 83% 56%, 49% 44%, 18% 100%);
 }
 
 .trusty-cane-tip {
-  left: 14px;
-  top: 214px;
-  width: 16px;
-  height: 13px;
-  border-radius: 3px 3px 6px 6px;
-  background: #34333c;
+  left: 29px;
+  top: 250px;
+  width: 24px;
+  height: 18px;
+  background: #35343d;
+  clip-path: polygon(9% 0, 91% 0, 100% 74%, 75% 100%, 17% 94%, 0 68%);
 }
 
 .trusty-cane-hand {
@@ -85,7 +117,8 @@
   max-width: 540px;
   height: 34vh;
   border-radius: 55% 0 0 0;
-  background: linear-gradient(135deg, #d5a27f 0 52%, #9f6f58 53% 100%);
+  background: linear-gradient(145deg, #d7a982 0 48%, #ba8468 49% 70%, #8f6354 71% 100%);
+  clip-path: polygon(0 38%, 23% 17%, 61% 0, 100% 22%, 100% 100%, 11% 100%);
   transform: rotate(-18deg);
   opacity: 0;
   filter: drop-shadow(-10px -4px 12px rgba(28, 18, 26, .28));
@@ -94,11 +127,11 @@
 .trusty-cane-hand span {
   position: absolute;
   left: 4%;
-  top: -16%;
+  top: -14%;
   width: 40%;
   height: 28%;
-  border-radius: 999px;
-  background: #d5a27f;
+  background: #d7a982;
+  clip-path: polygon(0 42%, 72% 0, 100% 38%, 76% 88%, 20% 100%);
   transform: rotate(-24deg);
 }
 
@@ -136,12 +169,11 @@
 
 .trusty-cane-badge {
   position: fixed;
-  right: 18px;
-  top: 72px;
   z-index: 49;
   font-size: 18px;
   opacity: 0;
   transform: scale(.5);
+  transform-origin: left top;
   transition: opacity 160ms ease, transform 220ms cubic-bezier(.2,.8,.2,1);
   white-space: nowrap;
   pointer-events: none;
@@ -153,9 +185,9 @@
   animation: trusty-cane-rainbow 1.8s linear infinite;
 }
 
-@keyframes trusty-cane-resting {
-  0%, 28% { opacity: 1; }
-  45%, 100% { opacity: 0; }
+@keyframes trusty-cane-resting-vanish {
+  0%, 24% { opacity: 1; transform: rotate(9deg) scale(.82) rotateY(-9deg); }
+  42%, 100% { opacity: 0; transform: rotate(5deg) scale(.88) translate(-12px, -8px); }
 }
 
 @keyframes trusty-cane-hand-reach {
@@ -167,17 +199,17 @@
 }
 
 @keyframes trusty-cane-grab {
-  0%, 28% { transform: translate(25vw, 15vh) rotate(11deg) scale(.72); opacity: 1; }
-  45% { transform: translate(7vw, 3vh) rotate(-8deg) scale(1.02); opacity: 1; }
-  78% { transform: translate(-12vw, 26vh) rotate(-18deg) scale(1.18); opacity: 1; }
-  100% { transform: translate(-18vw, 44vh) rotate(-22deg) scale(1.22); opacity: 0; }
+  0%, 28% { transform: translate(22vw, 12vh) rotate(9deg) scale(.82) rotateY(-9deg); opacity: 1; }
+  45% { transform: translate(5vw, 1vh) rotate(-7deg) scale(1.02) rotateY(5deg); opacity: 1; }
+  78% { transform: translate(-12vw, 26vh) rotate(-18deg) scale(1.18) rotateY(12deg); opacity: 1; }
+  100% { transform: translate(-18vw, 44vh) rotate(-22deg) scale(1.22) rotateY(18deg); opacity: 0; }
 }
 
 @keyframes trusty-cane-popup-flight {
   0%, 44% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
   55% { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(3deg); }
   72% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
-  100% { opacity: 1; left: calc(100% - 28px); top: 72px; transform: translate(-50%, -50%) scale(.18); }
+  100% { opacity: 0; left: calc(100% - 120px); top: 26px; transform: translate(-50%, -50%) scale(.18); }
 }
 
 @keyframes trusty-cane-rainbow {
@@ -185,16 +217,10 @@
 }
 
 @media (max-width: 720px) {
-  .trusty-cane-resting,
+  .trusty-cane-resting { left: calc(50% - 96px); top: 38%; transform: rotate(9deg) scale(.66); }
   .trusty-cane-object { left: 51%; top: 46%; }
   .trusty-cane-hand { width: 58vw; }
-  .trusty-cane-badge { right: 12px; top: 66px; font-size: 15px; }
-  @keyframes trusty-cane-popup-flight {
-    0%, 44% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
-    55% { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(3deg); }
-    72% { opacity: 1; transform: translate(-50%, -50%) scale(.9) rotate(0); }
-    100% { opacity: 1; left: calc(100% - 22px); top: 66px; transform: translate(-50%, -50%) scale(.16); }
-  }
+  .trusty-cane-badge { font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
