@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import ReadyJourneyAudioBridge from './world/ReadyJourneyAudioBridge.jsx'
+import TrustyCane3DOverlay from './world/TrustyCane3DOverlay.jsx'
 import TutorialKeyboardBridge from './tutorialKeyboardBridge.jsx'
 import './styles.css'
 import './compat.css'
@@ -30,5 +31,6 @@ createRoot(document.getElementById('root')).render(
     <ReadyJourneyAudioBridge />
     <TutorialKeyboardBridge />
     <App />
+    <TrustyCane3DOverlay />
   </StrictMode>,
 )
