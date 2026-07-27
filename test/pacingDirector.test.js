@@ -31,6 +31,31 @@ test('unknown phaseId falls back to the last phase without throwing', () => {
   assert.equal(batch.phase, 'sitting')
 })
 
+test('owned upgrades add 0.3 seconds each to every phase spawn delay', () => {
+  const phaseIds = ['waking', 'gettingReady', 'walking', 'ordering', 'sitting']
+
+  for (const phaseId of phaseIds) {
+    const withoutUpgrades = createPacingDirector(99)
+    const withUpgrades = createPacingDirector(99)
+
+    const baseBatch = takeSpawnBatch(withoutUpgrades, {
+      spawnElapsed: 10,
+      phaseId,
+      purchasedUpgrades: 0,
+    })
+    const upgradedBatch = takeSpawnBatch(withUpgrades, {
+      spawnElapsed: 10,
+      phaseId,
+      purchasedUpgrades: 4,
+    })
+
+    assert.ok(
+      Math.abs((upgradedBatch.nextSpawnAt - baseBatch.nextSpawnAt) - 1.2) < 1e-9,
+      `${phaseId} should gain 1.2 seconds from four upgrades`,
+    )
+  }
+})
+
 test('owned upgrades globally reduce the paired-spawn chance', () => {
   // Count paired batches over many draws for a fixed seed, with and without
   // owned upgrades. 'sitting' has the highest base pair chance (0.30), so six
