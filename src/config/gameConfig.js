@@ -39,8 +39,5 @@ export function phaseLabel(dayElapsed) {
 }
 
 export function scoreForElapsed(dayElapsed) {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent(DAY_ELAPSED_EVENT, { detail: dayElapsed }))
-  }
   return Math.min(MAX_SCORE, Math.floor(dayElapsed * SCORE_PER_SECOND))
 }

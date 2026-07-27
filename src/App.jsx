@@ -29,6 +29,7 @@ const PHYSICAL_SYMPTOM_KIND_SET = new Set(PHYSICAL_SYMPTOM_KINDS)
 import { getNode } from './progression/skillTreeConfig.js'
 import { setAutoTargetEnabled } from './microgameEnhancements.js'
 import {
+  DAY_ELAPSED_EVENT,
   DAY_LENGTH,
   OVERLOAD_SCORE_MULTIPLIER,
   SCORE_PER_SECOND,
@@ -289,13 +290,11 @@ function App() {
   const runFinishedRef = useRef(false)
 
   const caneEnabled = progression.enabledNodeIds.includes(TRUSTY_CANE_NODE_ID)
-  // scoreForElapsed also dispatches the day-elapsed event the audio bridges
-  // listen to, so keep calling it. The cane's 2x multiplier only reshapes the
-  // displayed/banked score once the cane is owned.
-  const baseScore = scoreForElapsed(dayElapsed)
+  // The cane's 2x multiplier only reshapes the displayed/banked score once the
+  // cane is owned; the base score is the plain time * rate.
   const score = caneEnabled
     ? scoreWithTrustyCane(dayElapsed, SCORE_PER_SECOND, true)
-    : baseScore
+    : scoreForElapsed(dayElapsed)
   caneEnabledRef.current = caneEnabled
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
   const currentPhaseId = phaseFor(dayElapsed).id
@@ -535,6 +534,13 @@ function App() {
 
     return () => window.clearInterval(timer)
   }, [status])
+
+  // Broadcast the scored day time to the in-canvas audio bridges, which cannot
+  // receive it as a prop. This runs after commit (never during render) so it
+  // does not schedule a setState inside another component's render pass.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(DAY_ELAPSED_EVENT, { detail: dayElapsed }))
+  }, [dayElapsed])
 
   useEffect(() => {
     if (status !== 'playing' || !tutorialRun || tutorialStep !== 'none') return
