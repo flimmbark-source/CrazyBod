@@ -41,6 +41,12 @@ function ensurePresentationElements() {
     pickup.className = 'trusty-cane-pickup'
     pickup.setAttribute('aria-hidden', 'true')
     pickup.innerHTML = `
+      <div class="trusty-cane-resting">
+        <span class="trusty-cane-hook"></span>
+        <span class="trusty-cane-shaft"></span>
+        <span class="trusty-cane-tip"></span>
+      </div>
+      <div class="trusty-cane-hand"><span></span></div>
       <div class="trusty-cane-object">
         <span class="trusty-cane-hook"></span>
         <span class="trusty-cane-shaft"></span>
