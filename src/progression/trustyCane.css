@@ -1,0 +1,83 @@
+.trusty-cane-3d-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 47;
+  pointer-events: none;
+}
+
+.trusty-cane-3d-overlay canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.trusty-cane-popup,
+.trusty-cane-badge {
+  font-family: system-ui, sans-serif;
+  font-weight: 1000;
+  line-height: 1;
+  color: transparent;
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #55efc4, #74b9ff, #a29bfe, #fd79a8, #ff5f6d);
+  background-size: 260% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  filter: drop-shadow(0 3px 0 #332b42) drop-shadow(0 8px 14px rgba(25, 16, 38, .55));
+  pointer-events: none;
+}
+
+.trusty-cane-popup {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 48;
+  font-size: clamp(76px, 14vw, 168px);
+  transform: translate(-50%, -50%) scale(.25);
+  opacity: 0;
+}
+
+.trusty-cane-popup.is-animating {
+  animation:
+    trusty-cane-rainbow .52s linear infinite,
+    trusty-cane-popup-flight 1.4s cubic-bezier(.18,.76,.22,1) both;
+}
+
+.trusty-cane-badge {
+  position: fixed;
+  z-index: 49;
+  font-size: 18px;
+  opacity: 0;
+  transform: scale(.5);
+  transform-origin: left top;
+  transition: opacity 160ms ease, transform 220ms cubic-bezier(.2,.8,.2,1);
+  white-space: nowrap;
+}
+
+.trusty-cane-badge.is-active {
+  opacity: 1;
+  transform: scale(1);
+  animation: trusty-cane-rainbow 1.8s linear infinite;
+}
+
+@keyframes trusty-cane-popup-flight {
+  0%, 44% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-6deg); }
+  55% { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(3deg); }
+  72% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+  100% { opacity: 0; left: calc(100% - 120px); top: 26px; transform: translate(-50%, -50%) scale(.18); }
+}
+
+@keyframes trusty-cane-rainbow {
+  to { background-position: 260% 0; }
+}
+
+@media (max-width: 720px) {
+  .trusty-cane-badge { font-size: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trusty-cane-popup.is-animating {
+    animation: none;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .trusty-cane-badge { transition: none; }
+}

@@ -3,8 +3,8 @@
 // requirement never means touching component logic.
 //
 // Coordinates are authored on a 0-100 grid (percent of the tree canvas, y
-// increasing downward). Six nodes do not justify a layout library, and fixed
-// coordinates keep responsive behaviour under our control.
+// increasing downward). Fixed coordinates keep responsive behaviour under our
+// control as the tree expands.
 
 export const STARTING_NODE_ID = 'thisIsNormal'
 
@@ -95,6 +95,26 @@ export const SKILL_TREE_NODES = [
       // App.jsx still performs a legacy getNode('hold') lookup. A zero value
       // keeps that lookup safe without restoring the rejected spawn delay.
       holdReleaseSeconds: 0,
+    },
+  },
+  {
+    id: 'trustyCane',
+    name: 'Earn 2x points after leaving home.',
+    tagline: 'Automatic',
+    category: 'automatic',
+    palette: PALETTES.automatic,
+    cost: 550,
+    parent: 'autotarget',
+    x: 68,
+    y: 88,
+    icon: 'cane',
+    hook: 'scoreMultiplier',
+    description: '2x score after the cane is collected.',
+    detail: 'Your trusty cane lets you look extra cool for additional score.',
+    effect: {
+      multiplier: 2,
+      activatesAt: 15,
+      pickupStartsAt: 13.6,
     },
   },
   {
