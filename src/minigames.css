@@ -11,7 +11,7 @@
 .new-minigame > small {
   display: block;
   text-align: center;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 1000;
   letter-spacing: 0.12em;
 }
@@ -286,7 +286,7 @@
   border-radius: 6px;
   text-align: center;
   background: #efcf69;
-  font-size: 11px;
+  font-size: 14px;
 }
 .switch-game.mistake { animation: mini-error 150ms steps(2); }
 .switch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
@@ -317,11 +317,11 @@
 .direction-game.wrong { animation: mini-error 150ms steps(2); }
 
 .packing-game { grid-template-rows: auto 1fr auto; }
-.packing-game > small { font-size: 7px; }
+.packing-game > small { font-size: 11px; }
 .packing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .packing-grid button { min-height: 39px; padding: 2px; }
-.packing-grid button b { display: block; font-size: 16px; }
-.packing-grid button span { display: block; font-size: 7px; }
+.packing-grid button b { display: block; font-size: 18px; }
+.packing-grid button span { display: block; font-size: 11px; }
 .packing-grid button.packed { background: #9bb990; }
 .packing-grid button.wrong { background: #d9787d; }
 
@@ -335,7 +335,7 @@
   border: 3px solid #3f4e5b;
   border-radius: 7px;
   background: #a7bac5;
-  font-size: 20px;
+  font-size: 21px;
 }
 .thought-popup {
   align-self: stretch;
@@ -347,11 +347,11 @@
   border-radius: 8px;
   background: #efcf69;
   text-align: center;
-  font-size: 11px;
+  font-size: 14px;
 }
 .thought-popup button { padding: 4px 14px; }
 .thought-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-.thought-options button { height: 36px; font-size: 18px; }
+.thought-options button { height: 36px; font-size: 19px; }
 .interrupted-game.wrong { animation: mini-error 150ms steps(2); }
 
 .checking-game { grid-template-rows: auto 1fr; }
@@ -372,7 +372,7 @@
 }
 .checking-switches button.on { background: #9bb990; }
 .checking-switches button.on i { background: #efcf69; }
-.checking-switches span { font-size: 8px; }
+.checking-switches span { font-size: 12px; }
 
 .heart-game { grid-template-rows: auto 1fr auto; }
 .heart {
@@ -411,7 +411,7 @@
   transition: height 90ms ease;
 }
 .two-eyes button b { font-size: 29px; color: #433f59; }
-.heavy-eyes-game .mini-button-row span { padding: 1px; font-size: 9px; }
+.heavy-eyes-game .mini-button-row span { padding: 1px; font-size: 12px; }
 
 .micro-rest-game { grid-template-rows: auto 1fr auto auto; }
 .rest-orb {
@@ -426,7 +426,7 @@
   transition: transform 100ms linear;
 }
 .rest-orb i { width: 18px; height: 18px; border-radius: 50%; background: #fff4c7; }
-.micro-rest-game > strong { text-align: center; font-size: 9px; letter-spacing: .08em; }
+.micro-rest-game > strong { text-align: center; font-size: 12px; letter-spacing: .08em; }
 .micro-rest-game.disturbed .rest-orb { background: #c56a6e; }
 
 .light-game { grid-template-rows: auto 1fr auto auto; }
@@ -442,7 +442,7 @@
 }
 .light-symbol.visible { background: #c4d0b7 !important; }
 .light-game input { width: 100%; accent-color: #6e7d61; }
-.light-game > span { text-align: center; font-size: 8px; letter-spacing: .1em; }
+.light-game > span { text-align: center; font-size: 12px; letter-spacing: .1em; }
 
 .pins-game { grid-template-rows: auto 1fr auto; }
 .pins-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; width: 112px; margin: auto; }
@@ -520,7 +520,7 @@
 .new-minigame > small {
   min-height: 11px;
   line-height: 1.15;
-  font-size: 9px;
+  font-size: 12px;
 }
 .new-minigame button {
   min-height: 30px;
@@ -550,8 +550,8 @@
 .afterimage-options { min-height: 0; }
 
 @media (max-width: 760px) {
-  .new-minigame > small { font-size: 8px; }
-  .packing-game > small { font-size: 6px; }
+  .new-minigame > small { font-size: 12px; }
+  .packing-game > small { font-size: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

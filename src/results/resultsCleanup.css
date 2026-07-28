@@ -21,7 +21,7 @@
 
 .results-header p {
   margin-top: 8px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .score-ledger {
@@ -56,7 +56,7 @@
 .score-total-value small {
   margin-top: 4px;
   color: rgba(41, 36, 49, 0.68);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 850;
   letter-spacing: 0.1em;
 }
@@ -73,19 +73,19 @@
 }
 
 .results-stats span {
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.14em;
 }
 
 .results-stats strong {
   margin-top: 4px;
-  font-size: 23px;
+  font-size: 24px;
 }
 
 .results-stats small {
   margin-top: 3px;
   color: rgba(41, 36, 49, 0.62);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.08em;
 }
@@ -104,7 +104,7 @@
   border: 3px solid #292431;
   border-radius: 12px;
   box-shadow: 0 5px 0 #292431;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 1000;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -162,7 +162,7 @@
   color: rgba(41, 36, 49, 0.72);
   background: transparent !important;
   box-shadow: none !important;
-  font-size: 11px !important;
+  font-size: 14px !important;
   letter-spacing: 0.12em !important;
 }
 
@@ -205,7 +205,7 @@
 
   .results-header p {
     margin-top: 5px;
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .score-ledger {
@@ -227,7 +227,7 @@
 
   .score-total-value small {
     margin-top: 2px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .results-stats div {
@@ -237,7 +237,7 @@
 
   .results-stats strong {
     margin-top: 2px;
-    font-size: 19px;
+    font-size: 20px;
   }
 
   .results-actions {
@@ -248,7 +248,7 @@
   .results-actions button {
     min-height: 45px;
     padding: 8px 14px;
-    font-size: 15px;
+    font-size: 17px;
     box-shadow: 0 4px 0 #292431;
   }
 }
@@ -264,7 +264,7 @@
 
   .results-header p {
     margin-top: 3px;
-    font-size: 10px;
+    font-size: 13px;
   }
 
   .score-ledger {
@@ -290,7 +290,7 @@
   }
 
   .results-stats strong {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .results-actions {
@@ -301,7 +301,7 @@
   .results-actions button {
     min-height: 38px;
     padding-block: 6px;
-    font-size: 13px;
+    font-size: 16px;
   }
 }
 
@@ -323,7 +323,7 @@
   }
 
   .results-header p {
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .score-ledger {
@@ -331,7 +331,7 @@
   }
 
   .score-ledger-row.total span {
-    font-size: 10px;
+    font-size: 13px;
   }
 
   .score-total-value strong {
@@ -349,7 +349,7 @@
   }
 
   .results-stats span {
-    font-size: 6px;
+    font-size: 10px;
   }
 
   .results-stats strong {
@@ -357,7 +357,7 @@
   }
 
   .results-stats small {
-    font-size: 6px;
+    font-size: 10px;
   }
 
   .results-actions {
@@ -374,7 +374,7 @@
 
   .results-actions button {
     min-height: 50px;
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .results-tutorial {

@@ -34,7 +34,7 @@
 
   .results-header span {
     margin-bottom: 2px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .results-header h1 {
@@ -44,7 +44,7 @@
 
   .results-header p {
     margin-top: 7px;
-    font-size: 13px;
+    font-size: 16px;
     line-height: 1.25;
   }
 
@@ -58,11 +58,11 @@
   }
 
   .score-ledger-row span {
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .score-ledger-row strong {
-    font-size: 20px;
+    font-size: 21px;
   }
 
   .score-ledger-row.total {
@@ -71,7 +71,7 @@
   }
 
   .score-ledger-row.total span {
-    font-size: 10px;
+    font-size: 13px;
   }
 
   .score-ledger-row.total strong {
@@ -89,12 +89,12 @@
   }
 
   .results-stats span {
-    font-size: 7px;
+    font-size: 11px;
   }
 
   .results-stats strong {
     margin-top: 2px;
-    font-size: 20px;
+    font-size: 21px;
   }
 
   .results-outcome {
@@ -102,16 +102,16 @@
   }
 
   .results-outcome span {
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .results-outcome strong {
-    font-size: 20px;
+    font-size: 21px;
   }
 
   .results-outcome small {
     margin-top: 1px;
-    font-size: 10px;
+    font-size: 13px;
   }
 
   .results-restart {
@@ -137,7 +137,7 @@
 
   .results-header p {
     margin-top: 4px;
-    font-size: 11px;
+    font-size: 14px;
   }
 
   .score-ledger {
@@ -149,7 +149,7 @@
   }
 
   .score-ledger-row strong {
-    font-size: 17px;
+    font-size: 19px;
   }
 
   .score-ledger-row.total {
@@ -166,7 +166,7 @@
   }
 
   .results-stats strong {
-    font-size: 17px;
+    font-size: 19px;
   }
 
   .results-outcome {
