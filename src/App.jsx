@@ -367,13 +367,17 @@ function App() {
     && !suppressing
     && !cafeBeatActive
     && !activeTechnique?.pausesDay
+  // Spawning keeps going through Mara's conversation: the symptoms don't stop
+  // just because you sat down. The café dialogue reads `distortion` off `load`,
+  // so the talk garbles as the board fills. Spawning only stops once she erupts
+  // and leaves (the frozen phases), when the board is already inert.
   const spawningEnabled = status === 'playing'
     && directorReady
     && !tutorialPaused
     && !orderingPaused
     && !spawnPaused
     && !suppressing
-    && !cafeBeatActive
+    && !cafeBeatFrozen
     && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
@@ -612,9 +616,10 @@ function App() {
     requestSpawns(batch.kinds)
   }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns, progression.purchasedNodeIds.length])
 
-  // Release pending (staggered) spawns once their delay has elapsed.
+  // Release pending (staggered) spawns once their delay has elapsed. Held only
+  // while the board is frozen (Mara's walk-out), not during the conversation.
   useEffect(() => {
-    if (status !== 'playing' || spawnPaused || cafeBeatActive) return
+    if (status !== 'playing' || spawnPaused || cafeBeatFrozen) return
     const queue = pendingSpawnsRef.current
     if (queue.length === 0) return
 
@@ -628,7 +633,7 @@ function App() {
       pendingSpawnsRef.current = rest
       ready.forEach((item) => spawnMicrogame(item.kind))
     }
-  }, [spawnElapsed, load, status, spawnPaused, cafeBeatActive, spawnMicrogame])
+  }, [spawnElapsed, load, status, spawnPaused, cafeBeatFrozen, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
