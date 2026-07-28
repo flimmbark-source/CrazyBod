@@ -2,6 +2,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
+import SnapshotCaptureBridge from './world/SnapshotCaptureBridge.jsx'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
@@ -55,6 +56,26 @@ const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 const READY_CUE_MS = 1150
 const START_CUE_MS = 650
 
+// Run snapshots: a handful of candid shots taken before the first conversation,
+// then one at every dialogue choice. Kept in memory for the run only.
+const MAX_RUN_SNAPSHOTS = 14
+const AMBIENT_SNAPSHOT_COUNT = 3
+// The first conversation (Mara) opens at day 25s; keep the candid shots before
+// it, spaced out across the early walk.
+const AMBIENT_SNAPSHOT_WINDOW = [4, 23]
+
+// Pick a few ascending, well-spaced random day-times for the candid snapshots.
+function buildAmbientSnapshotTimes() {
+  const [start, end] = AMBIENT_SNAPSHOT_WINDOW
+  const span = (end - start) / AMBIENT_SNAPSHOT_COUNT
+  const times = []
+  for (let index = 0; index < AMBIENT_SNAPSHOT_COUNT; index += 1) {
+    const slotStart = start + span * index
+    times.push(slotStart + Math.random() * span * 0.8)
+  }
+  return times
+}
+
 const MICROGAME_NAMES = EXPANDED_MICROGAME_NAMES
 
 const COMPLETION_SHARDS = [
@@ -90,6 +111,13 @@ const ORDER_DIALOGUE = {
 
 function getPhase(elapsed) {
   return phaseLabel(elapsed)
+}
+
+// Caption for a choice snapshot: the line the player picked, in quotes.
+function quoteChoice(dialogue, index) {
+  const option = dialogue?.options?.[index]
+  const text = typeof option === 'string' ? option : option?.label ?? ''
+  return text ? `“${text}”` : ''
 }
 
 function seededFraction(seed, value) {
@@ -230,6 +258,7 @@ function App() {
   const [cafeBeatPhase, setCafeBeatPhase] = useState(CAFE_BEAT_PHASES.INACTIVE)
   const [cafeDialogueIndex, setCafeDialogueIndex] = useState(0)
   const [result, setResult] = useState(null)
+  const [runSnapshots, setRunSnapshots] = useState([])
   const [completionEffects, setCompletionEffects] = useState([])
   const [tutorialEnabled, setTutorialEnabled] = useState(() => {
     try {
@@ -280,6 +309,31 @@ function App() {
   const spawnedCountRef = useRef(0)
   const suppressedCountRef = useRef(0)
   const runFinishedRef = useRef(false)
+  // Registered by the in-Canvas SnapshotCaptureBridge; returns a JPEG data URL
+  // of the current 3D frame, or null if capture is unavailable.
+  const captureSnapshotRef = useRef(null)
+  const snapshotIdRef = useRef(0)
+  // Ascending day-times still awaiting a candid snapshot this run.
+  const pendingSnapshotTimesRef = useRef([])
+
+  const registerSnapshotCapture = useCallback((fn) => {
+    captureSnapshotRef.current = fn
+  }, [])
+
+  // Grab the current frame and file it as a run snapshot. Safe to call from a
+  // click handler: it reads the last rendered frame, it does not force a render.
+  const takeSnapshot = useCallback((caption, kind) => {
+    const capture = captureSnapshotRef.current
+    if (typeof capture !== 'function') return
+    const src = capture()
+    if (!src) return
+    const id = snapshotIdRef.current
+    snapshotIdRef.current += 1
+    setRunSnapshots((current) => {
+      const next = [...current, { id, src, caption: caption ?? '', kind: kind ?? 'ambient' }]
+      return next.length > MAX_RUN_SNAPSHOTS ? next.slice(next.length - MAX_RUN_SNAPSHOTS) : next
+    })
+  }, [])
 
   const score = scoreForElapsed(dayElapsed)
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
@@ -348,6 +402,9 @@ function App() {
     spawnedCountRef.current = 0
     suppressedCountRef.current = 0
     runFinishedRef.current = false
+    snapshotIdRef.current = 0
+    pendingSnapshotTimesRef.current = buildAmbientSnapshotTimes()
+    setRunSnapshots([])
     setDayElapsed(0)
     setSpawnElapsed(0)
     setActiveTechnique(null)
@@ -589,6 +646,20 @@ function App() {
     if (status !== 'playing') return
     peakLoadRef.current = Math.max(peakLoadRef.current, load)
   }, [load, status])
+
+  // Candid run snapshots: fire the pending random shots as the day crosses each
+  // scheduled time (all before the first conversation).
+  useEffect(() => {
+    if (status !== 'playing') return
+    const pending = pendingSnapshotTimesRef.current
+    if (pending.length === 0 || dayElapsed < pending[0]) return
+    let fired = false
+    while (pending.length > 0 && dayElapsed >= pending[0]) {
+      pending.shift()
+      fired = true
+    }
+    if (fired) takeSnapshot(getPhase(dayElapsed), 'ambient')
+  }, [dayElapsed, status, takeSnapshot])
 
   // One authoritative end-of-run transaction. Builds the result from real run
   // data (not from rendered DOM), so it survives unscored technique time.
@@ -900,17 +971,21 @@ function App() {
     finishRun('home')
   }
 
-  const answerDialogue = () => {
+  const answerDialogue = (index) => {
+    // Snapshot the scene as it looks at the click, before the box closes.
+    takeSnapshot(quoteChoice(MARA_DIALOGUE, index), 'choice')
     setDialogueAnswered(true)
     setDialogueOpen(false)
   }
 
-  const answerOrderDialogue = () => {
+  const answerOrderDialogue = (index) => {
+    takeSnapshot(quoteChoice(ORDER_DIALOGUE, index), 'choice')
     setOrderDialogueAnswered(true)
     setOrderDialogueOpen(false)
   }
 
-  const answerCafeDialogue = () => {
+  const answerCafeDialogue = (index) => {
+    takeSnapshot(quoteChoice(CAFE_DIALOGUE[cafeDialogueIndex], index), 'choice')
     const next = advanceCafeConversation(cafeDialogueIndex)
     setCafeDialogueIndex(next.dialogueIndex)
     setCafeBeatPhase(next.phase)
@@ -952,6 +1027,8 @@ function App() {
             stencil: false,
             powerPreference: 'high-performance',
             precision: 'mediump',
+            // Keep the last frame readable so run snapshots can copy it.
+            preserveDrawingBuffer: true,
           }}
           performance={{ min: 0.6 }}
         >
@@ -962,6 +1039,7 @@ function App() {
             dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
           />
           <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
+          <SnapshotCaptureBridge registerCapture={registerSnapshotCapture} />
         </Canvas>
       </div>
 
@@ -1186,6 +1264,7 @@ function App() {
             ? () => openSkillTree(firstUnlockPending)
             : undefined}
           emphasizeSkillTree={firstUnlockPending}
+          snapshots={runSnapshots}
         />
       )}
     </main>

@@ -1,0 +1,254 @@
+/* Run snapshot lane + lightbox, surfaced on the end screens. */
+
+.run-snapshot-lane {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 16px;
+  pointer-events: none;
+}
+
+.run-snapshot-lane-label {
+  color: #efcf69;
+  font-size: 11px;
+  font-weight: 1000;
+  letter-spacing: 0.28em;
+  opacity: 0.85;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* The lane the polaroids are "thrown" along. */
+.run-snapshot-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  max-width: 100%;
+  padding: 12px 8px 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  pointer-events: auto;
+}
+
+.run-snapshot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 92px;
+  margin: 0 -6px;
+  padding: 5px 5px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: #fbf7ef;
+  color: #2c2733;
+  box-shadow: 3px 5px 9px rgba(12, 9, 16, 0.55);
+  cursor: pointer;
+  transform: translateY(var(--snap-lift, 0)) rotate(var(--snap-rotate, 0deg));
+  transform-origin: center bottom;
+  transition: transform 160ms cubic-bezier(.2, .9, .35, 1.1), box-shadow 160ms ease, z-index 0s;
+  animation: run-snapshot-drop 380ms cubic-bezier(.15, .85, .3, 1.15) both;
+  animation-delay: calc(var(--snap-index, 0) * 70ms);
+}
+
+.run-snapshot:hover,
+.run-snapshot:focus-visible {
+  z-index: 2;
+  transform: translateY(-6px) rotate(0deg) scale(1.06);
+  box-shadow: 5px 9px 16px rgba(12, 9, 16, 0.62);
+  outline: none;
+}
+
+.run-snapshot-frame {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: 2px;
+  background: #16121b;
+}
+
+.run-snapshot-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.run-snapshot-caption {
+  margin-top: 5px;
+  max-width: 100%;
+  overflow: hidden;
+  color: #4a4351;
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Choice polaroids get a warmer paper + a handwritten slant to the caption. */
+.run-snapshot-choice .run-snapshot-caption {
+  color: #7a4a4f;
+  font-style: italic;
+}
+
+@keyframes run-snapshot-drop {
+  from { opacity: 0; transform: translateY(-28px) rotate(calc(var(--snap-rotate, 0deg) * 2)) scale(0.86); }
+  to { opacity: 1; transform: translateY(var(--snap-lift, 0)) rotate(var(--snap-rotate, 0deg)); }
+}
+
+/* ---- Lightbox ---- */
+
+.snapshot-lightbox {
+  position: fixed;
+  z-index: 300;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  justify-items: center;
+  padding: 4vh 2vw;
+  background: rgba(8, 6, 11, 0.82);
+  backdrop-filter: blur(3px);
+  animation: snapshot-lightbox-in 180ms ease both;
+  cursor: zoom-out;
+}
+
+@keyframes snapshot-lightbox-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Big left/right hit zones: click the left or right of the screen to shift. */
+.snapshot-nav {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 30vw;
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: #fff8ef;
+  font-size: clamp(40px, 6vw, 74px);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 140ms ease;
+}
+
+.snapshot-nav:hover,
+.snapshot-nav:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.snapshot-nav-prev { left: 0; justify-content: flex-start; padding-left: clamp(8px, 3vw, 40px); }
+.snapshot-nav-next { right: 0; justify-content: flex-end; padding-right: clamp(8px, 3vw, 40px); }
+
+.snapshot-nav span {
+  display: grid;
+  place-items: center;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  background: rgba(20, 16, 24, 0.5);
+  line-height: 1;
+}
+
+.snapshot-stage {
+  position: relative;
+  grid-column: 2;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 14px 18px;
+  border-radius: 6px;
+  background: #fbf7ef;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  cursor: default;
+  animation: snapshot-stage-in 220ms cubic-bezier(.15, .85, .3, 1.1) both;
+}
+
+@keyframes snapshot-stage-in {
+  from { opacity: 0; transform: scale(0.9) rotate(-1.5deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.snapshot-stage-frame {
+  overflow: hidden;
+  border-radius: 3px;
+  background: #16121b;
+}
+
+.snapshot-stage-frame img {
+  display: block;
+  width: min(72vw, 720px);
+  max-height: 66vh;
+  object-fit: contain;
+}
+
+.snapshot-stage figcaption {
+  max-width: min(72vw, 720px);
+  color: #4a3d34;
+  font-size: 17px;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.snapshot-count {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(20, 16, 24, 0.55);
+  color: #fff8ef;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.snapshot-close {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #fbf7ef;
+  border-radius: 50%;
+  background: #292431;
+  color: #fff8ef;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.snapshot-close:hover { background: #a7484c; }
+
+@media (max-width: 760px) {
+  .run-snapshot { width: 74px; }
+  .snapshot-nav { width: 26vw; }
+  .snapshot-stage figcaption { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-snapshot,
+  .snapshot-lightbox,
+  .snapshot-stage { animation: none; }
+}

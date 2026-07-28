@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import RunSnapshotLane from './RunSnapshots.jsx'
 
 // React-owned results screen. Everything here is driven by the result object
 // created by finishRun, so the summary does not infer state from rendered DOM.
@@ -243,6 +244,7 @@ export default function ResultsScreen({
   onTutorial,
   onSkillTree,
   emphasizeSkillTree = false,
+  snapshots = [],
 }) {
   const isOverload = result.outcome === 'overload'
   const isHome = result.outcome === 'home'
@@ -297,6 +299,7 @@ export default function ResultsScreen({
           {showSkillTreeTip && onSkillTree && (
             <SkillTreeTutorialTip onDismiss={() => setShowSkillTreeTip(false)} />
           )}
+          <RunSnapshotLane snapshots={snapshots} />
         </>
       )}
     </div>
