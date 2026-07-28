@@ -11,8 +11,11 @@ import {
   isPurchased,
   isRevealed,
 } from './progressionStore.js'
+import { deriveProgressionEffects } from './deriveProgressionEffects.js'
 
 const ICONS = {
+  sword: <path d="M18 4l2 2-8 8-1 3 3-1 8-8M6 18l3 3M4 20l3-3" />,
+  dive: <path d="M12 4v11M7 11l5 5 5-5M6 20h12" />,
   plus: <path d="M12 6v12M6 12h12" />,
   chat: <path d="M5 6h14v9H9l-4 3z" />,
   list: <path d="M6 8h12M6 12h12M6 16h8" />,
@@ -148,12 +151,19 @@ export default function SkillTreeScreen({
   onToggle,
   onResetTree,
   onResetFull,
+  onEnterMandala,
 }) {
   const [activeId, setActiveId] = useState(null)
   const [deniedId, setDeniedId] = useState(null)
   const active = activeId ? SKILL_TREE_NODES_BY_ID[activeId] : null
   const activeVisible = active && isRevealed(progression, active.id) ? active : null
   const activeState = activeVisible ? nodeState(progression, activeVisible) : 'hidden'
+  const mandalaReady = deriveProgressionEffects(progression.enabledNodeIds).mandalaEnabled
+
+  // Connectors between revealed nodes; brighter once both ends are owned.
+  const visibleEdges = SKILL_TREE_EDGES.filter(
+    (edge) => isRevealed(progression, edge.from) && isRevealed(progression, edge.to),
+  )
 
   const clickNode = (node, state) => {
     if (state === 'hidden') return
@@ -187,6 +197,22 @@ export default function SkillTreeScreen({
       <div className="skill-tree-board">
         <div className="skill-tree-map" role="group" aria-label="Skill tree">
           <svg className="skill-tree-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {visibleEdges.map((edge) => {
+              const from = SKILL_TREE_NODES_BY_ID[edge.from]
+              const to = SKILL_TREE_NODES_BY_ID[edge.to]
+              if (!from || !to) return null
+              const owned = isPurchased(progression, edge.from) && isPurchased(progression, edge.to)
+              return (
+                <line
+                  key={`${edge.from}-${edge.to}`}
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  className={`skill-tree-edge-line${owned ? ' edge-owned' : ''}`}
+                />
+              )
+            })}
           </svg>
 
           {SKILL_TREE_NODES.map((node) => {
@@ -249,6 +275,12 @@ export default function SkillTreeScreen({
       <button type="button" className="skill-tree-start" onClick={onStartDay}>
         START THE DAY
       </button>
+
+      {mandalaReady && onEnterMandala && (
+        <button type="button" className="skill-tree-enter-mandala" onClick={onEnterMandala}>
+          ENTER THE MANDALA
+        </button>
+      )}
     </div>
   )
 }

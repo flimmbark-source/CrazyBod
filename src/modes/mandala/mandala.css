@@ -1,0 +1,134 @@
+/* Mandala mode + Sword cursor overlay. */
+
+/* During a descent the whole screen is the tube; hide the OS cursor so only the
+   drawn sword shows. Buttons in overlays still work (the sword layer is
+   pointer-events:none). */
+.status-mandala { cursor: none; }
+
+/* --- Sword cursor overlay ------------------------------------------------ */
+.sword-cursor-layer {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sword-trail {
+  position: absolute;
+  inset: 0;
+}
+
+.sword-trail-line {
+  fill: none;
+  stroke: rgba(255, 244, 214, 0.85);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(240, 180, 41, 0.85));
+}
+
+.sword-blade {
+  position: absolute;
+  transform: translate(-6px, -38px);
+  filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.5));
+}
+.sword-blade-steel { fill: #f4ecd6; stroke: #cbb98a; stroke-width: 1.2; }
+.sword-blade-guard { stroke: #c9a24b; stroke-width: 3; stroke-linecap: round; }
+.sword-blade-hilt { stroke: #6d4c54; stroke-width: 3; stroke-linecap: round; }
+
+.sword-hit-flash {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 245, 200, 0.95), rgba(240, 180, 41, 0.35) 45%, transparent 70%);
+  animation: sword-hit 300ms ease-out forwards;
+}
+
+@keyframes sword-hit {
+  from { opacity: 1; scale: 0.4; }
+  to { opacity: 0; scale: 1.5; }
+}
+
+/* --- Mandala HUD --------------------------------------------------------- */
+.mandala-hud {
+  position: absolute;
+  z-index: 40;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 16px;
+  border: 2px solid #302b38;
+  border-radius: 999px;
+  color: #f6ecd2;
+  background: rgba(20, 14, 26, 0.72);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+.mandala-hud .mandala-depth { font-size: 15px; color: #f0b429; }
+.mandala-hud .mandala-load { font-size: 13px; }
+.mandala-hud .mandala-load.near-capacity { color: #f5837f; }
+
+.mandala-hint {
+  position: absolute;
+  z-index: 40;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #f6ecd2;
+  background: rgba(20, 14, 26, 0.6);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.mandala-exit {
+  position: absolute;
+  z-index: 41;
+  right: 18px;
+  top: 16px;
+  padding: 8px 14px;
+  border: 2px solid #302b38;
+  border-radius: 9px;
+  color: #f6ecd2;
+  background: rgba(40, 30, 48, 0.85);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.mandala-exit:hover { background: rgba(120, 60, 70, 0.9); }
+
+/* Skill-tree entry button, shown only when the Sword is enabled. */
+.skill-tree-enter-mandala {
+  margin-top: 8px;
+  padding: 11px 18px;
+  border: 3px solid #6d4c1f;
+  border-radius: 10px;
+  color: #16110b;
+  background: #f0b429;
+  box-shadow: 0 5px 0 #6d4c1f;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.skill-tree-enter-mandala:active { transform: translateY(3px); box-shadow: 0 2px 0 #6d4c1f; }
+
+/* Real connectors between skill nodes. */
+.skill-tree-edge-line {
+  stroke: rgba(247, 240, 232, 0.28);
+  stroke-width: 0.5;
+}
+.skill-tree-edge-line.edge-owned { stroke: rgba(240, 180, 41, 0.72); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sword-hit-flash { animation-duration: 1ms; }
+}

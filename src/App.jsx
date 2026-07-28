@@ -3,6 +3,10 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import * as THREE from 'three'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
 import SnapshotCaptureBridge from './world/SnapshotCaptureBridge.jsx'
+import { deriveProgressionEffects } from './progression/deriveProgressionEffects.js'
+import { useMandalaRun } from './modes/mandala/useMandalaRun.js'
+import MandalaScene from './modes/mandala/MandalaScene.jsx'
+import SwordCursor from './modes/sword/SwordCursor.jsx'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
@@ -272,6 +276,17 @@ function App() {
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
   const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
+  // Central capability derivation (Sword / Mandala / Dive) from enabled nodes.
+  const progressionEffects = deriveProgressionEffects(progression.enabledNodeIds)
+  // Mandala travel simulation. Owned by its own hook; App only coordinates.
+  const mandala = useMandalaRun()
+  // Screen-space slash targets: encounters (inside the Canvas) project into this
+  // Map every frame; the Sword overlay (DOM) reads it to test slashes.
+  const mandalaRegistryRef = useRef(new Map())
+  // Live inputs the in-Canvas stepper reads each frame. A stable object mutated
+  // imperatively so key events never need a React re-render.
+  const mandalaInputsRef = useRef({ diveEnabled: false, forwardHeld: false, capacity: 5 })
+  const mandalaRunIdRef = useRef(null)
   const [firstUnlockPending, setFirstUnlockPending] = useState(false)
   const [treeFirstView, setTreeFirstView] = useState(false)
   const [runCapacityBonus, setRunCapacityBonus] = useState(0)
@@ -667,10 +682,37 @@ function App() {
   }, [dayElapsed, status, takeSnapshot])
 
   // One authoritative end-of-run transaction. Builds the result from real run
-  // data (not from rendered DOM), so it survives unscored technique time.
-  const finishRun = useCallback((outcome) => {
+  // data (not from rendered DOM), so it survives unscored technique time. A
+  // Mandala descent passes its own summary and reuses this exact path, so
+  // results + banking happen once through the same flow as a surface run.
+  const finishRun = useCallback((outcome, mandalaSummary = null) => {
     if (runFinishedRef.current) return
     runFinishedRef.current = true
+
+    if (mandalaSummary) {
+      const capacity = capacityRef.current
+      const finalScore = Math.max(0, Math.round(mandalaSummary.depth) + mandalaSummary.resolvedCount * 5)
+      setResult({
+        runId: mandalaSummary.runId ?? `mandala-${Date.now()}`,
+        outcome,
+        source: 'mandala',
+        rawScore: finalScore,
+        finalScore,
+        penalty: 0,
+        dayElapsed: 0,
+        runElapsed: 0,
+        clearedCount: mandalaSummary.resolvedCount,
+        suppressedCount: 0,
+        peakLoad: capacity,
+        capacity,
+        activeAtEnd: capacity,
+        appeared: mandalaSummary.resolvedCount,
+        mandalaDepth: Math.round(mandalaSummary.depth),
+        techniques: {},
+      })
+      setStatus(outcome)
+      return
+    }
 
     const finishedDay = Math.min(DAY_LENGTH, dayElapsedRef.current)
     const rawScore = scoreForElapsed(finishedDay)
@@ -726,6 +768,67 @@ function App() {
     setTreeFirstView(false)
     setStatus('intro')
   }, [])
+
+  // --- Mandala mode ------------------------------------------------------
+  // Overload during a descent routes straight into the existing results path.
+  const handleMandalaOverload = useCallback((summary) => {
+    finishRun('overload', { ...summary, runId: mandalaRunIdRef.current })
+  }, [finishRun])
+
+  // TEMPORARY dev entry: available from the skill tree whenever the Sword is
+  // enabled. This is a documented prototype entry point, not the final trigger.
+  const enterMandala = useCallback(() => {
+    mandalaRunIdRef.current = `mandala-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+    runFinishedRef.current = false
+    mandalaInputsRef.current.forwardHeld = false
+    setResult(null)
+    setRunSnapshots([])
+    setMicrogames([])
+    microgamesRef.current = []
+    mandala.enter()
+    setStatus('mandala')
+  }, [mandala])
+
+  const exitMandala = useCallback(() => {
+    mandalaInputsRef.current.forwardHeld = false
+    mandala.exit()
+    setStatus('skillTree')
+  }, [mandala])
+
+  // Keep the live inputs the in-Canvas stepper reads each frame up to date.
+  useEffect(() => {
+    mandalaInputsRef.current.diveEnabled = progressionEffects.diveEnabled
+    mandalaInputsRef.current.capacity = capacity
+  })
+
+  // Dive input: hold W / ArrowUp to accelerate. Only while in the Mandala, only
+  // when Dive is enabled. The held flag is cleared on every exit path (mode
+  // exit, overload -> results, window blur, unmount) so it never sticks.
+  useEffect(() => {
+    if (status !== 'mandala') {
+      mandalaInputsRef.current.forwardHeld = false
+      return undefined
+    }
+    const isForwardKey = (key) => key === 'w' || key === 'W' || key === 'ArrowUp'
+    const onKeyDown = (event) => {
+      if (isForwardKey(event.key)) mandalaInputsRef.current.forwardHeld = true
+    }
+    const onKeyUp = (event) => {
+      if (isForwardKey(event.key)) mandalaInputsRef.current.forwardHeld = false
+    }
+    const clear = () => {
+      mandalaInputsRef.current.forwardHeld = false
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', clear)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', clear)
+      mandalaInputsRef.current.forwardHeld = false
+    }
+  }, [status])
 
   const handleResetFull = useCallback(() => {
     resetFull()
@@ -1037,16 +1140,52 @@ function App() {
           }}
           performance={{ min: 0.6 }}
         >
-          <AuthoredJourneyScene
-            elapsed={dayElapsed}
-            active={dayAdvancing}
-            cameraEnabled={!cafeBeatActive}
-            dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
-          />
-          <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
+          {status === 'mandala' ? (
+            <MandalaScene
+              runRef={mandala.runRef}
+              step={mandala.step}
+              registryRef={mandalaRegistryRef}
+              inputsRef={mandalaInputsRef}
+              onOverload={handleMandalaOverload}
+            />
+          ) : (
+            <>
+              <AuthoredJourneyScene
+                elapsed={dayElapsed}
+                active={dayAdvancing}
+                cameraEnabled={!cafeBeatActive}
+                dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
+              />
+              <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
+            </>
+          )}
           <SnapshotCaptureBridge registerCapture={registerSnapshotCapture} />
         </Canvas>
       </div>
+
+      {status === 'mandala' && (
+        <>
+          <SwordCursor
+            enabled={progressionEffects.swordEnabled}
+            registryRef={mandalaRegistryRef}
+            onResolve={mandala.resolveEncounter}
+          />
+          <div className="mandala-hud" aria-live="polite">
+            <span className="mandala-depth">DEPTH {Math.round(mandala.sample.depth)}</span>
+            <span className={`mandala-load${mandala.sample.activeCount >= capacity - 1 ? ' near-capacity' : ''}`}>
+              LOAD {mandala.sample.activeCount}/{capacity}
+            </span>
+          </div>
+          <div className="mandala-hint">
+            {progressionEffects.diveEnabled
+              ? 'Slash foes as they arrive. Hold W / ↑ to Dive.'
+              : 'Slash foes as they arrive.'}
+          </div>
+          <button type="button" className="mandala-exit" onClick={exitMandala}>
+            LEAVE
+          </button>
+        </>
+      )}
 
       {startCue && (
         <section
@@ -1255,6 +1394,7 @@ function App() {
           onToggle={toggleNode}
           onResetTree={resetTree}
           onResetFull={handleResetFull}
+          onEnterMandala={enterMandala}
         />
       )}
 

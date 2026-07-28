@@ -9,11 +9,16 @@ import {
   STARTING_NODE_ID,
   getNode,
   childrenOf,
+  prerequisitesOf,
 } from './skillTreeConfig.js'
 
 export const PROGRESSION_STORAGE_KEY = 'crazybod:progression'
 export const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
-export const PROGRESSION_VERSION = 1
+// v2: the Mandala re-centres the tree on the Sword and expresses dependencies as
+// prerequisites. Old saves keep every purchase, bank and run stat; they simply
+// gain the Sword as a newly revealed, buyable centre (they do not receive it
+// for free — see migrateProgression).
+export const PROGRESSION_VERSION = 2
 
 const LEGACY_NODE_IDS = {
   hold: 'autotarget',
@@ -99,6 +104,13 @@ export function canPurchase(state, nodeId) {
   if (!node) return { ok: false, reason: 'unknown' }
   if (!isRevealed(state, nodeId)) return { ok: false, reason: 'hidden' }
   if (isPurchased(state, nodeId)) return { ok: false, reason: 'owned' }
+  // Every prerequisite must be owned. For today's single-prerequisite nodes
+  // this is implied by reveal, but stating it explicitly keeps multi-prereq and
+  // convergence paths correct for later Mandala secrets.
+  const prerequisites = prerequisitesOf(node)
+  if (!prerequisites.every((id) => isPurchased(state, id))) {
+    return { ok: false, reason: 'locked' }
+  }
   if (state.bank < node.cost) return { ok: false, reason: 'unaffordable' }
   return { ok: true }
 }

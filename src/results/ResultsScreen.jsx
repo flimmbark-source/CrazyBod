@@ -48,6 +48,7 @@ function prefersReducedMotion() {
 }
 
 function resultSummary(result) {
+  if (result.source === 'mandala') return `Mandala depth reached: ${result.mandalaDepth ?? 0}.`
   if (result.outcome === 'complete') return 'You made it to the café.'
   const duration = `${result.dayElapsed.toFixed(1)} seconds`
   return `after ${duration}.`
