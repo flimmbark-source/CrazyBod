@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 // The "run snapshot" strip shown on the end screens: a lane of polaroids taken
 // during the run — a few at random moments before the first conversation, then
@@ -57,7 +58,9 @@ function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
   if (!snapshot) return null
   const hasMultiple = snapshots.length > 1
 
-  return (
+  // Portal to <body> so the fixed overlay escapes the lane's stacking context
+  // (the lane is positioned with its own z-index) and sits above the end screen.
+  return createPortal(
     <div
       className="snapshot-lightbox"
       role="dialog"
@@ -113,7 +116,8 @@ function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
           <span aria-hidden="true">›</span>
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
 

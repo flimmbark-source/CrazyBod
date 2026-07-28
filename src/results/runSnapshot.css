@@ -121,6 +121,11 @@
   backdrop-filter: blur(3px);
   animation: snapshot-lightbox-in 180ms ease both;
   cursor: zoom-out;
+  /* Promote to its own compositing layer so the end screen's backdrop-filter
+     (.results-screen) cannot paint over this portaled overlay — a real
+     backdrop-filter/stacking quirk, not just a headless one. */
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 @keyframes snapshot-lightbox-in {
