@@ -42,11 +42,13 @@
   will-change: transform;
   filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.55));
 }
-.sword-blade-steel { fill: #efe6cd; stroke: #b9a879; stroke-width: 1; transition: fill 60ms linear; }
-.sword-blade-edge { stroke: #fffdf3; stroke-width: 1.4; opacity: 0.7; }
-.sword-blade-guard { stroke: #c9a24b; stroke-width: 3.6; stroke-linecap: round; }
-.sword-blade-hilt { stroke: #6d4c54; stroke-width: 4.2; stroke-linecap: round; }
-.sword-blade-pommel { fill: #c9a24b; }
+/* Katana */
+.sword-blade-steel { fill: #e7e0cd; stroke: #a2926a; stroke-width: 0.8; transition: fill 60ms linear; }
+.sword-katana-hamon { stroke: rgba(255, 255, 255, 0.72); stroke-width: 1.1; }
+.sword-katana-grip { fill: #26222c; }
+.sword-katana-wrap { stroke: #4a4450; stroke-width: 1.1; stroke-dasharray: 3 3; }
+.sword-katana-fitting { fill: #c9a24b; }
+.sword-katana-tsuba { fill: #b9942f; stroke: #6f541d; stroke-width: 0.7; }
 .sword-cursor-layer.is-swinging .sword-blade-steel { fill: #fff7db; }
 
 .sword-hit-flash {

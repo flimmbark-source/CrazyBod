@@ -8,13 +8,16 @@
 // the hand each step. Because the hand is infinitely heavy (it *is* the
 // cursor), only the tip moves — a pendulum on a moving pivot.
 
+// Tuned as a long, tip-heavy katana: a long blade with lots of follow-through
+// (high damping) and real weight (gravity), so the swing is ponderous — the tip
+// carries momentum and takes its time to change direction.
 export const SWORD_PHYSICS = Object.freeze({
-  BLADE_LENGTH: 78, // px from hand pivot to blade tip
-  DAMPING: 0.9, // velocity retained per step (higher = more follow-through)
-  GRAVITY: 1500, // px/s^2 — gives the blade weight so it hangs and swings
-  CONSTRAINT_ITERATIONS: 3, // stiffness of the "rigid blade" length constraint
+  BLADE_LENGTH: 132, // px from hand pivot to blade tip (long katana)
+  DAMPING: 0.945, // velocity retained per step — high = heavy follow-through
+  GRAVITY: 1750, // px/s^2 — the blade's weight; it hangs and swings hard
+  CONSTRAINT_ITERATIONS: 4, // stiffness of the rigid-blade length constraint
   MAX_DT: 1 / 40, // clamp so a long frame can't explode the sim
-  MIN_TIP_SPEED: 760, // px/s the tip must exceed for a swing to cut
+  MIN_TIP_SPEED: 820, // px/s the tip must exceed for a swing to cut
 })
 
 export function createSwordState(hand, config = SWORD_PHYSICS) {

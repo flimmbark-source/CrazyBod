@@ -10,16 +10,31 @@ import { targetsHitBySlash } from './slashGeometry.js'
 
 let flashKey = 0
 
-// Local blade geometry. The pivot (hand/pommel) is at (PIVOT_X, PIVOT_Y); the
-// blade is drawn pointing along +x so a rotation about the pivot aims it at the
-// physics tip.
-const PIVOT_X = 22
-const PIVOT_Y = 22
+// Local katana geometry. The pivot (the hands, on the grip) is at
+// (PIVOT_X, PIVOT_Y); the blade is drawn pointing along +x so a rotation about
+// the pivot aims it at the physics tip. Room is left behind the pivot for the
+// long two-hand grip, and above the axis for the blade's curve (sori).
+const PIVOT_X = 48
+const PIVOT_Y = 34
 const TIP_X = PIVOT_X + SWORD_PHYSICS.BLADE_LENGTH
-const SVG_W = TIP_X + 16
-const SVG_H = 44
-const TRAIL_MAX = 14
-const HIT_COOLDOWN_MS = 240
+const SVG_W = TIP_X + 22
+const SVG_H = 66
+const TRAIL_MAX = 18
+const HIT_COOLDOWN_MS = 260
+
+// Derived blade shapes (curved, single-edged, tapering to the kissaki point).
+const BASE_X = PIVOT_X + 16
+const MID_X = (BASE_X + TIP_X) / 2
+const SORI = 17 // how far the tip curves up off the axis
+const GRIP_BACK = PIVOT_X - 40
+const BLADE_PATH =
+  `M ${BASE_X} ${PIVOT_Y - 3.2} ` +
+  `Q ${MID_X} ${PIVOT_Y - SORI + 2} ${TIP_X} ${PIVOT_Y - SORI} ` +
+  `L ${TIP_X + 6} ${PIVOT_Y - SORI + 3.5} ` +
+  `Q ${MID_X} ${PIVOT_Y - 4} ${BASE_X} ${PIVOT_Y + 3.4} Z`
+const HAMON_PATH =
+  `M ${BASE_X + 5} ${PIVOT_Y + 0.6} ` +
+  `Q ${MID_X} ${PIVOT_Y - 5.5} ${TIP_X - 3} ${PIVOT_Y - SORI + 3}`
 
 // A physical sword. The cursor is the hand/pommel; the blade is a weighted
 // pendulum (swordPhysics) that trails, whips and settles as you move. What cuts
@@ -138,17 +153,22 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
 
       <div className="sword-blade" ref={bladeRef} style={{ transformOrigin: `${PIVOT_X}px ${PIVOT_Y}px`, opacity: 0 }}>
         <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} width={SVG_W} height={SVG_H}>
-          {/* blade */}
-          <polygon
-            points={`${PIVOT_X + 6},${PIVOT_Y - 5} ${TIP_X},${PIVOT_Y} ${PIVOT_X + 6},${PIVOT_Y + 5}`}
-            className="sword-blade-steel"
+          {/* tsuka (long two-hand grip) + kashira cap, behind the pivot */}
+          <rect
+            x={GRIP_BACK}
+            y={PIVOT_Y - 3.8}
+            width={PIVOT_X + 8 - GRIP_BACK}
+            height={7.6}
+            rx={3.2}
+            className="sword-katana-grip"
           />
-          <line x1={PIVOT_X + 8} y1={PIVOT_Y} x2={TIP_X - 3} y2={PIVOT_Y} className="sword-blade-edge" />
-          {/* guard */}
-          <line x1={PIVOT_X + 4} y1={PIVOT_Y - 9} x2={PIVOT_X + 4} y2={PIVOT_Y + 9} className="sword-blade-guard" />
-          {/* grip + pommel (behind the pivot) */}
-          <line x1={PIVOT_X - 12} y1={PIVOT_Y} x2={PIVOT_X + 4} y2={PIVOT_Y} className="sword-blade-hilt" />
-          <circle cx={PIVOT_X - 14} cy={PIVOT_Y} r="3.2" className="sword-blade-pommel" />
+          <line x1={GRIP_BACK + 3} y1={PIVOT_Y} x2={PIVOT_X + 6} y2={PIVOT_Y} className="sword-katana-wrap" />
+          <rect x={GRIP_BACK - 3} y={PIVOT_Y - 4.6} width={4.5} height={9.2} rx={1.6} className="sword-katana-fitting" />
+          {/* tsuba (guard) at the pivot */}
+          <ellipse cx={PIVOT_X + 9} cy={PIVOT_Y} rx={3.4} ry={11.5} className="sword-katana-tsuba" />
+          {/* blade + hamon */}
+          <path d={BLADE_PATH} className="sword-blade-steel" />
+          <path d={HAMON_PATH} className="sword-katana-hamon" fill="none" />
         </svg>
       </div>
     </div>
