@@ -93,6 +93,14 @@ function placeEncounters(working, config) {
     rngSeed = ox.seed
     const oy = stepRng(rngSeed)
     rngSeed = oy.seed
+    const ok = stepRng(rngSeed)
+    rngSeed = ok.seed
+
+    // Each foe IS one of the game's microgames.
+    const kinds = config.ENEMY_KINDS ?? []
+    const sourceMicrogameKind = kinds.length > 0
+      ? kinds[Math.floor(ok.value * kinds.length) % kinds.length]
+      : null
 
     added.push({
       id: `mandala-encounter-${nextId}`,
@@ -104,7 +112,7 @@ function placeEncounters(working, config) {
       },
       state: ENCOUNTER_STATES.DISTANT,
       hitsRemaining: 1,
-      sourceMicrogameKind: null,
+      sourceMicrogameKind,
     })
     nextId += 1
     lastPlacedZ = routeZ

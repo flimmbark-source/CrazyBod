@@ -6,6 +6,7 @@ import SnapshotCaptureBridge from './world/SnapshotCaptureBridge.jsx'
 import { deriveProgressionEffects } from './progression/deriveProgressionEffects.js'
 import { useMandalaRun } from './modes/mandala/useMandalaRun.js'
 import MandalaScene from './modes/mandala/MandalaScene.jsx'
+import MandalaEnemyLayer from './modes/mandala/MandalaEnemyLayer.jsx'
 import SwordCursor from './modes/sword/SwordCursor.jsx'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
@@ -283,6 +284,11 @@ function App() {
   // Screen-space slash targets: encounters (inside the Canvas) project into this
   // Map every frame; the Sword overlay (DOM) reads it to test slashes.
   const mandalaRegistryRef = useRef(new Map())
+  // Screen-space enemy projections (id -> {kind,x,y,pixelRadius,state,...}) the
+  // DOM minigame-enemy layer renders from, plus the set of ids the sword just
+  // cut (drained by the enemy layer to play death animations).
+  const mandalaEnemiesRef = useRef(new Map())
+  const mandalaDeathsRef = useRef(new Set())
   // Live inputs the in-Canvas stepper reads each frame. A stable object mutated
   // imperatively so key events never need a React re-render.
   const mandalaInputsRef = useRef({ diveEnabled: false, forwardHeld: false, capacity: 5 })
@@ -775,6 +781,13 @@ function App() {
     finishRun('overload', { ...summary, runId: mandalaRunIdRef.current })
   }, [finishRun])
 
+  // A cut foe: resolve it in the sim (removes its load) and flag its id so the
+  // enemy layer plays its death animation.
+  const handleMandalaResolve = useCallback((id) => {
+    mandala.resolveEncounter(id)
+    mandalaDeathsRef.current.add(id)
+  }, [mandala])
+
   // TEMPORARY dev entry: available from the skill tree whenever the Sword is
   // enabled. This is a documented prototype entry point, not the final trigger.
   const enterMandala = useCallback(() => {
@@ -1145,6 +1158,7 @@ function App() {
               runRef={mandala.runRef}
               step={mandala.step}
               registryRef={mandalaRegistryRef}
+              enemiesRef={mandalaEnemiesRef}
               inputsRef={mandalaInputsRef}
               onOverload={handleMandalaOverload}
             />
@@ -1165,10 +1179,11 @@ function App() {
 
       {status === 'mandala' && (
         <>
+          <MandalaEnemyLayer enemiesRef={mandalaEnemiesRef} deathsRef={mandalaDeathsRef} />
           <SwordCursor
             enabled={progressionEffects.swordEnabled}
             registryRef={mandalaRegistryRef}
-            onResolve={mandala.resolveEncounter}
+            onResolve={handleMandalaResolve}
           />
           <div className="mandala-hud" aria-live="polite">
             <span className="mandala-depth">DEPTH {Math.round(mandala.sample.depth)}</span>

@@ -51,6 +51,26 @@ export const MANDALA_CONFIG = Object.freeze({
   get INTERACTION_PLANE_Z() {
     return -this.INTERACTION_DISTANCE
   },
+
+  // World radius used to size an enemy's on-screen panel via perspective.
+  ENEMY_WORLD_RADIUS: 1.25,
+
+  // The foes are the game's microgames. These are plain kind ids (kept as
+  // strings here, decoupled from the JSX catalog, so the pure/tested modules
+  // never import React). The enemy layer maps them to names/colours for
+  // display. TEMPORARY selection for the slice.
+  ENEMY_KINDS: Object.freeze([
+    'discomfort',
+    'checking',
+    'microRest',
+    'workingMemory',
+    'racingHeart',
+    'lightSensitivity',
+    'directionLoss',
+    'heavyEyes',
+    'dizziness',
+    'brainFog',
+  ]),
 })
 
 // The Mandala's axis offset at a given depth. Shared by simulation (encounter

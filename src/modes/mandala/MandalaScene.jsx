@@ -1,17 +1,22 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import * as THREE from 'three'
 
 import { MANDALA_CONFIG, mandalaAxisAt } from './mandalaConfig.js'
+import { ENCOUNTER_STATES } from './mandalaState.js'
 import MandalaTube from './MandalaTube.jsx'
-import MandalaEncounter from './MandalaEncounter.jsx'
 
-// Runs the simulation each frame (single source of advance), flies the camera
-// down the tube, and keeps the mounted encounter list in step with the run.
-function MandalaStepper({ runRef, step, inputsRef, onOverload, onEncountersChanged, config }) {
+const tmp = new THREE.Vector3()
+const tmpEdge = new THREE.Vector3()
+
+// The single per-frame driver: advances the sim, flies the camera down the
+// tube, and projects every encounter to screen space. The projection feeds two
+// consumers — `enemiesRef` (the DOM minigame-enemy layer) and `registryRef`
+// (the Sword's slash hitboxes) — so both share one source of truth about where
+// each foe is on screen and how big it is.
+function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, registryRef, config }) {
   const camera = useThree((state) => state.camera)
-  const idsRef = useRef('')
-  const syncClockRef = useRef(0)
-  const rollRef = useRef(0)
+  const size = useThree((state) => state.size)
 
   useFrame((_, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05)
@@ -29,17 +34,64 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, onEncountersChang
     camera.position.set(here.x * 0.35, here.y * 0.35, 0)
     camera.up.set(0, 1, 0)
     camera.lookAt(ahead.x, ahead.y, -14)
-    rollRef.current = Math.sin(run.travelDistance * config.UNDULATION_FREQ * 1.3) * 0.12
-    camera.rotation.z += rollRef.current
+    camera.rotation.z += Math.sin(run.travelDistance * config.UNDULATION_FREQ * 1.3) * 0.12
 
-    // Sync the mounted encounter ids a few times a second (not every frame).
-    syncClockRef.current += delta
-    if (syncClockRef.current >= 1 / 12) {
-      syncClockRef.current = 0
-      const ids = run.encounters.map((encounter) => encounter.id).join('|')
-      if (ids !== idsRef.current) {
-        idsRef.current = ids
-        onEncountersChanged(run.encounters.map((encounter) => encounter.id))
+    // Project every encounter into screen space.
+    const enemies = enemiesRef.current
+    const registry = registryRef.current
+    const seen = new Set()
+
+    for (const encounter of run.encounters) {
+      // Resolved/passed foes are dead — the enemy layer owns their death
+      // animation, so drop them from the projection immediately.
+      if (encounter.state === ENCOUNTER_STATES.RESOLVED || encounter.state === ENCOUNTER_STATES.PASSED) {
+        continue
+      }
+      const distanceAhead = encounter.routeZ - run.travelDistance
+      if (distanceAhead < config.SLASH_REAR_LIMIT - 2 || distanceAhead > config.APPROACHING_DISTANCE + 10) {
+        continue
+      }
+
+      const axis = mandalaAxisAt(encounter.routeZ, config)
+      const worldX = axis.x + encounter.offset.x * config.TUBE_RADIUS
+      const worldY = axis.y + encounter.offset.y * config.TUBE_RADIUS
+      const worldZ = -distanceAhead
+
+      tmp.set(worldX, worldY, worldZ).project(camera)
+      // Behind the camera projects with w<0; skip those frames.
+      if (tmp.z > 1) continue
+      const screenX = (tmp.x * 0.5 + 0.5) * size.width
+      const screenY = (-tmp.y * 0.5 + 0.5) * size.height
+      tmpEdge.set(worldX + config.ENEMY_WORLD_RADIUS, worldY, worldZ).project(camera)
+      const pixelRadius = Math.max(14, Math.abs((tmpEdge.x * 0.5 + 0.5) * size.width - screenX))
+
+      const active = encounter.state === ENCOUNTER_STATES.ACTIVE
+      const arriving = encounter.state === ENCOUNTER_STATES.ARRIVING
+
+      enemies.set(encounter.id, {
+        id: encounter.id,
+        kind: encounter.sourceMicrogameKind,
+        x: screenX,
+        y: screenY,
+        pixelRadius,
+        state: encounter.state,
+        distanceAhead,
+      })
+      seen.add(encounter.id)
+
+      // Only active/arriving foes near the plane are slashable.
+      if ((active || arriving) && distanceAhead > config.SLASH_REAR_LIMIT) {
+        registry.set(encounter.id, { x: screenX, y: screenY, radius: pixelRadius * 1.15, active })
+      } else {
+        registry.delete(encounter.id)
+      }
+    }
+
+    // Drop enemies/hitboxes for encounters that are gone (culled or pruned).
+    for (const id of enemies.keys()) {
+      if (!seen.has(id)) {
+        enemies.delete(id)
+        registry.delete(id)
       }
     }
   })
@@ -51,18 +103,13 @@ export default function MandalaScene({
   runRef,
   step,
   registryRef,
+  enemiesRef,
   inputsRef,
   onOverload,
   config = MANDALA_CONFIG,
 }) {
-  const [encounterIds, setEncounterIds] = useState([])
-
-  // Encounters mount/unmount from this id list; each reads its live transform
-  // from runRef every frame, so motion stays frame-exact between syncs.
-  const encounters = useMemo(
-    () => encounterIds.map((id) => <MandalaEncounter key={id} id={id} runRef={runRef} registryRef={registryRef} config={config} />),
-    [encounterIds, runRef, registryRef, config],
-  )
+  const enemiesFallback = useRef(new Map())
+  const enemies = enemiesRef ?? enemiesFallback
 
   // color/fog must attach at the scene root, so they are top-level here (not
   // wrapped in a group) — MandalaScene is a direct child of the Canvas.
@@ -77,11 +124,11 @@ export default function MandalaScene({
         step={step}
         inputsRef={inputsRef}
         onOverload={onOverload}
-        onEncountersChanged={setEncounterIds}
+        enemiesRef={enemies}
+        registryRef={registryRef}
         config={config}
       />
       <MandalaTube runRef={runRef} config={config} />
-      {encounters}
     </>
   )
 }
