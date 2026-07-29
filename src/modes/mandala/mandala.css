@@ -21,21 +21,33 @@
 
 .sword-trail-line {
   fill: none;
-  stroke: rgba(255, 244, 214, 0.85);
-  stroke-width: 4;
+  stroke: rgba(255, 244, 214, 0.55);
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 6px rgba(240, 180, 41, 0.85));
+  filter: drop-shadow(0 0 6px rgba(240, 180, 41, 0.7));
+  transition: stroke-width 60ms linear, stroke 60ms linear;
+}
+.sword-cursor-layer.is-swinging .sword-trail-line {
+  stroke: rgba(255, 250, 224, 0.95);
+  stroke-width: 7;
 }
 
+/* The blade element is positioned + rotated imperatively each frame (its pivot
+   is placed on the hand). Only static styling lives here. */
 .sword-blade {
   position: absolute;
-  transform: translate(-6px, -38px);
-  filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.5));
+  left: 0;
+  top: 0;
+  will-change: transform;
+  filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.55));
 }
-.sword-blade-steel { fill: #f4ecd6; stroke: #cbb98a; stroke-width: 1.2; }
-.sword-blade-guard { stroke: #c9a24b; stroke-width: 3; stroke-linecap: round; }
-.sword-blade-hilt { stroke: #6d4c54; stroke-width: 3; stroke-linecap: round; }
+.sword-blade-steel { fill: #efe6cd; stroke: #b9a879; stroke-width: 1; transition: fill 60ms linear; }
+.sword-blade-edge { stroke: #fffdf3; stroke-width: 1.4; opacity: 0.7; }
+.sword-blade-guard { stroke: #c9a24b; stroke-width: 3.6; stroke-linecap: round; }
+.sword-blade-hilt { stroke: #6d4c54; stroke-width: 4.2; stroke-linecap: round; }
+.sword-blade-pommel { fill: #c9a24b; }
+.sword-cursor-layer.is-swinging .sword-blade-steel { fill: #fff7db; }
 
 .sword-hit-flash {
   position: absolute;

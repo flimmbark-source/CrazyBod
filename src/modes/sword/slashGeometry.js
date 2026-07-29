@@ -1,6 +1,6 @@
-// Pure geometry + gesture validation for the Sword. No DOM here so it can be
-// unit-tested directly. useSlashInput.js feeds it pointer history; the Mandala
-// registers slashable targets as screen-space circles.
+// Pure geometry for the Sword's cut test. No DOM here so it can be unit-tested
+// directly. SwordCursor feeds it the live blade segment (hand -> physics tip);
+// the Mandala registers slashable targets as screen-space circles.
 
 export const SLASH_DEFAULTS = Object.freeze({
   // A gesture must be at least this long (screen px) to be a slash, not a tap.
