@@ -20,8 +20,9 @@ export const MANDALA_PHASES = Object.freeze({
 })
 
 // Lifecycle of a single encounter. Progress is monotonic: an encounter never
-// moves backward through these, and `active` latches (an active foe stays
-// active and counted until it is resolved, even after it slips behind).
+// moves backward through these. Once it reaches the interaction distance it is
+// cuttable, but it keeps travelling past the player. Crossing the rear limit
+// unresolved marks it passed and adds one permanent point of overload.
 export const ENCOUNTER_STATES = Object.freeze({
   DISTANT: 'distant',
   APPROACHING: 'approaching',
@@ -57,8 +58,16 @@ function stepRng(seed) {
 
 // Classify a distance-ahead into a lifecycle state, moving forward only.
 function progressEncounterState(current, distanceAhead, config) {
-  // active / resolved / passed are terminal-ish and never regress.
-  if (rankOf(current) >= rankOf(ENCOUNTER_STATES.ACTIVE)) return current
+  // resolved / passed are terminal and never regress.
+  if (current === ENCOUNTER_STATES.RESOLVED || current === ENCOUNTER_STATES.PASSED) return current
+
+  // An unresolved encounter only becomes a miss after it has travelled behind
+  // the player far enough that the sword can no longer reach it.
+  if (current === ENCOUNTER_STATES.ACTIVE && distanceAhead <= config.SLASH_REAR_LIMIT) {
+    return ENCOUNTER_STATES.PASSED
+  }
+
+  if (current === ENCOUNTER_STATES.ACTIVE) return current
 
   let target
   if (distanceAhead > config.APPROACHING_DISTANCE) target = ENCOUNTER_STATES.DISTANT
@@ -113,6 +122,7 @@ export function createMandalaRun(config = MANDALA_CONFIG, seed = 1) {
     rngSeed: seed >>> 0,
     nextId: 0,
     resolvedCount: 0,
+    passedCount: 0,
     maxDepth: 0,
   }
 }
@@ -140,15 +150,19 @@ export function travelSpeedFor({ diving, config = MANDALA_CONFIG }) {
 export function advanceMandala(state, { deltaSeconds, travelSpeed, config = MANDALA_CONFIG }) {
   const travelDelta = Math.max(0, travelSpeed) * Math.max(0, deltaSeconds)
   const travelDistance = state.travelDistance + travelDelta
+  let newlyPassed = 0
 
   let encounters = state.encounters.map((encounter) => {
     const distanceAhead = encounter.routeZ - travelDistance
     const nextState = progressEncounterState(encounter.state, distanceAhead, config)
+    if (nextState === ENCOUNTER_STATES.PASSED && encounter.state !== ENCOUNTER_STATES.PASSED) {
+      newlyPassed += 1
+    }
     return nextState === encounter.state ? encounter : { ...encounter, state: nextState }
   })
 
-  // Drop only fully-finished encounters that have slipped well behind. Active
-  // (unresolved) encounters are never pruned — they remain part of the load.
+  // Drop finished encounters after they have travelled well behind the player.
+  // Their resolved/passed counters remain in the run after the visual is pruned.
   encounters = encounters.filter((encounter) => {
     if (encounter.state !== ENCOUNTER_STATES.RESOLVED && encounter.state !== ENCOUNTER_STATES.PASSED) {
       return true
@@ -156,19 +170,23 @@ export function advanceMandala(state, { deltaSeconds, travelSpeed, config = MAND
     return encounter.routeZ - travelDistance > config.SLASH_REAR_LIMIT - 12
   })
 
-  return { ...state, travelDistance, encounters, maxDepth: Math.max(state.maxDepth, travelDistance) }
+  return {
+    ...state,
+    travelDistance,
+    encounters,
+    passedCount: state.passedCount + newlyPassed,
+    maxDepth: Math.max(state.maxDepth, travelDistance),
+  }
 }
 
-// Resolve an encounter that is currently interactable (active, or arriving for a
-// generous early cut). Returns the same state if the id is unknown or already
-// resolved — resolving is therefore idempotent per encounter.
+// Resolve an encounter once it has reached the interaction distance and while
+// it remains within the sword's rear reach. Returns the same state if the id is
+// unknown or already finished, so resolving stays idempotent per encounter.
 export function resolveEncounter(state, id) {
   const index = state.encounters.findIndex((encounter) => encounter.id === id)
   if (index < 0) return state
   const encounter = state.encounters[index]
-  const interactable =
-    encounter.state === ENCOUNTER_STATES.ACTIVE || encounter.state === ENCOUNTER_STATES.ARRIVING
-  if (!interactable) return state
+  if (encounter.state !== ENCOUNTER_STATES.ACTIVE) return state
 
   const hitsRemaining = encounter.hitsRemaining - 1
   const nextEncounter =
@@ -186,23 +204,17 @@ export function resolveEncounter(state, id) {
   }
 }
 
-// The authoritative load contribution of the Mandala: only active (arrived,
-// unresolved) encounters. Distant / approaching / arriving foes never count.
+// Mandala overload is cumulative misses, not the number of panels currently in
+// view. Each unresolved encounter that passes beyond sword reach adds one.
 export function activeLoad(state) {
-  let count = 0
-  for (const encounter of state.encounters) {
-    if (encounter.state === ENCOUNTER_STATES.ACTIVE) count += 1
-  }
-  return count
+  return state.passedCount
 }
 
-// Encounters currently eligible for slashing: active and still in front of (or
-// near) the interaction plane. Used to build the screen-space slash registry.
+// Encounters currently eligible for slashing: they have reached the old sword
+// plane threshold but have not yet travelled beyond the sword's rear reach.
 export function slashableEncounters(state, config = MANDALA_CONFIG) {
   return state.encounters.filter((encounter) => {
-    if (encounter.state !== ENCOUNTER_STATES.ACTIVE && encounter.state !== ENCOUNTER_STATES.ARRIVING) {
-      return false
-    }
+    if (encounter.state !== ENCOUNTER_STATES.ACTIVE) return false
     const distanceAhead = encounter.routeZ - state.travelDistance
     return distanceAhead > config.SLASH_REAR_LIMIT
   })
