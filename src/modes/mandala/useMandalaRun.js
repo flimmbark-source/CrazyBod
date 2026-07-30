@@ -26,9 +26,9 @@ import {
 // Held in refs so the 60fps loop never forces React re-renders; a throttled
 // sample surfaces HUD state (section/wave/effects/load/depth).
 //
-// Overload is NOT decided here. step() calls onOverload() when active load
-// reaches the capacity the caller passes in, so the existing App/finishRun path
-// stays the single authority.
+// Overload is NOT decided here. step() calls onOverload() when cumulative passed
+// encounters reach the capacity the caller passes in, so App/finishRun remains
+// the single authority for ending the run.
 export function useMandalaRun(config = MANDALA_CONFIG, script = MANDALA_SCRIPT) {
   const runRef = useRef(null)
   const directorRef = useRef(null)
@@ -87,16 +87,15 @@ export function useMandalaRun(config = MANDALA_CONFIG, script = MANDALA_SCRIPT) 
       const travelSpeed = travelSpeedFor({ diving, config })
       const travelDelta = Math.max(0, travelSpeed) * Math.max(0, deltaSeconds)
 
-      // Advance travel + encounter lifecycles.
       let next = advanceMandala(run, { deltaSeconds, travelSpeed, config })
 
-      // Advance the director; place any spawns it releases this frame.
       let effectsChanged = false
       if (director && !director.done) {
         const result = advanceDirector(director, {
           deltaSeconds,
           travelDelta,
           totalKills: next.resolvedCount,
+          totalCleared: next.resolvedCount + next.passedCount,
           script,
         })
         directorRef.current = result.director
@@ -109,15 +108,12 @@ export function useMandalaRun(config = MANDALA_CONFIG, script = MANDALA_SCRIPT) 
 
       const load = activeLoad(next)
 
-      // Throttle the React-visible sample to ~15Hz, but push immediately on a
-      // section/wave change so effects (background/perception) apply promptly.
       sampleClockRef.current += deltaSeconds
       if (effectsChanged || sampleClockRef.current >= 1 / 15) {
         sampleClockRef.current = 0
         setSample(buildSample(next, MANDALA_PHASES.TRAVELLING))
       }
 
-      // Authoritative overload: reuse the caller's capacity rule, once.
       if (!overloadedRef.current && load >= capacity) {
         overloadedRef.current = true
         runRef.current = toOverloading(next)
