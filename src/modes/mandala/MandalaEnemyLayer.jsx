@@ -22,12 +22,7 @@ const NOMINAL_HALF = ENEMY_W / 2
 const DEATH_MS = SWORD_PHYSICS.DEATH_MS
 const DEATH_SEPARATION = SWORD_PHYSICS.DEATH_SEPARATION
 const NOOP = () => {}
-// Docked (on-plane) panels sit at this stacking level; foes still in the pipe
-// stack below it (by depth), so the UI-plane panels are always in front.
-const PLANE_Z = 3000
-// In-pipe foes never render larger than this, so a docked panel (scale 1) is
-// always the biggest/closest-reading — reinforcing the plane separation.
-const PIPE_MAX_SCALE = 0.85
+const PIPE_Z_BASE = 3000
 
 const nameFor = (kind) => (kind && MICROGAME_NAMES[kind]) || 'SYMPTOM'
 
@@ -56,10 +51,10 @@ function EnemyMicrogame({ kind }) {
 export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MANDALA_CONFIG }) {
   const [ids, setIds] = useState([])
   const nodesRef = useRef(new Map())
-  const kindRef = useRef(new Map()) // id -> kind, captured once
-  const snapshotRef = useRef(new Map()) // id -> detached clone of the parked panel
-  const dyingRef = useRef(new Set()) // guard against double-processing a death
-  const deathLayerRef = useRef(null) // non-React container for the cut halves
+  const kindRef = useRef(new Map())
+  const snapshotRef = useRef(new Map())
+  const dyingRef = useRef(new Set())
+  const deathLayerRef = useRef(null)
   const sigRef = useRef('')
   const timersRef = useRef([])
 
@@ -67,18 +62,13 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
     let raf
     let frame = 0
 
-    // Build the cut halves in a separate, non-React container so React's list
-    // re-renders (constant, as foes arrive) can never wipe them. The live enemy
-    // node is just hidden and unmounts normally once the sim drops it.
     const startDeath = (id, node, cut) => {
       if (dyingRef.current.has(id)) return
       dyingRef.current.add(id)
 
       const container = deathLayerRef.current
-      // Prefer the cached detached snapshot (survives unmount); fall back to the
-      // live node if it's still around.
       const content = snapshotRef.current.get(id) ?? node?.querySelector('.enemy-content')
-      if (node) node.style.opacity = '0' // hide the live panel immediately
+      if (node) node.style.opacity = '0'
 
       if (container && content && cut && Number.isFinite(cut.cx)) {
         const group = document.createElement('div')
@@ -86,9 +76,6 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
         group.style.left = `${cut.cx}px`
         group.style.top = `${cut.cy}px`
 
-        // Map the blade segment into the panel's local coords (parked = scale 1,
-        // centred on cx,cy → pure translation), so the split follows exactly
-        // where the blade crossed the panel.
         const p1 = { x: cut.ax - cut.cx + ENEMY_W / 2, y: cut.ay - cut.cy + ENEMY_H / 2 }
         const p2 = { x: cut.bx - cut.cx + ENEMY_W / 2, y: cut.by - cut.cy + ENEMY_H / 2 }
         const normal = lineNormal(p1, p2)
@@ -100,7 +87,7 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
           const css = cutPolygonCssByLine(ENEMY_W, ENEMY_H, p1, p2, side)
           half.style.clipPath = css
           half.style.webkitClipPath = css
-          const snapshot = content.cloneNode(true) // static snapshot of the exact panel
+          const snapshot = content.cloneNode(true)
           snapshot.style.visibility = 'visible'
           half.appendChild(snapshot)
           group.appendChild(half)
@@ -128,7 +115,6 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
       const deaths = deathsRef.current
       const nodes = nodesRef.current
 
-      // Start death animations for foes the sword just cut (id -> cut angle).
       if (deaths.size) {
         deaths.forEach((cut, id) => {
           startDeath(id, nodes.get(id), cut)
@@ -136,7 +122,6 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
         deaths.clear()
       }
 
-      // Position every live (non-dying) enemy.
       nodes.forEach((node, id) => {
         if (dyingRef.current.has(id)) return
         const data = map.get(id)
@@ -144,45 +129,29 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
           node.style.opacity = '0'
           return
         }
-        if (data.parked) {
-          // Docked on the sword's plane at full UI size, and always in front of
-          // anything still travelling in the pipe. Settle in with a short
-          // transition from wherever it arrived.
-          if (node.dataset.mode !== 'parked') {
-            node.dataset.mode = 'parked'
-            node.style.transition = 'transform 340ms cubic-bezier(0.18, 0.7, 0.3, 1), opacity 220ms ease-out'
-          }
-          node.style.transform = `translate(${data.x}px, ${data.y}px) translate(-50%, -50%) scale(1)`
-          node.style.opacity = '1'
-          node.style.zIndex = String(PLANE_Z)
-          node.classList.add('is-active')
-          node.classList.remove('is-arriving')
-          // Cache a detached snapshot of the docked panel for the cut animation.
-          if (!snapshotRef.current.has(id)) {
-            const content = node.querySelector('.enemy-content')
-            if (content) snapshotRef.current.set(id, content.cloneNode(true))
-          }
-        } else {
-          // Flying down the tube: depth-projected, capped below full size, and
-          // stacked BEHIND the on-plane panels (nearer flyers above farther
-          // ones, but all under the plane).
-          if (node.dataset.mode !== 'flying') {
-            node.dataset.mode = 'flying'
-            node.style.transition = 'none'
-          }
-          const scale = Math.min(PIPE_MAX_SCALE, data.pixelRadius / NOMINAL_HALF)
-          node.style.transform = `translate(${data.x}px, ${data.y}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`
-          node.style.opacity = opacityFor(data.distanceAhead, config).toFixed(2)
-          const depthZ = Math.round((config.APPROACHING_DISTANCE - data.distanceAhead) * 20)
-          node.style.zIndex = String(Math.max(1, Math.min(PLANE_Z - 100, depthZ)))
-          node.classList.remove('is-active')
-          node.classList.toggle('is-arriving', data.state === 'arriving')
+
+        if (node.dataset.mode !== 'flying') {
+          node.dataset.mode = 'flying'
+          node.style.transition = 'none'
+        }
+
+        // Preserve perspective all the way through the player rather than
+        // snapping to a fixed sword plane. The panel can grow beyond full UI
+        // size as it passes, which carries it naturally off-screen.
+        const scale = Math.max(0.12, data.pixelRadius / NOMINAL_HALF)
+        node.style.transform = `translate(${data.x}px, ${data.y}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`
+        node.style.opacity = opacityFor(data.distanceAhead, config).toFixed(2)
+        const depthZ = Math.round((config.APPROACHING_DISTANCE - data.distanceAhead) * 20)
+        node.style.zIndex = String(Math.max(1, Math.min(PIPE_Z_BASE, depthZ)))
+        node.classList.toggle('is-active', data.state === 'active')
+        node.classList.toggle('is-arriving', data.state === 'arriving')
+
+        if (data.state === 'active' && !snapshotRef.current.has(id)) {
+          const content = node.querySelector('.enemy-content')
+          if (content) snapshotRef.current.set(id, content.cloneNode(true))
         }
       })
 
-      // Reconcile the mounted id set a few times a second. A dying foe is kept
-      // mounted (hidden) until its animation ends, so its panel stays available
-      // to snapshot; its cut halves themselves live in the separate death layer.
       frame += 1
       if (frame % 5 === 0) {
         const keys = [...map.keys()]
@@ -218,9 +187,6 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
 
   return (
     <>
-      {/* Non-React container: cut halves are appended here imperatively so list
-          re-renders can never wipe them. React renders it empty and leaves its
-          children alone. */}
       <div className="mandala-death-layer" ref={deathLayerRef} aria-hidden="true" />
       <div className="mandala-enemy-layer" aria-hidden="true">
         {ids.map((id) => {
