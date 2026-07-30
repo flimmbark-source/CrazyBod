@@ -9,8 +9,6 @@
 
 import { MANDALA_SCRIPT } from './mandalaScript.js'
 
-// Flatten a wave's spawn specs into an ordered release schedule (relative to the
-// start of the wave, in seconds).
 export function buildSchedule(wave) {
   const schedule = []
   for (const spec of wave?.spawns ?? []) {
@@ -35,6 +33,7 @@ export function createDirector(script = MANDALA_SCRIPT) {
     schedule: wave ? buildSchedule(wave) : [],
     released: 0,
     killsAtWaveStart: 0,
+    clearedAtWaveStart: 0,
     done: !wave,
   }
 }
@@ -47,8 +46,6 @@ export function currentWave(director, script = MANDALA_SCRIPT) {
   return currentSection(director, script)?.waves?.[director.waveIndex] ?? null
 }
 
-// Section effects, overlaid by the current wave's effects. Nested groups
-// (background / perception / interaction) merge shallowly.
 export function currentEffects(director, script = MANDALA_SCRIPT) {
   const section = currentSection(director, script)
   const wave = currentWave(director, script)
@@ -72,7 +69,7 @@ function nextIndices(director, script) {
   return null
 }
 
-function triggerMet(director, wave, killsThisWave) {
+function triggerMet(director, wave, killsThisWave, clearedThisWave) {
   const trigger = wave.advance ?? { type: 'cleared' }
   switch (trigger.type) {
     case 'timer':
@@ -83,15 +80,22 @@ function triggerMet(director, wave, killsThisWave) {
       return killsThisWave >= (trigger.count ?? 0)
     case 'cleared':
     default:
-      // Everything the wave will spawn has been released AND cleared.
-      return director.released >= director.schedule.length && killsThisWave >= director.schedule.length
+      // A passed encounter is finished for wave progression even though it was
+      // not killed; its consequence is carried separately as overload.
+      return director.released >= director.schedule.length && clearedThisWave >= director.schedule.length
   }
 }
 
-// Advance the director by one step. `totalKills` is the run's cumulative resolved
-// count (the director derives per-wave kills from it). Returns the next director,
-// the kinds to spawn this step, and any section/wave/complete events.
-export function advanceDirector(director, { deltaSeconds = 0, travelDelta = 0, totalKills = 0, script = MANDALA_SCRIPT } = {}) {
+export function advanceDirector(
+  director,
+  {
+    deltaSeconds = 0,
+    travelDelta = 0,
+    totalKills = 0,
+    totalCleared = totalKills,
+    script = MANDALA_SCRIPT,
+  } = {},
+) {
   if (director.done) return { director, spawns: [], events: [] }
   const wave = currentWave(director, script)
   if (!wave) return { director: { ...director, done: true }, spawns: [], events: [{ type: 'complete' }] }
@@ -107,8 +111,9 @@ export function advanceDirector(director, { deltaSeconds = 0, travelDelta = 0, t
 
   const working = { ...director, waveElapsed, waveDistance, released }
   const killsThisWave = totalKills - director.killsAtWaveStart
+  const clearedThisWave = totalCleared - director.clearedAtWaveStart
 
-  if (triggerMet(working, wave, killsThisWave)) {
+  if (triggerMet(working, wave, killsThisWave, clearedThisWave)) {
     const next = nextIndices(working, script)
     if (!next) {
       return { director: { ...working, done: true }, spawns, events: [{ type: 'complete' }] }
@@ -129,6 +134,7 @@ export function advanceDirector(director, { deltaSeconds = 0, travelDelta = 0, t
         schedule: buildSchedule(nextWave),
         released: 0,
         killsAtWaveStart: totalKills,
+        clearedAtWaveStart: totalCleared,
       },
       spawns,
       events,
