@@ -11,7 +11,7 @@ import cafeUrl from './freesound_community-cafe-noise-32940.mp3'
 import barkUrl from './OutsideSounds/audiopapkin-barking-large-and-small-dog-290711.mp3'
 import busIdleUrl from './OutsideSounds/freesound_community-bus-engine-idling-26992.mp3'
 import busPassUrl from './OutsideSounds/freesound_community-bus-passing-104115.mp3'
-import carnivalUrl from './OutsideSounds/freesound_community-street-carnival-2-68333.mp3'
+
 import cityUrl from './OutsideSounds/km007-city-ambience-9272.mp3'
 import motorcycleUrl from './OutsideSounds/universfield-fast-motorcycle-pass-by-559409.mp3'
 
@@ -168,7 +168,7 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       goHome: makeAudio(goHomeUrl),
       overloaded: makeAudio(overloadedUrl),
       cafe: makeAudio(cafeUrl, { loop: true, volume: 0.425 }),
-      outside: [barkUrl, busIdleUrl, busPassUrl, carnivalUrl, cityUrl, motorcycleUrl]
+      outside: [barkUrl, busIdleUrl, busPassUrl, cityUrl, motorcycleUrl]
         .map((url) => makeAudio(url, { volume: 0.35 }))
         .filter(Boolean),
     }
