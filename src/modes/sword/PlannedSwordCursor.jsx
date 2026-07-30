@@ -48,11 +48,8 @@ const POV = Object.freeze({
   AIM_MS: 430,
   HOLD_MS: 115,
   RECOVERY_MS: 360,
-  SLASH_SCALE: 3.25,
-  SLASH_ROTATE_X: 18,
-  SLASH_ROTATE_Y: -12,
-  SWAY_X: 52,
-  SWAY_Y: 24,
+  ANCHOR_SWAY_X: 34,
+  ANCHOR_SWAY_Y: 16,
 })
 
 const pointsString = (points) => points.map((point) => `${point.x},${point.y}`).join(' ')
@@ -75,6 +72,20 @@ function applyPose(node, pose, shake = null) {
     `scale(${pose.scale ?? 1})`,
   ].join(' ')
   node.style.opacity = '1'
+}
+
+function poseWithTipAt(anchor, tip, fallbackAngle) {
+  const dx = tip.x - anchor.x
+  const dy = tip.y - anchor.y
+  const distance = Math.hypot(dx, dy)
+  return {
+    x: anchor.x,
+    y: anchor.y,
+    angle: distance > 0.01 ? Math.atan2(dy, dx) : fallbackAngle,
+    scale: Math.max(0.01, distance / SWORD_PHYSICS.BLADE_LENGTH),
+    rotateX: 0,
+    rotateY: 0,
+  }
 }
 
 export default function PlannedSwordCursor({ enabled, registryRef, onResolve, perception }) {
@@ -225,7 +236,7 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
       const driver = { distance: 0 }
       let previousTip = metrics.points[0]
       const duration = Math.max(320, (metrics.length / SLASH_PATH_CONFIG.EXECUTION_SPEED) * 1000)
-      const povAnchor = {
+      const baseAnchor = {
         x: window.innerWidth * POV.X,
         y: window.innerHeight * POV.Y,
       }
@@ -237,25 +248,21 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
         onUpdate: () => {
           const sample = pointAtDistance(metrics, driver.distance)
           const tip = sample.point
-          const tangent = angleBetween(previousTip, tip, currentPoseRef.current.angle)
           const progress = metrics.length > 0 ? driver.distance / metrics.length : 1
           const screenX = window.innerWidth > 0 ? tip.x / window.innerWidth - 0.5 : 0
           const screenY = window.innerHeight > 0 ? tip.y / window.innerHeight - 0.5 : 0
-
-          // The sword remains held in the player's foreground. The path controls
-          // its facing and swing, while only a small body sway moves the hilt.
-          const pose = {
-            x: povAnchor.x + screenX * POV.SWAY_X,
-            y: povAnchor.y + screenY * POV.SWAY_Y,
-            angle: tangent,
-            scale: POV.SLASH_SCALE + Math.sin(progress * Math.PI) * 0.38,
-            rotateX: POV.SLASH_ROTATE_X + Math.sin(progress * Math.PI) * -12,
-            rotateY: POV.SLASH_ROTATE_Y + screenX * 18,
+          const anchor = {
+            x: baseAnchor.x + screenX * POV.ANCHOR_SWAY_X,
+            y: baseAnchor.y + screenY * POV.ANCHOR_SWAY_Y,
           }
+
+          // Solve the visible sword pose from the fixed POV hilt to the current
+          // authored path point. Scale is distance / blade length, so the rendered
+          // tip lands on the light line exactly instead of merely facing it.
+          const pose = poseWithTipAt(anchor, tip, currentPoseRef.current.angle)
           currentPoseRef.current = pose
           applyPose(bladeRef.current, pose)
 
-          // Collision and trail erasure still follow the authored line exactly.
           cutAlong(previousTip, tip, performance.now())
           previousTip = tip
           if (planRef.current) {
