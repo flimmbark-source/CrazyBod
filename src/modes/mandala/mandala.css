@@ -81,6 +81,7 @@
   top: 0;
   width: 236px;
   height: 202px;
+  opacity: 0; /* hidden until the rAF loop positions it */
   transform-origin: center;
   will-change: transform, opacity;
 }

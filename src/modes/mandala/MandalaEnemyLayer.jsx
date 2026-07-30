@@ -106,7 +106,7 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
         deaths.clear()
       }
 
-      // Position every live (non-dying) enemy from the projection.
+      // Position every live (non-dying) enemy.
       nodes.forEach((node, id) => {
         if (dyingRef.current.has(id)) return
         const data = map.get(id)
@@ -114,11 +114,29 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
           node.style.opacity = '0'
           return
         }
-        const scale = Math.min(1.7, data.pixelRadius / NOMINAL_HALF)
-        node.style.transform = `translate(${data.x}px, ${data.y}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`
-        node.style.opacity = opacityFor(data.distanceAhead, config).toFixed(2)
-        node.classList.toggle('is-active', data.state === 'active')
-        node.classList.toggle('is-arriving', data.state === 'arriving')
+        if (data.parked) {
+          // Docked at the sword's plane at full UI size. Settle in with a short
+          // transition from wherever it arrived.
+          if (node.dataset.mode !== 'parked') {
+            node.dataset.mode = 'parked'
+            node.style.transition = 'transform 340ms cubic-bezier(0.18, 0.7, 0.3, 1), opacity 220ms ease-out'
+          }
+          node.style.transform = `translate(${data.x}px, ${data.y}px) translate(-50%, -50%) scale(1)`
+          node.style.opacity = '1'
+          node.classList.add('is-active')
+          node.classList.remove('is-arriving')
+        } else {
+          // Flying down the tube: depth-projected, no transition.
+          if (node.dataset.mode !== 'flying') {
+            node.dataset.mode = 'flying'
+            node.style.transition = 'none'
+          }
+          const scale = Math.min(1.7, data.pixelRadius / NOMINAL_HALF)
+          node.style.transform = `translate(${data.x}px, ${data.y}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`
+          node.style.opacity = opacityFor(data.distanceAhead, config).toFixed(2)
+          node.classList.remove('is-active')
+          node.classList.toggle('is-arriving', data.state === 'arriving')
+        }
       })
 
       // Reconcile the mounted id set a few times a second.
@@ -164,7 +182,6 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
               if (node) nodesRef.current.set(id, node)
               else nodesRef.current.delete(id)
             }}
-            style={{ opacity: 0 }}
           >
             <span className="enemy-flash" />
             <div className="enemy-content">
