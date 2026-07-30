@@ -180,6 +180,8 @@
   letter-spacing: 0.12em;
   pointer-events: none;
 }
+.mandala-hud .mandala-section { font-size: 12px; color: #f6ecd2; opacity: 0.92; }
+.mandala-hud .mandala-section em { font-style: normal; color: #c9a24b; }
 .mandala-hud .mandala-depth { font-size: 15px; color: #f0b429; }
 .mandala-hud .mandala-load { font-size: 13px; }
 .mandala-hud .mandala-load.near-capacity { color: #f5837f; }

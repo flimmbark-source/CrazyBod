@@ -35,12 +35,31 @@ const HAMON_PATH =
   `M ${BASE_X + 5} ${PIVOT_Y + 0.6} ` +
   `Q ${MID_X} ${PIVOT_Y - 5.5} ${TIP_X - 3} ${PIVOT_Y - SORI + 3}`
 
+// Perception effects from the director change how the blade feels/aims.
+function physicsFor(profile) {
+  if (profile === 'heavy') {
+    return { ...SWORD_PHYSICS, DAMPING: 0.955, GRAVITY: SWORD_PHYSICS.GRAVITY * 1.35 }
+  }
+  if (profile === 'light') {
+    return {
+      ...SWORD_PHYSICS,
+      DAMPING: 0.9,
+      GRAVITY: SWORD_PHYSICS.GRAVITY * 0.6,
+      MIN_TIP_SPEED: SWORD_PHYSICS.MIN_TIP_SPEED * 0.85,
+    }
+  }
+  return SWORD_PHYSICS
+}
+
 // A physical sword. The cursor is the hand/pommel; the blade is a weighted
 // pendulum (swordPhysics) that trails, whips and settles as you move. A game is
 // cut only when the blade TIP traces across it — entering its hitbox and exiting
 // again (a full pass), while whipping fast enough. That entry->exit trace is the
 // cut line. Merely resting the blade on a game, or grazing its edge, never cuts.
-export default function SwordCursor({ enabled, registryRef, onResolve }) {
+//
+// `perception` (from the Mandala director) can mirror the aim (invertPointerX)
+// and swap the blade profile (light / heavy) mid-descent.
+export default function SwordCursor({ enabled, registryRef, onResolve, perception }) {
   const [flashes, setFlashes] = useState([])
   const layerRef = useRef(null)
   const bladeRef = useRef(null)
@@ -54,6 +73,9 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
   const crossingRef = useRef(new Map())
   const onResolveRef = useRef(onResolve)
   onResolveRef.current = onResolve
+  // Latest perception effects, read live inside the frame loop / pointer handler.
+  const perceptionRef = useRef(perception)
+  perceptionRef.current = perception
 
   useEffect(() => {
     if (!enabled) return undefined
@@ -69,7 +91,11 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
     crossingRef.current.clear()
 
     const onMove = (event) => {
-      handRef.current = { x: event.clientX, y: event.clientY }
+      // Inverted aim mirrors horizontal motion around the screen centre.
+      const x = perceptionRef.current?.invertPointerX
+        ? window.innerWidth - event.clientX
+        : event.clientX
+      handRef.current = { x, y: event.clientY }
     }
     window.addEventListener('pointermove', onMove, { passive: true })
 
@@ -89,7 +115,8 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
       last = now
       const hand = handRef.current
 
-      const state = stepSword(stateRef.current, { hand, dt })
+      const physicsConfig = physicsFor(perceptionRef.current?.bladeProfile)
+      const state = stepSword(stateRef.current, { hand, dt, config: physicsConfig })
       stateRef.current = state
 
       // Draw the blade: translate the pivot onto the hand, rotate to the tip.
@@ -110,7 +137,7 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
       // Cut: a game is resolved only when the tip TRACES ACROSS it — entering
       // its hitbox and exiting again, while whipping fast enough on the way. The
       // entry->exit chord is the cut line.
-      const swinging = isSwinging(state)
+      const swinging = isSwinging(state, physicsConfig)
       if (layerRef.current) layerRef.current.classList.toggle('is-swinging', swinging)
 
       const registry = registryRef.current

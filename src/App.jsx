@@ -1163,6 +1163,8 @@ function App() {
               enemiesRef={mandalaEnemiesRef}
               inputsRef={mandalaInputsRef}
               onOverload={handleMandalaOverload}
+              background={mandala.sample.effects.background}
+              twistScale={mandala.sample.effects.interaction.twistScale ?? 1}
             />
           ) : (
             <>
@@ -1186,8 +1188,17 @@ function App() {
             enabled={progressionEffects.swordEnabled}
             registryRef={mandalaRegistryRef}
             onResolve={handleMandalaResolve}
+            perception={mandala.sample.effects.perception}
           />
           <div className="mandala-hud" aria-live="polite">
+            {mandala.sample.sectionName && (
+              <span className="mandala-section">
+                {mandala.sample.sectionName}
+                {mandala.sample.waveCount > 0 && (
+                  <em> · WAVE {mandala.sample.waveIndex + 1}/{mandala.sample.waveCount}</em>
+                )}
+              </span>
+            )}
             <span className="mandala-depth">DEPTH {Math.round(mandala.sample.depth)}</span>
             <span className={`mandala-load${mandala.sample.activeCount >= capacity - 1 ? ' near-capacity' : ''}`}>
               LOAD {mandala.sample.activeCount}/{capacity}

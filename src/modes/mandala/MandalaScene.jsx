@@ -28,8 +28,8 @@ function landingSlot(encounter, camera, size, config) {
   const x = (tmp.x * 0.5 + 0.5) * size.width
   const y = (-tmp.y * 0.5 + 0.5) * size.height
   return {
-    x: clamp(x, 128, size.width - 128),
-    y: clamp(y, 150, size.height - 118),
+    x: clamp(x, 122, size.width - 122),
+    y: clamp(y, 126, size.height - 114),
   }
 }
 
@@ -39,7 +39,7 @@ function landingSlot(encounter, camera, size, config) {
 // plane it parks at a fixed screen slot at full UI size and becomes cuttable —
 // the sword only cuts panels on its plane. The result feeds `enemiesRef` (the
 // DOM panel layer) and `registryRef` (the sword's hitboxes).
-function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, registryRef, config }) {
+function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, registryRef, twistScale = 1, config }) {
   const camera = useThree((state) => state.camera)
   const size = useThree((state) => state.size)
   const parkRef = useRef(new Map())
@@ -60,7 +60,7 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, regis
     camera.position.set(here.x * 0.35, here.y * 0.35, 0)
     camera.up.set(0, 1, 0)
     camera.lookAt(ahead.x, ahead.y, -14)
-    camera.rotation.z += Math.sin(run.travelDistance * config.UNDULATION_FREQ * 1.3) * 0.12
+    camera.rotation.z += Math.sin(run.travelDistance * config.UNDULATION_FREQ * 1.3) * 0.12 * twistScale
 
     const enemies = enemiesRef.current
     const registry = registryRef.current
@@ -150,17 +150,24 @@ export default function MandalaScene({
   enemiesRef,
   inputsRef,
   onOverload,
+  background = {},
+  twistScale = 1,
   config = MANDALA_CONFIG,
 }) {
   const enemiesFallback = useRef(new Map())
   const enemies = enemiesRef ?? enemiesFallback
 
+  // Background + fog come from the director's current section/wave effects.
+  const color = background.color ?? '#0d0a14'
+  const fogNear = background.fogNear ?? 12
+  const fogFar = background.fogFar ?? 62
+
   // color/fog must attach at the scene root, so they are top-level here (not
   // wrapped in a group) — MandalaScene is a direct child of the Canvas.
   return (
     <>
-      <color attach="background" args={['#0d0a14']} />
-      <fog attach="fog" args={['#0d0a14', 12, 62]} />
+      <color attach="background" args={[color]} />
+      <fog attach="fog" args={[color, fogNear, fogFar]} />
       <ambientLight intensity={0.9} />
       <pointLight position={[0, 0, 2]} intensity={2.4} distance={40} color="#ffd9a0" />
       <MandalaStepper
@@ -170,9 +177,10 @@ export default function MandalaScene({
         onOverload={onOverload}
         enemiesRef={enemies}
         registryRef={registryRef}
+        twistScale={twistScale}
         config={config}
       />
-      <MandalaTube runRef={runRef} config={config} />
+      <MandalaTube runRef={runRef} twistScale={twistScale} config={config} />
     </>
   )
 }

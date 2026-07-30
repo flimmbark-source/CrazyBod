@@ -34,15 +34,16 @@ export const MANDALA_CONFIG = Object.freeze({
   // How far ahead of the player we keep the route populated with encounters.
   LOOKAHEAD_DISTANCE: 70,
   // Lateral spread of encounters inside the tube (fraction of tube radius).
-  MAX_PATH_OFFSET: 0.55,
+  // Wider spread + wider tube => foes land across more of the screen.
+  MAX_PATH_OFFSET: 0.82,
 
   // --- Tube visuals -------------------------------------------------------
-  TUBE_RADIUS: 3.1,
+  TUBE_RADIUS: 4.8, // wider pipe, so landing spots fill more of the screen
   RING_SPACING: 4,
-  RING_COUNT: 26,
+  RING_COUNT: 30,
   // Undulation: the tube axis wanders on sine waves of these amplitudes.
-  UNDULATION_X: 1.5,
-  UNDULATION_Y: 1.1,
+  UNDULATION_X: 1.7,
+  UNDULATION_Y: 1.25,
   UNDULATION_FREQ: 0.055, // cycles per world unit of depth
   TWIST_PER_UNIT: 0.9, // degrees of ring roll per world unit of depth
 

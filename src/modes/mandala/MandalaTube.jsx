@@ -9,7 +9,7 @@ const DEG = Math.PI / 180
 // A tunnel of rings marching toward the camera. Each ring's centre rides the
 // same undulating axis the encounters use, and rings recycle from back to front
 // so travel reads as continuous forward motion of unbounded depth.
-export default function MandalaTube({ runRef, config = MANDALA_CONFIG }) {
+export default function MandalaTube({ runRef, twistScale = 1, config = MANDALA_CONFIG }) {
   const ringsRef = useRef([])
 
   const ringColors = useMemo(
@@ -33,7 +33,7 @@ export default function MandalaTube({ runRef, config = MANDALA_CONFIG }) {
       const depth = anchor + i * config.RING_SPACING
       const axis = mandalaAxisAt(depth, config)
       ring.position.set(axis.x, axis.y, travel - depth)
-      ring.rotation.z = depth * config.TWIST_PER_UNIT * DEG
+      ring.rotation.z = depth * config.TWIST_PER_UNIT * DEG * twistScale
     }
   })
 

@@ -55,15 +55,6 @@ function stepRng(seed) {
   return { value, seed: t }
 }
 
-// Distance-based gap between encounters. Wide early (teaching), tightening with
-// depth down to a floor, so encounter pressure rises gradually.
-export function spacingAt(depth, config = MANDALA_CONFIG) {
-  return Math.max(
-    config.MIN_SPACING,
-    config.INTRO_SPACING - depth * config.SPACING_RAMP_PER_UNIT,
-  )
-}
-
 // Classify a distance-ahead into a lifecycle state, moving forward only.
 function progressEncounterState(current, distanceAhead, config) {
   // active / resolved / passed are terminal-ish and never regress.
@@ -78,69 +69,52 @@ function progressEncounterState(current, distanceAhead, config) {
   return rankOf(target) > rankOf(current) ? target : current
 }
 
-// Populate the route ahead of the player up to the lookahead horizon. Purely a
-// function of distance travelled, so faster travel (Dive) reaches encounters
-// sooner but never produces more of them per unit of depth.
-function placeEncounters(working, config) {
-  const horizon = working.travelDistance + config.LOOKAHEAD_DISTANCE
-  let { lastPlacedZ, rngSeed, nextId } = working
-  const added = []
+// Inject one encounter, flying in ahead of the player. Spawns are driven by the
+// director (mandalaDirector.js), not by travel — so who/when/how-many is
+// authored, while travel + Dive still govern how fast a spawned foe arrives.
+// The lateral offset and a little distance jitter come from the state's PRNG so
+// the same seed produces the same run.
+export function spawnEncounter(state, { kind, distanceAhead, config = MANDALA_CONFIG }) {
+  let rngSeed = state.rngSeed
+  const ox = stepRng(rngSeed); rngSeed = ox.seed
+  const oy = stepRng(rngSeed); rngSeed = oy.seed
+  const oj = stepRng(rngSeed); rngSeed = oj.seed
 
-  while (lastPlacedZ + spacingAt(lastPlacedZ, config) <= horizon) {
-    const routeZ = lastPlacedZ + spacingAt(lastPlacedZ, config)
+  const base = distanceAhead ?? config.FIRST_ENCOUNTER_DISTANCE
+  const jitter = (oj.value - 0.5) * 8
+  const routeZ = state.travelDistance + base + jitter
 
-    const ox = stepRng(rngSeed)
-    rngSeed = ox.seed
-    const oy = stepRng(rngSeed)
-    rngSeed = oy.seed
-    const ok = stepRng(rngSeed)
-    rngSeed = ok.seed
-
-    // Each foe IS one of the game's microgames.
-    const kinds = config.ENEMY_KINDS ?? []
-    const sourceMicrogameKind = kinds.length > 0
-      ? kinds[Math.floor(ok.value * kinds.length) % kinds.length]
-      : null
-
-    added.push({
-      id: `mandala-encounter-${nextId}`,
-      kind: 'slash-target',
-      routeZ,
-      offset: {
-        x: (ox.value * 2 - 1) * config.MAX_PATH_OFFSET,
-        y: (oy.value * 2 - 1) * config.MAX_PATH_OFFSET,
-      },
-      state: ENCOUNTER_STATES.DISTANT,
-      hitsRemaining: 1,
-      sourceMicrogameKind,
-    })
-    nextId += 1
-    lastPlacedZ = routeZ
+  const encounter = {
+    id: `mandala-encounter-${state.nextId}`,
+    kind: 'slash-target',
+    routeZ,
+    offset: {
+      x: (ox.value * 2 - 1) * config.MAX_PATH_OFFSET,
+      y: (oy.value * 2 - 1) * config.MAX_PATH_OFFSET,
+    },
+    state: ENCOUNTER_STATES.DISTANT,
+    hitsRemaining: 1,
+    sourceMicrogameKind: kind ?? null,
   }
 
-  if (added.length === 0) return working
   return {
-    ...working,
-    encounters: [...working.encounters, ...added],
-    lastPlacedZ,
+    ...state,
+    encounters: [...state.encounters, encounter],
     rngSeed,
-    nextId,
+    nextId: state.nextId + 1,
   }
 }
 
 export function createMandalaRun(config = MANDALA_CONFIG, seed = 1) {
-  const base = {
+  return {
     phase: MANDALA_PHASES.ENTERING,
     travelDistance: 0,
     encounters: [],
-    // Seed placement so the first encounter lands at FIRST_ENCOUNTER_DISTANCE.
-    lastPlacedZ: config.FIRST_ENCOUNTER_DISTANCE - spacingAt(config.FIRST_ENCOUNTER_DISTANCE, config),
     rngSeed: seed >>> 0,
     nextId: 0,
     resolvedCount: 0,
     maxDepth: 0,
   }
-  return placeEncounters(base, config)
 }
 
 export function toTravelling(state) {
@@ -182,11 +156,7 @@ export function advanceMandala(state, { deltaSeconds, travelSpeed, config = MAND
     return encounter.routeZ - travelDistance > config.SLASH_REAR_LIMIT - 12
   })
 
-  const advanced = placeEncounters(
-    { ...state, travelDistance, encounters, maxDepth: Math.max(state.maxDepth, travelDistance) },
-    config,
-  )
-  return advanced
+  return { ...state, travelDistance, encounters, maxDepth: Math.max(state.maxDepth, travelDistance) }
 }
 
 // Resolve an encounter that is currently interactable (active, or arriving for a
