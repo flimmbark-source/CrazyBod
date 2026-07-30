@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MICROGAME_NAMES, NewMicrogameContent } from '../../minigames/catalog.jsx'
 import { MANDALA_CONFIG } from './mandalaConfig.js'
 import { cutPolygonCssByLine, lineNormal } from '../sword/sliceGeometry.js'
+import { SWORD_PHYSICS } from '../sword/swordPhysics.js'
 
 // The foes are the game's real microgames — rendered with the actual microgame
 // window markup + CSS, so they look identical to their counterparts elsewhere.
@@ -16,7 +17,10 @@ import { cutPolygonCssByLine, lineNormal } from '../sword/sliceGeometry.js'
 const ENEMY_W = 236
 const ENEMY_H = 202
 const NOMINAL_HALF = ENEMY_W / 2
-const DEATH_MS = 540
+// Death tuning lives with the sword config, so sword + whip + death are set in
+// one place.
+const DEATH_MS = SWORD_PHYSICS.DEATH_MS
+const DEATH_SEPARATION = SWORD_PHYSICS.DEATH_SEPARATION
 const NOOP = () => {}
 // Docked (on-plane) panels sit at this stacking level; foes still in the pipe
 // stack below it (by depth), so the UI-plane panels are always in front.
@@ -92,6 +96,7 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
         for (const side of [1, -1]) {
           const half = document.createElement('div')
           half.className = 'enemy-half'
+          half.style.transition = `transform ${DEATH_MS}ms cubic-bezier(0.2, 0.6, 0.3, 1), opacity ${DEATH_MS}ms ease-out`
           const css = cutPolygonCssByLine(ENEMY_W, ENEMY_H, p1, p2, side)
           half.style.clipPath = css
           half.style.webkitClipPath = css
@@ -100,8 +105,8 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
           half.appendChild(snapshot)
           group.appendChild(half)
           window.requestAnimationFrame(() => {
-            const dx = (side * normal.x * 58).toFixed(1)
-            const dy = (side * normal.y * 58).toFixed(1)
+            const dx = (side * normal.x * DEATH_SEPARATION).toFixed(1)
+            const dy = (side * normal.y * DEATH_SEPARATION).toFixed(1)
             half.style.transform = `translate(${dx}px, ${dy}px) rotate(${side * 8}deg)`
             half.style.opacity = '0'
           })

@@ -65,6 +65,35 @@ export function segmentIntersectsCircle(a, b, center, radius) {
   return pointSegmentDistance(center, a, b) <= radius
 }
 
+// A point a fraction t along the segment p0 -> p1.
+export function pointAlong(p0, p1, t) {
+  return { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t }
+}
+
+// Parameters t in [0, 1] where the segment p0 -> p1 crosses the circle boundary
+// (centre c, radius r), sorted ascending. Empty if it misses; one value if it
+// starts or ends inside; two if it passes clean through. Used to find exactly
+// where the whip entered and left a game.
+export function segmentCircleIntersections(p0, p1, c, r) {
+  const dx = p1.x - p0.x
+  const dy = p1.y - p0.y
+  const a = dx * dx + dy * dy
+  if (a === 0) return []
+  const fx = p0.x - c.x
+  const fy = p0.y - c.y
+  const b = 2 * (fx * dx + fy * dy)
+  const cc = fx * fx + fy * fy - r * r
+  const disc = b * b - 4 * a * cc
+  if (disc < 0) return []
+  const sq = Math.sqrt(disc)
+  const t1 = (-b - sq) / (2 * a)
+  const t2 = (-b + sq) / (2 * a)
+  const out = []
+  if (t1 >= 0 && t1 <= 1) out.push(t1)
+  if (t2 >= 0 && t2 <= 1 && t2 !== t1) out.push(t2)
+  return out
+}
+
 // Given a slash segment and a list of active targets ({id, x, y, radius}),
 // return the ids the slash cuts. Each target appears at most once. `resolvedIds`
 // (a Set) lets the caller guarantee one-resolution-per-target across a gesture.
