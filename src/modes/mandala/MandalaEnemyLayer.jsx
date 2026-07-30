@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { MICROGAME_NAMES, NewMicrogameContent } from '../../minigames/catalog.jsx'
 import { MANDALA_CONFIG } from './mandalaConfig.js'
-import { cutPolygonCss, cutNormal } from '../sword/sliceGeometry.js'
+import { cutPolygonCssByLine, lineNormal } from '../sword/sliceGeometry.js'
 
 // The foes are the game's real microgames — rendered with the actual microgame
 // window markup + CSS, so they look identical to their counterparts elsewhere.
@@ -53,7 +53,9 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
   const [ids, setIds] = useState([])
   const nodesRef = useRef(new Map())
   const kindRef = useRef(new Map()) // id -> kind, captured once
-  const dyingRef = useRef(new Set())
+  const snapshotRef = useRef(new Map()) // id -> detached clone of the parked panel
+  const dyingRef = useRef(new Set()) // guard against double-processing a death
+  const deathLayerRef = useRef(null) // non-React container for the cut halves
   const sigRef = useRef('')
   const timersRef = useRef([])
 
@@ -61,41 +63,59 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
     let raf
     let frame = 0
 
-    const startDeath = (id, node, angle) => {
+    // Build the cut halves in a separate, non-React container so React's list
+    // re-renders (constant, as foes arrive) can never wipe them. The live enemy
+    // node is just hidden and unmounts normally once the sim drops it.
+    const startDeath = (id, node, cut) => {
       if (dyingRef.current.has(id)) return
       dyingRef.current.add(id)
-      node.classList.remove('is-active', 'is-arriving')
-      node.classList.add('is-dying')
 
-      const content = node.querySelector('.enemy-content')
-      if (content) {
-        content.style.visibility = 'hidden' // hide the live panel; halves take over
-        const normal = cutNormal(angle)
+      const container = deathLayerRef.current
+      // Prefer the cached detached snapshot (survives unmount); fall back to the
+      // live node if it's still around.
+      const content = snapshotRef.current.get(id) ?? node?.querySelector('.enemy-content')
+      if (node) node.style.opacity = '0' // hide the live panel immediately
+
+      if (container && content && cut && Number.isFinite(cut.cx)) {
+        const group = document.createElement('div')
+        group.className = 'mandala-death'
+        group.style.left = `${cut.cx}px`
+        group.style.top = `${cut.cy}px`
+
+        // Map the blade segment into the panel's local coords (parked = scale 1,
+        // centred on cx,cy → pure translation), so the split follows exactly
+        // where the blade crossed the panel.
+        const p1 = { x: cut.ax - cut.cx + ENEMY_W / 2, y: cut.ay - cut.cy + ENEMY_H / 2 }
+        const p2 = { x: cut.bx - cut.cx + ENEMY_W / 2, y: cut.by - cut.cy + ENEMY_H / 2 }
+        const normal = lineNormal(p1, p2)
+
         for (const side of [1, -1]) {
           const half = document.createElement('div')
           half.className = 'enemy-half'
-          const css = cutPolygonCss(ENEMY_W, ENEMY_H, angle, side)
+          const css = cutPolygonCssByLine(ENEMY_W, ENEMY_H, p1, p2, side)
           half.style.clipPath = css
           half.style.webkitClipPath = css
           const snapshot = content.cloneNode(true) // static snapshot of the exact panel
           snapshot.style.visibility = 'visible'
           half.appendChild(snapshot)
-          node.appendChild(half)
-          // Next frame: slide the half apart along the cut normal + fade.
+          group.appendChild(half)
           window.requestAnimationFrame(() => {
-            const dx = (side * normal.x * 54).toFixed(1)
-            const dy = (side * normal.y * 54).toFixed(1)
-            half.style.transform = `translate(${dx}px, ${dy}px) rotate(${side * 9}deg)`
+            const dx = (side * normal.x * 58).toFixed(1)
+            const dy = (side * normal.y * 58).toFixed(1)
+            half.style.transform = `translate(${dx}px, ${dy}px) rotate(${side * 8}deg)`
             half.style.opacity = '0'
           })
         }
+
+        const flash = document.createElement('span')
+        flash.className = 'enemy-flash'
+        group.appendChild(flash)
+
+        container.appendChild(group)
+        timersRef.current.push(window.setTimeout(() => group.remove(), DEATH_MS))
       }
 
-      const timer = window.setTimeout(() => {
-        dyingRef.current.delete(id)
-        sigRef.current = '__resync__'
-      }, DEATH_MS)
-      timersRef.current.push(timer)
+      timersRef.current.push(window.setTimeout(() => dyingRef.current.delete(id), DEATH_MS))
     }
 
     const loop = () => {
@@ -105,9 +125,8 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
 
       // Start death animations for foes the sword just cut (id -> cut angle).
       if (deaths.size) {
-        deaths.forEach((angle, id) => {
-          const node = nodes.get(id)
-          if (node) startDeath(id, node, angle)
+        deaths.forEach((cut, id) => {
+          startDeath(id, nodes.get(id), cut)
         })
         deaths.clear()
       }
@@ -133,6 +152,11 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
           node.style.zIndex = String(PLANE_Z)
           node.classList.add('is-active')
           node.classList.remove('is-arriving')
+          // Cache a detached snapshot of the docked panel for the cut animation.
+          if (!snapshotRef.current.has(id)) {
+            const content = node.querySelector('.enemy-content')
+            if (content) snapshotRef.current.set(id, content.cloneNode(true))
+          }
         } else {
           // Flying down the tube: depth-projected, capped below full size, and
           // stacked BEHIND the on-plane panels (nearer flyers above farther
@@ -151,7 +175,9 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
         }
       })
 
-      // Reconcile the mounted id set a few times a second.
+      // Reconcile the mounted id set a few times a second. A dying foe is kept
+      // mounted (hidden) until its animation ends, so its panel stays available
+      // to snapshot; its cut halves themselves live in the separate death layer.
       frame += 1
       if (frame % 5 === 0) {
         const keys = [...map.keys()]
@@ -165,6 +191,9 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
           }
           for (const id of kindRef.current.keys()) {
             if (!union.includes(id)) kindRef.current.delete(id)
+          }
+          for (const id of snapshotRef.current.keys()) {
+            if (!union.includes(id) && !dyingRef.current.has(id)) snapshotRef.current.delete(id)
           }
           setIds(union)
         }
@@ -183,25 +212,30 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
   }, [enemiesRef, deathsRef, config])
 
   return (
-    <div className="mandala-enemy-layer" aria-hidden="true">
-      {ids.map((id) => {
-        const kind = kindRef.current.get(id)
-        return (
-          <div
-            key={id}
-            className="mandala-enemy"
-            ref={(node) => {
-              if (node) nodesRef.current.set(id, node)
-              else nodesRef.current.delete(id)
-            }}
-          >
-            <span className="enemy-flash" />
-            <div className="enemy-content">
-              <EnemyMicrogame kind={kind} />
+    <>
+      {/* Non-React container: cut halves are appended here imperatively so list
+          re-renders can never wipe them. React renders it empty and leaves its
+          children alone. */}
+      <div className="mandala-death-layer" ref={deathLayerRef} aria-hidden="true" />
+      <div className="mandala-enemy-layer" aria-hidden="true">
+        {ids.map((id) => {
+          const kind = kindRef.current.get(id)
+          return (
+            <div
+              key={id}
+              className="mandala-enemy"
+              ref={(node) => {
+                if (node) nodesRef.current.set(id, node)
+                else nodesRef.current.delete(id)
+              }}
+            >
+              <div className="enemy-content">
+                <EnemyMicrogame kind={kind} />
+              </div>
             </div>
-          </div>
-        )
-      })}
-    </div>
+          )
+        })}
+      </div>
+    </>
   )
 }

@@ -15,32 +15,22 @@ const PARK_NOMINAL_HALF = 118
 // Slash hitbox radius for a parked panel (screen px).
 const PARK_RADIUS = 104
 
-// When a foe reaches the plane it docks at a fixed screen slot, like a regular
-// microgame window. Pick a slot that avoids the HUD and keeps clear of the other
-// parked panels where possible.
-function assignParkSlot(occupied, size) {
-  const halfW = 122
-  const halfH = 108
-  const minX = halfW + 24
-  const maxX = Math.max(minX, size.width - halfW - 24)
-  const minY = 96 + halfH
-  const maxY = Math.max(minY, size.height - halfH - 66)
-  const slots = [...occupied.values()]
-  let best = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
-  let bestDist = -1
-  for (let i = 0; i < 40; i += 1) {
-    const x = minX + Math.random() * (maxX - minX)
-    const y = minY + Math.random() * (maxY - minY)
-    if (slots.length === 0) return { x, y }
-    let nearest = Infinity
-    for (const slot of slots) nearest = Math.min(nearest, Math.hypot(x - slot.x, y - slot.y))
-    if (nearest > 250) return { x, y }
-    if (nearest > bestDist) {
-      bestDist = nearest
-      best = { x, y }
-    }
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+
+// Where a foe lands when it reaches the plane: its own projected screen position
+// at the interaction plane, so it docks exactly where it arrives (no relocation)
+// — only nudged to stay fully on-screen and clear of the HUD.
+function landingSlot(encounter, camera, size, config) {
+  const axis = mandalaAxisAt(encounter.routeZ, config)
+  const worldX = axis.x + encounter.offset.x * config.TUBE_RADIUS
+  const worldY = axis.y + encounter.offset.y * config.TUBE_RADIUS
+  tmp.set(worldX, worldY, -config.INTERACTION_DISTANCE).project(camera)
+  const x = (tmp.x * 0.5 + 0.5) * size.width
+  const y = (-tmp.y * 0.5 + 0.5) * size.height
+  return {
+    x: clamp(x, 128, size.width - 128),
+    y: clamp(y, 150, size.height - 118),
   }
-  return best
 }
 
 // The single per-frame driver: advances the sim, flies the camera down the
@@ -91,7 +81,7 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, regis
       if (encounter.state === ENCOUNTER_STATES.ACTIVE) {
         let slot = parked.get(encounter.id)
         if (!slot) {
-          slot = assignParkSlot(parked, size)
+          slot = landingSlot(encounter, camera, size, config)
           parked.set(encounter.id, slot)
         }
         enemies.set(encounter.id, {

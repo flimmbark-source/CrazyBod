@@ -115,8 +115,22 @@
 .mandala-enemy.is-arriving .microgame { box-shadow: 7px 8px 0 rgba(40, 35, 49, 0.72), 0 0 0 2px rgba(240, 180, 41, 0.45); }
 
 /* Death: the panel is snapshotted and split into two halves clipped along the
-   swing line (clip-path set inline), which slide apart + fade (transform set
-   inline the next frame). A bright flash marks the cut. */
+   actual blade line, which slide apart + fade. Rendered in a separate,
+   non-React layer (.mandala-death-layer) so list re-renders can't wipe them. */
+.mandala-death-layer {
+  position: fixed;
+  z-index: 3000; /* on the plane, above in-pipe foes */
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mandala-death {
+  position: absolute;
+  width: 236px;
+  height: 202px;
+  transform: translate(-50%, -50%);
+}
+
 .enemy-half {
   position: absolute;
   inset: 0;
@@ -133,7 +147,7 @@
   opacity: 0;
   pointer-events: none;
 }
-.mandala-enemy.is-dying .enemy-flash { animation: enemy-flash 520ms ease-out forwards; }
+.mandala-death .enemy-flash { animation: enemy-flash 520ms ease-out forwards; }
 
 @keyframes enemy-flash {
   0% { opacity: 0; }
