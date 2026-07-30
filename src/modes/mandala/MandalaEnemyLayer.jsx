@@ -1,36 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { MICROGAME_NAMES } from '../../minigames/catalog.jsx'
+import { MICROGAME_NAMES, NewMicrogameContent } from '../../minigames/catalog.jsx'
 import { MANDALA_CONFIG } from './mandalaConfig.js'
+import { cutPolygonCss, cutNormal } from '../sword/sliceGeometry.js'
 
-// The foes are the game's microgames, rendered as their little windows. Each
-// panel is positioned + scaled every frame from the shared screen-space
-// projection (enemiesRef, filled by MandalaScene's stepper), so it reads as the
-// same minigame travelling down the tube toward the player. When the katana
-// cuts one (its id lands in deathsRef) the panel is sliced in two and thrown
-// apart. Positioning is done imperatively (no React churn at 60fps); React only
-// mounts/unmounts the set of live ids.
+// The foes are the game's real microgames — rendered with the actual microgame
+// window markup + CSS, so they look identical to their counterparts elsewhere.
+// Each panel is positioned + depth-scaled every frame from the shared screen
+// projection (enemiesRef). When the katana cuts one, its id + cut angle land in
+// deathsRef; we snapshot the live panel (cloneNode) and split that snapshot into
+// two halves clipped along the actual swing line, then throw them apart.
 
-const NOMINAL_HALF = 66 // half the panel's nominal width; scale = pixelRadius/this
-const DEATH_MS = 520
+// Fixed enemy panel size (the microgame is stretched to fill it) so projection
+// scaling and the slice geometry share one coordinate space.
+const ENEMY_W = 236
+const ENEMY_H = 202
+const NOMINAL_HALF = ENEMY_W / 2
+const DEATH_MS = 540
+const NOOP = () => {}
 
-// Microgame kind -> header colour, mirroring the surface minigame windows.
-const CATEGORY_COLOR = {
-  discomfort: '#a45f62',
-  tremor: '#8d5e72',
-  dizziness: '#8d5e72',
-  checking: '#bb6c48',
-  racingHeart: '#bb6c48',
-  anxiety: '#c46f43',
-  workingMemory: '#657c8f',
-  directionLoss: '#657c8f',
-  brainFog: '#657c8f',
-  heavyEyes: '#625d82',
-  microRest: '#625d82',
-  fatigue: '#625d82',
-  lightSensitivity: '#6e7d61',
-}
-const colorFor = (kind) => CATEGORY_COLOR[kind] ?? '#6b5d76'
 const nameFor = (kind) => (kind && MICROGAME_NAMES[kind]) || 'SYMPTOM'
 
 function opacityFor(distanceAhead, config) {
@@ -40,14 +28,16 @@ function opacityFor(distanceAhead, config) {
   return Math.max(0.3, Math.min(1, 0.3 + t * 0.7))
 }
 
-function EnemyCard({ meta }) {
+// The real microgame window, exactly as the rest of the game renders it.
+function EnemyMicrogame({ kind }) {
   return (
-    <div className="enemy-card" style={{ '--enemy-accent': meta.color }}>
-      <div className="enemy-card-header">{meta.name}</div>
-      <div className="enemy-card-body">
+    <div className={`microgame microgame-${kind} mandala-enemy-microgame`}>
+      <div className="microgame-header">
+        <span>{nameFor(kind)}</span>
         <i />
-        <i />
-        <i />
+      </div>
+      <div className="microgame-body">
+        <NewMicrogameContent kind={kind} onResolve={NOOP} />
       </div>
     </div>
   )
@@ -56,7 +46,7 @@ function EnemyCard({ meta }) {
 export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MANDALA_CONFIG }) {
   const [ids, setIds] = useState([])
   const nodesRef = useRef(new Map())
-  const metaRef = useRef(new Map()) // id -> {name,color}, captured once and kept
+  const kindRef = useRef(new Map()) // id -> kind, captured once
   const dyingRef = useRef(new Set())
   const sigRef = useRef('')
   const timersRef = useRef([])
@@ -65,14 +55,39 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
     let raf
     let frame = 0
 
-    const startDeath = (id, node) => {
+    const startDeath = (id, node, angle) => {
       if (dyingRef.current.has(id)) return
       dyingRef.current.add(id)
       node.classList.remove('is-active', 'is-arriving')
       node.classList.add('is-dying')
+
+      const content = node.querySelector('.enemy-content')
+      if (content) {
+        content.style.visibility = 'hidden' // hide the live panel; halves take over
+        const normal = cutNormal(angle)
+        for (const side of [1, -1]) {
+          const half = document.createElement('div')
+          half.className = 'enemy-half'
+          const css = cutPolygonCss(ENEMY_W, ENEMY_H, angle, side)
+          half.style.clipPath = css
+          half.style.webkitClipPath = css
+          const snapshot = content.cloneNode(true) // static snapshot of the exact panel
+          snapshot.style.visibility = 'visible'
+          half.appendChild(snapshot)
+          node.appendChild(half)
+          // Next frame: slide the half apart along the cut normal + fade.
+          window.requestAnimationFrame(() => {
+            const dx = (side * normal.x * 54).toFixed(1)
+            const dy = (side * normal.y * 54).toFixed(1)
+            half.style.transform = `translate(${dx}px, ${dy}px) rotate(${side * 9}deg)`
+            half.style.opacity = '0'
+          })
+        }
+      }
+
       const timer = window.setTimeout(() => {
         dyingRef.current.delete(id)
-        sigRef.current = '__resync__' // force the next sync to drop this id
+        sigRef.current = '__resync__'
       }, DEATH_MS)
       timersRef.current.push(timer)
     }
@@ -82,11 +97,11 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
       const deaths = deathsRef.current
       const nodes = nodesRef.current
 
-      // Kick off death animations for foes the sword just cut.
+      // Start death animations for foes the sword just cut (id -> cut angle).
       if (deaths.size) {
-        deaths.forEach((id) => {
+        deaths.forEach((angle, id) => {
           const node = nodes.get(id)
-          if (node) startDeath(id, node)
+          if (node) startDeath(id, node, angle)
         })
         deaths.clear()
       }
@@ -99,7 +114,7 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
           node.style.opacity = '0'
           return
         }
-        const scale = data.pixelRadius / NOMINAL_HALF
+        const scale = Math.min(1.7, data.pixelRadius / NOMINAL_HALF)
         node.style.transform = `translate(${data.x}px, ${data.y}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`
         node.style.opacity = opacityFor(data.distanceAhead, config).toFixed(2)
         node.classList.toggle('is-active', data.state === 'active')
@@ -115,15 +130,11 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
         const sig = union.join('|')
         if (sig !== sigRef.current) {
           sigRef.current = sig
-          // Capture display meta once per id; prune meta for gone ids.
           for (const id of union) {
-            if (!metaRef.current.has(id)) {
-              const kind = map.get(id)?.kind
-              metaRef.current.set(id, { name: nameFor(kind), color: colorFor(kind) })
-            }
+            if (!kindRef.current.has(id)) kindRef.current.set(id, map.get(id)?.kind ?? null)
           }
-          for (const id of metaRef.current.keys()) {
-            if (!union.includes(id)) metaRef.current.delete(id)
+          for (const id of kindRef.current.keys()) {
+            if (!union.includes(id)) kindRef.current.delete(id)
           }
           setIds(union)
         }
@@ -144,7 +155,7 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
   return (
     <div className="mandala-enemy-layer" aria-hidden="true">
       {ids.map((id) => {
-        const meta = metaRef.current.get(id) ?? { name: 'SYMPTOM', color: '#6b5d76' }
+        const kind = kindRef.current.get(id)
         return (
           <div
             key={id}
@@ -156,11 +167,8 @@ export default function MandalaEnemyLayer({ enemiesRef, deathsRef, config = MAND
             style={{ opacity: 0 }}
           >
             <span className="enemy-flash" />
-            <div className="enemy-shell enemy-shell-top">
-              <EnemyCard meta={meta} />
-            </div>
-            <div className="enemy-shell enemy-shell-bottom">
-              <EnemyCard meta={meta} />
+            <div className="enemy-content">
+              <EnemyMicrogame kind={kind} />
             </div>
           </div>
         )

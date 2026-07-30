@@ -288,7 +288,9 @@ function App() {
   // DOM minigame-enemy layer renders from, plus the set of ids the sword just
   // cut (drained by the enemy layer to play death animations).
   const mandalaEnemiesRef = useRef(new Map())
-  const mandalaDeathsRef = useRef(new Set())
+  // id -> cut angle (radians) for foes the sword just cut; drained by the enemy
+  // layer to slice each panel along the actual swing line.
+  const mandalaDeathsRef = useRef(new Map())
   // Live inputs the in-Canvas stepper reads each frame. A stable object mutated
   // imperatively so key events never need a React re-render.
   const mandalaInputsRef = useRef({ diveEnabled: false, forwardHeld: false, capacity: 5 })
@@ -781,11 +783,11 @@ function App() {
     finishRun('overload', { ...summary, runId: mandalaRunIdRef.current })
   }, [finishRun])
 
-  // A cut foe: resolve it in the sim (removes its load) and flag its id so the
-  // enemy layer plays its death animation.
-  const handleMandalaResolve = useCallback((id) => {
+  // A cut foe: resolve it in the sim (removes its load) and record its id + the
+  // swing angle so the enemy layer slices its panel along the cut.
+  const handleMandalaResolve = useCallback((id, cutAngle = 0) => {
     mandala.resolveEncounter(id)
-    mandalaDeathsRef.current.add(id)
+    mandalaDeathsRef.current.set(id, cutAngle)
   }, [mandala])
 
   // TEMPORARY dev entry: available from the skill tree whenever the Sword is

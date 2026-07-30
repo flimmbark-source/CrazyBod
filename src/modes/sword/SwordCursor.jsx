@@ -119,9 +119,11 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
         }
         const segment = { a: hand, b: state.tip }
         const hits = targetsHitBySlash(segment, targets, resolvedIds)
+        // The cut line is the blade's current direction (hand -> tip).
+        const cutAngle = Math.atan2(state.tip.y - hand.y, state.tip.x - hand.x)
         hits.forEach((id) => {
           const entry = registryRef.current.get(id)
-          onResolveRef.current?.(id)
+          onResolveRef.current?.(id, cutAngle)
           cooldownRef.current.set(id, now)
           if (entry) addFlash(entry.x, entry.y)
         })
