@@ -13,8 +13,8 @@
 // carries momentum and takes its time to change direction.
 export const SWORD_PHYSICS = Object.freeze({
   BLADE_LENGTH: 132, // px from hand pivot to blade tip (long katana)
-  DAMPING: 0.90, // velocity retained per step — high = heavy follow-through
-  GRAVITY: 6750, // px/s^2 — the blade's weight; it hangs and swings hard
+  DAMPING: 0.92, // velocity retained per step — high = heavy follow-through
+  GRAVITY: 12550, // px/s^2 — the blade's weight; it hangs and swings hard
   CONSTRAINT_ITERATIONS: 4, // stiffness of the rigid-blade length constraint
   MAX_DT: 1 / 40, // clamp so a long frame can't explode the sim
 
@@ -22,7 +22,7 @@ export const SWORD_PHYSICS = Object.freeze({
   // A game is cut only when the blade TIP traces across it: it must enter the
   // game's hitbox and exit again (a full traversal), while whipping at least
   // this fast at some point during the pass.
-  MIN_TIP_SPEED: 820, // px/s the tip must exceed for the pass to count as a whip
+  MIN_TIP_SPEED: 3820, // px/s the tip must exceed for the pass to count as a whip
   // ...and the entry->exit trace must span at least this fraction of the
   // target's radius, so a glancing nick at the edge doesn't cut.
   CUT_MIN_CHORD_FRACTION: 0.7,
