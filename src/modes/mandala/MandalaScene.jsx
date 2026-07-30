@@ -9,40 +9,15 @@ import MandalaTube from './MandalaTube.jsx'
 const tmp = new THREE.Vector3()
 const tmpEdge = new THREE.Vector3()
 
-// Parked (on-plane) panels render at full UI size; this is half the enemy
-// panel's nominal width, matching MandalaEnemyLayer.
-const PARK_NOMINAL_HALF = 118
-// Slash hitbox radius for a parked panel (screen px).
-const PARK_RADIUS = 104
-
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
-// Where a foe lands when it reaches the plane: its own projected screen position
-// at the interaction plane, so it docks exactly where it arrives (no relocation)
-// — only nudged to stay fully on-screen and clear of the HUD.
-function landingSlot(encounter, camera, size, config) {
-  const axis = mandalaAxisAt(encounter.routeZ, config)
-  const worldX = axis.x + encounter.offset.x * config.TUBE_RADIUS
-  const worldY = axis.y + encounter.offset.y * config.TUBE_RADIUS
-  tmp.set(worldX, worldY, -config.INTERACTION_DISTANCE).project(camera)
-  const x = (tmp.x * 0.5 + 0.5) * size.width
-  const y = (-tmp.y * 0.5 + 0.5) * size.height
-  return {
-    x: clamp(x, 122, size.width - 122),
-    y: clamp(y, 126, size.height - 114),
-  }
-}
-
 // The single per-frame driver: advances the sim, flies the camera down the
-// tube, and resolves every encounter's screen position. Foes flying down the
-// tube are projected from 3D (and are NOT cuttable). Once a foe reaches the
-// plane it parks at a fixed screen slot at full UI size and becomes cuttable —
-// the sword only cuts panels on its plane. The result feeds `enemiesRef` (the
-// DOM panel layer) and `registryRef` (the sword's hitboxes).
+// tube, and resolves every encounter's screen position. Encounters always stay
+// on their authored tube path. Reaching the former sword plane only enables
+// their screen-space hitbox; it no longer docks or redirects the panel.
 function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, registryRef, twistScale = 1, config }) {
   const camera = useThree((state) => state.camera)
   const size = useThree((state) => state.size)
-  const parkRef = useRef(new Map())
 
   useFrame((_, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05)
@@ -64,55 +39,35 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, regis
 
     const enemies = enemiesRef.current
     const registry = registryRef.current
-    const parked = parkRef.current
     const seen = new Set()
 
     for (const encounter of run.encounters) {
-      // Resolved/passed foes are dead — the enemy layer owns their death
-      // animation, so drop them from the projection immediately.
+      // Finished encounters are removed from interaction immediately; the DOM
+      // enemy layer owns the sword death animation for resolved targets.
       if (encounter.state === ENCOUNTER_STATES.RESOLVED || encounter.state === ENCOUNTER_STATES.PASSED) {
         continue
       }
 
       const distanceAhead = encounter.routeZ - run.travelDistance
-
-      // Arrived at the plane: park it. It stops here at full UI size and stays
-      // (as load) until cut — regardless of how far travel has since moved on.
-      if (encounter.state === ENCOUNTER_STATES.ACTIVE) {
-        let slot = parked.get(encounter.id)
-        if (!slot) {
-          slot = landingSlot(encounter, camera, size, config)
-          parked.set(encounter.id, slot)
-        }
-        enemies.set(encounter.id, {
-          id: encounter.id,
-          kind: encounter.sourceMicrogameKind,
-          x: slot.x,
-          y: slot.y,
-          pixelRadius: PARK_NOMINAL_HALF,
-          parked: true,
-          state: encounter.state,
-          distanceAhead,
-        })
-        registry.set(encounter.id, { x: slot.x, y: slot.y, radius: PARK_RADIUS, active: true })
-        seen.add(encounter.id)
-        continue
-      }
-
-      // Still flying down the tube: project from 3D. Not cuttable yet.
       if (distanceAhead < config.SLASH_REAR_LIMIT - 2 || distanceAhead > config.APPROACHING_DISTANCE + 10) {
         continue
       }
+
       const axis = mandalaAxisAt(encounter.routeZ, config)
       const worldX = axis.x + encounter.offset.x * config.TUBE_RADIUS
       const worldY = axis.y + encounter.offset.y * config.TUBE_RADIUS
       const worldZ = -distanceAhead
       tmp.set(worldX, worldY, worldZ).project(camera)
-      if (tmp.z > 1) continue // behind the camera
+
+      // Once the panel has fully crossed behind the camera it naturally leaves
+      // the screen. The simulation will mark it passed at the rear limit.
+      if (tmp.z > 1) continue
+
       const screenX = (tmp.x * 0.5 + 0.5) * size.width
       const screenY = (-tmp.y * 0.5 + 0.5) * size.height
       tmpEdge.set(worldX + config.ENEMY_WORLD_RADIUS, worldY, worldZ).project(camera)
-      const pixelRadius = Math.max(14, Math.abs((tmpEdge.x * 0.5 + 0.5) * size.width - screenX))
+      const rawRadius = Math.abs((tmpEdge.x * 0.5 + 0.5) * size.width - screenX)
+      const pixelRadius = clamp(rawRadius, 14, Math.max(size.width, size.height) * 1.5)
 
       enemies.set(encounter.id, {
         id: encounter.id,
@@ -124,19 +79,28 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, regis
         state: encounter.state,
         distanceAhead,
       })
-      registry.delete(encounter.id) // flying foes are not on the plane
+
+      // Cutting begins at exactly the same travel threshold that previously
+      // parked the minigame on the sword plane, but the panel keeps moving.
+      if (encounter.state === ENCOUNTER_STATES.ACTIVE && distanceAhead > config.SLASH_REAR_LIMIT) {
+        registry.set(encounter.id, {
+          x: screenX,
+          y: screenY,
+          radius: Math.max(24, pixelRadius * 0.88),
+          active: true,
+        })
+      } else {
+        registry.delete(encounter.id)
+      }
       seen.add(encounter.id)
     }
 
-    // Drop enemies/hitboxes/slots for encounters that are gone.
+    // Drop enemies and hitboxes for encounters that are gone or out of view.
     for (const id of enemies.keys()) {
       if (!seen.has(id)) {
         enemies.delete(id)
         registry.delete(id)
       }
-    }
-    for (const id of parked.keys()) {
-      if (!seen.has(id)) parked.delete(id)
     }
   })
 
