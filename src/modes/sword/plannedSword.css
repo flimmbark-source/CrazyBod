@@ -1,3 +1,13 @@
+.sword-pov-stage {
+  perspective: 950px;
+  perspective-origin: 58% 58%;
+}
+
+.sword-pov-stage .sword-blade {
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+}
+
 .sword-plan-line {
   fill: none;
   stroke: rgba(255, 247, 218, 0.94);
@@ -30,16 +40,22 @@
   filter: drop-shadow(0 0 5px rgba(240, 180, 41, 0.72));
 }
 
-.sword-cursor-layer.is-executing .sword-blade {
+.sword-cursor-layer.is-pov .sword-blade {
+  z-index: 4;
   filter:
-    drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 9px rgba(255, 237, 174, 0.8));
+    drop-shadow(10px 18px 12px rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 14px rgba(240, 180, 41, 0.45));
 }
 
-.sword-cursor-layer[data-phase='aiming'] .sword-blade {
+.sword-cursor-layer.is-pov .sword-katana-grip,
+.sword-cursor-layer.is-pov .sword-katana-tsuba {
+  filter: drop-shadow(2px 4px 2px rgba(0, 0, 0, 0.62));
+}
+
+.sword-cursor-layer.is-executing .sword-blade {
   filter:
-    drop-shadow(2px 5px 5px rgba(0, 0, 0, 0.65))
-    drop-shadow(0 0 6px rgba(240, 180, 41, 0.48));
+    drop-shadow(3px 6px 5px rgba(0, 0, 0, 0.62))
+    drop-shadow(0 0 12px rgba(255, 237, 174, 0.9));
 }
 
 @keyframes sword-plan-charge {
