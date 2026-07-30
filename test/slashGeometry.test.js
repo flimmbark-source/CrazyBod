@@ -5,6 +5,8 @@ import {
   isValidSlash,
   slashSegment,
   segmentIntersectsCircle,
+  segmentCircleIntersections,
+  pointAlong,
   targetsHitBySlash,
   SLASH_DEFAULTS,
 } from '../src/modes/sword/slashGeometry.js'
@@ -79,4 +81,33 @@ test('segment/circle intersection is exact at the radius boundary', () => {
 test('defaults are sane', () => {
   assert.ok(SLASH_DEFAULTS.MIN_LENGTH > 0)
   assert.ok(SLASH_DEFAULTS.MIN_SPEED > 0)
+})
+
+// --- whip traversal (segment vs circle) ---------------------------------
+
+const C = { x: 100, y: 100 }
+const R = 20
+
+test('a segment passing clean through a circle has two boundary crossings', () => {
+  const ts = segmentCircleIntersections({ x: 0, y: 100 }, { x: 200, y: 100 }, C, R)
+  assert.equal(ts.length, 2)
+  // entry at x=80, exit at x=120
+  assert.ok(Math.abs(pointAlong({ x: 0, y: 100 }, { x: 200, y: 100 }, ts[0]).x - 80) < 1e-6)
+  assert.ok(Math.abs(pointAlong({ x: 0, y: 100 }, { x: 200, y: 100 }, ts[1]).x - 120) < 1e-6)
+})
+
+test('a segment that starts inside and ends outside has one crossing (an exit)', () => {
+  const ts = segmentCircleIntersections({ x: 100, y: 100 }, { x: 300, y: 100 }, C, R)
+  assert.equal(ts.length, 1)
+  assert.ok(Math.abs(pointAlong({ x: 100, y: 100 }, { x: 300, y: 100 }, ts[0]).x - 120) < 1e-6)
+})
+
+test('a segment that misses the circle has no crossings', () => {
+  const ts = segmentCircleIntersections({ x: 0, y: 200 }, { x: 200, y: 200 }, C, R)
+  assert.equal(ts.length, 0)
+})
+
+test('a segment ending short of the circle has no crossings', () => {
+  const ts = segmentCircleIntersections({ x: 0, y: 100 }, { x: 50, y: 100 }, C, R)
+  assert.equal(ts.length, 0)
 })

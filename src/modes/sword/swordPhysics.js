@@ -17,7 +17,22 @@ export const SWORD_PHYSICS = Object.freeze({
   GRAVITY: 1750, // px/s^2 — the blade's weight; it hangs and swings hard
   CONSTRAINT_ITERATIONS: 4, // stiffness of the rigid-blade length constraint
   MAX_DT: 1 / 40, // clamp so a long frame can't explode the sim
-  MIN_TIP_SPEED: 820, // px/s the tip must exceed for a swing to cut
+
+  // --- Whip cut ----------------------------------------------------------
+  // A game is cut only when the blade TIP traces across it: it must enter the
+  // game's hitbox and exit again (a full traversal), while whipping at least
+  // this fast at some point during the pass.
+  MIN_TIP_SPEED: 820, // px/s the tip must exceed for the pass to count as a whip
+  // ...and the entry->exit trace must span at least this fraction of the
+  // target's radius, so a glancing nick at the edge doesn't cut.
+  CUT_MIN_CHORD_FRACTION: 0.7,
+  // Ignore a fresh cut on the same game within this window (belt-and-braces;
+  // a cut game leaves the board anyway).
+  CUT_COOLDOWN_MS: 240,
+
+  // --- Microgame death ---------------------------------------------------
+  DEATH_MS: 540, // how long the sliced halves take to fly apart and fade
+  DEATH_SEPARATION: 58, // px each half travels apart along the cut normal
 })
 
 export function createSwordState(hand, config = SWORD_PHYSICS) {

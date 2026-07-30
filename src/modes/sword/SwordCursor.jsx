@@ -6,7 +6,7 @@ import {
   stepSword,
   isSwinging,
 } from './swordPhysics.js'
-import { targetsHitBySlash } from './slashGeometry.js'
+import { segmentCircleIntersections, pointAlong } from './slashGeometry.js'
 
 let flashKey = 0
 
@@ -20,7 +20,6 @@ const TIP_X = PIVOT_X + SWORD_PHYSICS.BLADE_LENGTH
 const SVG_W = TIP_X + 22
 const SVG_H = 66
 const TRAIL_MAX = 18
-const HIT_COOLDOWN_MS = 260
 
 // Derived blade shapes (curved, single-edged, tapering to the kissaki point).
 const BASE_X = PIVOT_X + 16
@@ -37,9 +36,10 @@ const HAMON_PATH =
   `Q ${MID_X} ${PIVOT_Y - 5.5} ${TIP_X - 3} ${PIVOT_Y - SORI + 3}`
 
 // A physical sword. The cursor is the hand/pommel; the blade is a weighted
-// pendulum (swordPhysics) that trails, whips and settles as you move. What cuts
-// is the *blade segment* (hand -> tip) while it is swinging fast enough — so you
-// resolve foes by actually swinging the blade through them, not by hovering.
+// pendulum (swordPhysics) that trails, whips and settles as you move. A game is
+// cut only when the blade TIP traces across it — entering its hitbox and exiting
+// again (a full pass), while whipping fast enough. That entry->exit trace is the
+// cut line. Merely resting the blade on a game, or grazing its edge, never cuts.
 export default function SwordCursor({ enabled, registryRef, onResolve }) {
   const [flashes, setFlashes] = useState([])
   const layerRef = useRef(null)
@@ -49,6 +49,9 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
   const stateRef = useRef(null)
   const trailPointsRef = useRef([])
   const cooldownRef = useRef(new Map())
+  // Per-game whip-traversal state: id -> { entry:{x,y}, whipped:bool }. An entry
+  // is recorded when the tip enters a game; a cut fires when it exits.
+  const crossingRef = useRef(new Map())
   const onResolveRef = useRef(onResolve)
   onResolveRef.current = onResolve
 
@@ -63,6 +66,7 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
     stateRef.current = createSwordState(startHand)
     trailPointsRef.current = []
     cooldownRef.current.clear()
+    crossingRef.current.clear()
 
     const onMove = (event) => {
       handRef.current = { x: event.clientX, y: event.clientY }
@@ -103,32 +107,83 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
         trailRef.current.setAttribute('points', trail.map((p) => `${p.x},${p.y}`).join(' '))
       }
 
-      // Cut: the blade segment resolves active foes it sweeps through while the
-      // tip is moving fast enough. One resolve per foe per short cooldown.
+      // Cut: a game is resolved only when the tip TRACES ACROSS it — entering
+      // its hitbox and exiting again, while whipping fast enough on the way. The
+      // entry->exit chord is the cut line.
       const swinging = isSwinging(state)
       if (layerRef.current) layerRef.current.classList.toggle('is-swinging', swinging)
-      if (swinging && registryRef.current) {
-        const targets = []
-        registryRef.current.forEach((entry, id) => {
-          if (entry.active) targets.push({ id, x: entry.x, y: entry.y, radius: entry.radius })
-        })
-        const resolvedIds = new Set()
-        for (const [id, t] of cooldownRef.current) {
-          if (now - t < HIT_COOLDOWN_MS) resolvedIds.add(id)
-          else cooldownRef.current.delete(id)
+
+      const registry = registryRef.current
+      if (registry) {
+        const crossing = crossingRef.current
+        const cooldown = cooldownRef.current
+        const prevTip = state.prev
+        const tip = state.tip
+        const onCooldown = (id) => now - (cooldown.get(id) ?? -Infinity) < SWORD_PHYSICS.CUT_COOLDOWN_MS
+
+        const doCut = (id, entry, exit, center) => {
+          onResolveRef.current?.(id, {
+            cx: center.x,
+            cy: center.y,
+            ax: entry.x,
+            ay: entry.y,
+            bx: exit.x,
+            by: exit.y,
+          })
+          cooldown.set(id, now)
+          addFlash(center.x, center.y)
         }
-        const segment = { a: hand, b: state.tip }
-        const hits = targetsHitBySlash(segment, targets, resolvedIds)
-        hits.forEach((id) => {
-          const entry = registryRef.current.get(id)
-          // Pass the actual blade segment + the panel centre so the panel can be
-          // split along exactly where the blade crossed it.
-          const cut = entry
-            ? { cx: entry.x, cy: entry.y, ax: hand.x, ay: hand.y, bx: state.tip.x, by: state.tip.y }
-            : null
-          onResolveRef.current?.(id, cut)
-          cooldownRef.current.set(id, now)
-          if (entry) addFlash(entry.x, entry.y)
+
+        const activeIds = new Set()
+        registry.forEach((entry, id) => {
+          if (!entry.active) return
+          activeIds.add(id)
+          const center = { x: entry.x, y: entry.y }
+          const radius = entry.radius
+          const minChord = radius * SWORD_PHYSICS.CUT_MIN_CHORD_FRACTION
+          const nowInside = Math.hypot(tip.x - center.x, tip.y - center.y) <= radius
+          const st = crossing.get(id)
+
+          if (nowInside) {
+            // Inside the game: open (or continue) a traversal, tracking whether
+            // the tip has whipped fast enough at any point while crossing.
+            if (!st) {
+              const ts = segmentCircleIntersections(prevTip, tip, center, radius)
+              const entryPoint = ts.length ? pointAlong(prevTip, tip, Math.min(...ts)) : { ...tip }
+              crossing.set(id, { entry: entryPoint, whipped: swinging })
+            } else if (swinging) {
+              st.whipped = true
+            }
+          } else if (st) {
+            // Just left the game: a completed traversal. Cut if it was a real
+            // whip that spanned enough of the game.
+            const ts = segmentCircleIntersections(prevTip, tip, center, radius)
+            const exitPoint = ts.length ? pointAlong(prevTip, tip, Math.max(...ts)) : { ...prevTip }
+            const chord = Math.hypot(exitPoint.x - st.entry.x, exitPoint.y - st.entry.y)
+            if (st.whipped && chord >= minChord && !onCooldown(id)) {
+              doCut(id, st.entry, exitPoint, center)
+            }
+            crossing.delete(id)
+          } else if (swinging) {
+            // Fast flick: the tip passed clean through between two frames without
+            // a frame landing inside. Treat a full through-pass as a cut.
+            const ts = segmentCircleIntersections(prevTip, tip, center, radius)
+            if (ts.length === 2) {
+              const a = pointAlong(prevTip, tip, Math.min(...ts))
+              const b = pointAlong(prevTip, tip, Math.max(...ts))
+              if (Math.hypot(b.x - a.x, b.y - a.y) >= minChord && !onCooldown(id)) {
+                doCut(id, a, b, center)
+              }
+            }
+          }
+        })
+
+        // Drop traversal + cooldown state for games no longer on the plane.
+        crossing.forEach((_, id) => {
+          if (!activeIds.has(id)) crossing.delete(id)
+        })
+        cooldown.forEach((t, id) => {
+          if (now - t >= SWORD_PHYSICS.CUT_COOLDOWN_MS) cooldown.delete(id)
         })
       }
 
@@ -140,6 +195,7 @@ export default function SwordCursor({ enabled, registryRef, onResolve }) {
       window.cancelAnimationFrame(raf)
       window.removeEventListener('pointermove', onMove)
       cooldownRef.current.clear()
+      crossingRef.current.clear()
       trailPointsRef.current = []
     }
   }, [enabled, registryRef])
