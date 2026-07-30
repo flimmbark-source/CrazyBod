@@ -1,27 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
 
-import {
-  SWORD_PHYSICS,
-  createSwordState,
-  stepSword,
-  isSwinging,
-} from './swordPhysics.js'
-import {
-  HEAVY_HAND_PHYSICS,
-  createHandState,
-  stepHand,
-} from './swordHandPhysics.js'
+import { SWORD_PHYSICS } from './swordPhysics.js'
 import { segmentCircleIntersections, pointAlong } from './slashGeometry.js'
+import {
+  SLASH_PATH_CONFIG,
+  appendPathPoint,
+  buildPathMetrics,
+  pathLength,
+  pointAtDistance,
+  remainingPathPoints,
+} from './slashPath.js'
 
 let flashKey = 0
+
+const PHASES = Object.freeze({
+  READY: 'ready',
+  DRAWING: 'drawing',
+  AIMING: 'aiming',
+  EXECUTING: 'executing',
+  RECOVERING: 'recovering',
+})
 
 const PIVOT_X = 48
 const PIVOT_Y = 34
 const TIP_X = PIVOT_X + SWORD_PHYSICS.BLADE_LENGTH
 const SVG_W = TIP_X + 22
 const SVG_H = 66
-const TRAIL_MAX = 24
-
 const BASE_X = PIVOT_X + 16
 const MID_X = (BASE_X + TIP_X) / 2
 const SORI = 20
@@ -35,114 +39,111 @@ const HAMON_PATH =
   `M ${BASE_X + 5} ${PIVOT_Y + 0.8} ` +
   `Q ${MID_X} ${PIVOT_Y - 6} ${TIP_X - 3} ${PIVOT_Y - SORI + 3.5}`
 
-function physicsFor(profile) {
-  if (profile === 'heavy') {
-    return {
-      ...SWORD_PHYSICS,
-      DAMPING: 0.968,
-      GRAVITY: SWORD_PHYSICS.GRAVITY * 1.18,
-      MIN_COMMITMENT_MS: 185,
-      RECOVERY_MS: 320,
-    }
-  }
-  if (profile === 'light') {
-    return {
-      ...SWORD_PHYSICS,
-      DAMPING: 0.925,
-      GRAVITY: SWORD_PHYSICS.GRAVITY * 0.68,
-      MIN_TIP_SPEED: 600,
-      MIN_COMMITMENT_MS: 110,
-      MIN_COMMITTED_DISTANCE: 62,
-      RECOVERY_MS: 170,
-    }
-  }
-  return SWORD_PHYSICS
+function pointsAttribute(points) {
+  return points.map((point) => `${point.x},${point.y}`).join(' ')
 }
 
-function handPhysicsFor(profile) {
-  if (profile === 'heavy') {
-    return {
-      ...HEAVY_HAND_PHYSICS,
-      ACCELERATION: 2050,
-      MAX_SPEED: 610,
-      DRAG: 0.915,
-      REVERSAL_RESISTANCE: 0.46,
-    }
-  }
-  if (profile === 'light') {
-    return {
-      ...HEAVY_HAND_PHYSICS,
-      ACCELERATION: 3300,
-      MAX_SPEED: 980,
-      DRAG: 0.86,
-      REVERSAL_RESISTANCE: 0.72,
-    }
-  }
-  return HEAVY_HAND_PHYSICS
+function angleForSegment(from, to, fallback = -Math.PI / 2) {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  return Math.hypot(dx, dy) > 0.01 ? Math.atan2(dy, dx) : fallback
 }
 
-function vectorBetween(a, b) {
-  return { x: b.x - a.x, y: b.y - a.y }
+function lerp(a, b, t) {
+  return a + (b - a) * t
 }
 
-function vectorLength(vector) {
-  return Math.hypot(vector.x, vector.y)
+function easeInOut(t) {
+  return t * t * (3 - 2 * t)
 }
 
-function angleBetweenDegrees(a, b) {
-  const aLength = vectorLength(a)
-  const bLength = vectorLength(b)
-  if (aLength < 1e-6 || bLength < 1e-6) return 0
-  const cosine = Math.max(-1, Math.min(1, (a.x * b.x + a.y * b.y) / (aLength * bLength)))
-  return Math.acos(cosine) * (180 / Math.PI)
+function bladeTransform({ pivot, angle, scale = 1, shakeX = 0, shakeY = 0, shakeAngle = 0 }) {
+  return `translate(${pivot.x - PIVOT_X + shakeX}px, ${pivot.y - PIVOT_Y + shakeY}px) rotate(${angle + shakeAngle}rad) scale(${scale})`
 }
 
-// The pointer supplies intent, not position. A simulated hand chases it with
-// limited acceleration and speed; the weighted blade then swings from that hand.
-// A cut requires a sustained, mostly one-directional traversal through a target.
+// Hold to draw one persistent cut path with the blade tip. Release to pull the
+// weapon into a first-person attack pose, then execute that exact path. Only the
+// executing sword performs collision; drawing is planning, never damage.
 export default function SwordCursor({ enabled, registryRef, onResolve, perception }) {
   const [flashes, setFlashes] = useState([])
   const layerRef = useRef(null)
   const bladeRef = useRef(null)
-  const trailRef = useRef(null)
-  const pointerTargetRef = useRef({ x: 0, y: 0 })
-  const handStateRef = useRef(null)
-  const swordStateRef = useRef(null)
-  const trailPointsRef = useRef([])
-  const cooldownRef = useRef(new Map())
-  const recoveryUntilRef = useRef(0)
-  // id -> { entry, startedAt, lastTip, distance, direction, maxTurn, powered }
-  const crossingRef = useRef(new Map())
+  const planRef = useRef(null)
+  const phaseRef = useRef(PHASES.READY)
+  const pointerRef = useRef({ x: 0, y: 0 })
+  const drawnPointsRef = useRef([])
+  const metricsRef = useRef(null)
+  const phaseStartedAtRef = useRef(0)
+  const executionDistanceRef = useRef(0)
+  const previousExecutionTipRef = useRef(null)
+  const currentAngleRef = useRef(-Math.PI / 2)
+  const cutIdsRef = useRef(new Set())
   const onResolveRef = useRef(onResolve)
-  onResolveRef.current = onResolve
   const perceptionRef = useRef(perception)
+  onResolveRef.current = onResolve
   perceptionRef.current = perception
 
   useEffect(() => {
     if (!enabled) return undefined
 
-    const startHand = {
+    const center = {
       x: (typeof window !== 'undefined' ? window.innerWidth : 640) / 2,
       y: (typeof window !== 'undefined' ? window.innerHeight : 480) / 2,
     }
-    pointerTargetRef.current = { ...startHand }
-    handStateRef.current = createHandState(startHand)
-    swordStateRef.current = createSwordState(startHand)
-    trailPointsRef.current = []
-    cooldownRef.current.clear()
-    crossingRef.current.clear()
-    recoveryUntilRef.current = 0
+    pointerRef.current = center
+    phaseRef.current = PHASES.READY
+    drawnPointsRef.current = []
+    metricsRef.current = null
+    executionDistanceRef.current = 0
+    previousExecutionTipRef.current = null
+    cutIdsRef.current.clear()
+
+    const pointerPosition = (event) => ({
+      x: perceptionRef.current?.invertPointerX ? window.innerWidth - event.clientX : event.clientX,
+      y: event.clientY,
+    })
+
+    const setPhase = (phase, now = performance.now()) => {
+      phaseRef.current = phase
+      phaseStartedAtRef.current = now
+      if (layerRef.current) layerRef.current.dataset.phase = phase
+    }
 
     const onMove = (event) => {
-      const x = perceptionRef.current?.invertPointerX
-        ? window.innerWidth - event.clientX
-        : event.clientX
-      pointerTargetRef.current = { x, y: event.clientY }
+      const point = pointerPosition(event)
+      pointerRef.current = point
+      if (phaseRef.current === PHASES.DRAWING) {
+        drawnPointsRef.current = appendPathPoint(drawnPointsRef.current, point)
+      }
     }
-    window.addEventListener('pointermove', onMove, { passive: true })
 
-    let raf
-    let last = performance.now()
+    const onDown = (event) => {
+      if (event.button !== 0 || phaseRef.current !== PHASES.READY) return
+      const point = pointerPosition(event)
+      pointerRef.current = point
+      drawnPointsRef.current = [point]
+      metricsRef.current = null
+      executionDistanceRef.current = 0
+      previousExecutionTipRef.current = null
+      cutIdsRef.current.clear()
+      setPhase(PHASES.DRAWING)
+    }
+
+    const onUp = (event) => {
+      if (event.button !== 0 || phaseRef.current !== PHASES.DRAWING) return
+      const point = pointerPosition(event)
+      pointerRef.current = point
+      drawnPointsRef.current = appendPathPoint(drawnPointsRef.current, point, 1)
+      if (pathLength(drawnPointsRef.current) < SLASH_PATH_CONFIG.MIN_PATH_LENGTH) {
+        drawnPointsRef.current = []
+        setPhase(PHASES.READY)
+        return
+      }
+      metricsRef.current = buildPathMetrics(drawnPointsRef.current)
+      executionDistanceRef.current = 0
+      previousExecutionTipRef.current = metricsRef.current.points[0]
+      setPhase(PHASES.AIMING)
+    }
 
     const addFlash = (x, y) => {
       const key = ++flashKey
@@ -152,130 +153,167 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
       }, 360)
     }
 
-    const loop = (now) => {
-      const dt = (now - last) / 1000
-      last = now
-      const profile = perceptionRef.current?.bladeProfile
-      const physicsConfig = physicsFor(profile)
-      const handConfig = handPhysicsFor(profile)
-
-      const handState = stepHand(handStateRef.current, {
-        target: pointerTargetRef.current,
-        dt,
-        config: handConfig,
-      })
-      handStateRef.current = handState
-      const hand = handState.position
-
-      const swordState = stepSword(swordStateRef.current, { hand, dt, config: physicsConfig })
-      swordStateRef.current = swordState
-
-      const blade = bladeRef.current
-      if (blade) {
-        blade.style.transform = `translate(${hand.x - PIVOT_X}px, ${hand.y - PIVOT_Y}px) rotate(${swordState.angle}rad)`
-        blade.style.opacity = '1'
-      }
-
-      const trail = trailPointsRef.current
-      trail.push({ x: swordState.tip.x, y: swordState.tip.y })
-      if (trail.length > TRAIL_MAX) trail.shift()
-      if (trailRef.current) {
-        trailRef.current.setAttribute('points', trail.map((point) => `${point.x},${point.y}`).join(' '))
-      }
-
-      const movingWithPower = isSwinging(swordState, physicsConfig)
-      const recovering = now < recoveryUntilRef.current
-      if (layerRef.current) {
-        layerRef.current.classList.toggle('is-swinging', movingWithPower && !recovering)
-        layerRef.current.classList.toggle('is-recovering', recovering)
-      }
-
+    const cutAlongSegment = (from, to, now) => {
       const registry = registryRef.current
-      if (registry) {
-        const crossing = crossingRef.current
-        const cooldown = cooldownRef.current
-        const prevTip = swordState.prev
-        const tip = swordState.tip
-        const frameVector = vectorBetween(prevTip, tip)
-        const frameDistance = vectorLength(frameVector)
-        const onCooldown = (id) => now - (cooldown.get(id) ?? -Infinity) < physicsConfig.CUT_COOLDOWN_MS
+      if (!registry) return
+      registry.forEach((entry, id) => {
+        if (!entry.active || cutIdsRef.current.has(id)) return
+        const centerPoint = { x: entry.x, y: entry.y }
+        const intersections = segmentCircleIntersections(from, to, centerPoint, entry.radius)
+        if (!intersections.length) return
 
-        const doCut = (id, entry, exit, center) => {
-          onResolveRef.current?.(id, {
-            cx: center.x,
-            cy: center.y,
-            ax: entry.x,
-            ay: entry.y,
-            bx: exit.x,
-            by: exit.y,
+        const a = pointAlong(from, to, Math.min(...intersections))
+        const b = pointAlong(from, to, Math.max(...intersections))
+        const chord = Math.hypot(b.x - a.x, b.y - a.y)
+        if (chord < entry.radius * SWORD_PHYSICS.CUT_MIN_CHORD_FRACTION) return
+
+        cutIdsRef.current.add(id)
+        onResolveRef.current?.(id, {
+          cx: centerPoint.x,
+          cy: centerPoint.y,
+          ax: a.x,
+          ay: a.y,
+          bx: b.x,
+          by: b.y,
+          at: now,
+        })
+        addFlash(centerPoint.x, centerPoint.y)
+      })
+    }
+
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+
+    let raf
+    let last = performance.now()
+    const loop = (now) => {
+      const dt = Math.min((now - last) / 1000, 0.05)
+      last = now
+      const phase = phaseRef.current
+      const pointer = pointerRef.current
+      const blade = bladeRef.current
+      const plan = planRef.current
+      let visiblePlan = drawnPointsRef.current
+
+      if (phase === PHASES.READY || phase === PHASES.DRAWING) {
+        const points = drawnPointsRef.current
+        const previous = points.length > 1 ? points[points.length - 2] : { x: pointer.x, y: pointer.y + 1 }
+        const angle = angleForSegment(previous, pointer, currentAngleRef.current)
+        currentAngleRef.current = angle
+        const tension = phase === PHASES.DRAWING
+          ? Math.min(1, (now - phaseStartedAtRef.current) / 700)
+          : 0
+        const shake = tension * 2.8
+        if (blade) {
+          blade.style.transform = bladeTransform({
+            pivot: {
+              x: pointer.x - Math.cos(angle) * SWORD_PHYSICS.BLADE_LENGTH,
+              y: pointer.y - Math.sin(angle) * SWORD_PHYSICS.BLADE_LENGTH,
+            },
+            angle,
+            shakeX: Math.sin(now * 0.075) * shake,
+            shakeY: Math.cos(now * 0.091) * shake,
+            shakeAngle: Math.sin(now * 0.11) * tension * 0.028,
           })
-          cooldown.set(id, now)
-          recoveryUntilRef.current = now + physicsConfig.RECOVERY_MS
-          addFlash(center.x, center.y)
+          blade.style.opacity = '1'
         }
+      } else if (phase === PHASES.AIMING) {
+        const elapsed = now - phaseStartedAtRef.current
+        const t = easeInOut(Math.min(1, elapsed / SLASH_PATH_CONFIG.AIM_DURATION_MS))
+        const startTip = metricsRef.current?.points[0] ?? pointer
+        const startAngle = currentAngleRef.current
+        const attackPivot = { x: window.innerWidth * 0.5, y: window.innerHeight * 1.04 }
+        const startPivot = {
+          x: startTip.x - Math.cos(startAngle) * SWORD_PHYSICS.BLADE_LENGTH,
+          y: startTip.y - Math.sin(startAngle) * SWORD_PHYSICS.BLADE_LENGTH,
+        }
+        const pivot = {
+          x: lerp(startPivot.x, attackPivot.x, t),
+          y: lerp(startPivot.y, attackPivot.y, t),
+        }
+        const angle = lerp(startAngle, -Math.PI / 2, t)
+        currentAngleRef.current = angle
+        if (blade) {
+          blade.style.transform = bladeTransform({ pivot, angle, scale: lerp(1, 0.7, t) })
+          blade.style.opacity = '1'
+        }
+        if (elapsed >= SLASH_PATH_CONFIG.AIM_DURATION_MS) {
+          previousExecutionTipRef.current = metricsRef.current.points[0]
+          setPhase(PHASES.EXECUTING, now)
+        }
+      } else if (phase === PHASES.EXECUTING) {
+        const metrics = metricsRef.current
+        const previousDistance = executionDistanceRef.current
+        executionDistanceRef.current = Math.min(
+          metrics.length,
+          previousDistance + SLASH_PATH_CONFIG.EXECUTION_SPEED * dt,
+        )
+        const previousSample = pointAtDistance(metrics, previousDistance)
+        const sample = pointAtDistance(metrics, executionDistanceRef.current)
+        const tip = sample.point
+        const previousTip = previousExecutionTipRef.current ?? previousSample.point
+        const angle = angleForSegment(previousTip, tip, currentAngleRef.current)
+        currentAngleRef.current = angle
+        const pivot = {
+          x: tip.x - Math.cos(angle) * SWORD_PHYSICS.BLADE_LENGTH,
+          y: tip.y - Math.sin(angle) * SWORD_PHYSICS.BLADE_LENGTH,
+        }
+        if (blade) {
+          blade.style.transform = bladeTransform({ pivot, angle, scale: 1.08 })
+          blade.style.opacity = '1'
+        }
+        cutAlongSegment(previousTip, tip, now)
+        previousExecutionTipRef.current = tip
+        visiblePlan = remainingPathPoints(metrics, executionDistanceRef.current)
 
-        const activeIds = new Set()
-        registry.forEach((entry, id) => {
-          if (!entry.active) return
-          activeIds.add(id)
-          const center = { x: entry.x, y: entry.y }
-          const radius = entry.radius
-          const minChord = radius * physicsConfig.CUT_MIN_CHORD_FRACTION
-          const nowInside = Math.hypot(tip.x - center.x, tip.y - center.y) <= radius
-          const traversal = crossing.get(id)
+        if (executionDistanceRef.current >= metrics.length) {
+          setPhase(PHASES.RECOVERING, now)
+        }
+      } else if (phase === PHASES.RECOVERING) {
+        const elapsed = now - phaseStartedAtRef.current
+        const t = easeInOut(Math.min(1, elapsed / SLASH_PATH_CONFIG.RECOVERY_DURATION_MS))
+        const endTip = metricsRef.current?.points.at(-1) ?? pointer
+        const startAngle = currentAngleRef.current
+        const endAngle = angleForSegment(
+          { x: pointer.x - SWORD_PHYSICS.BLADE_LENGTH, y: pointer.y },
+          pointer,
+          0,
+        )
+        const startPivot = {
+          x: endTip.x - Math.cos(startAngle) * SWORD_PHYSICS.BLADE_LENGTH,
+          y: endTip.y - Math.sin(startAngle) * SWORD_PHYSICS.BLADE_LENGTH,
+        }
+        const endPivot = {
+          x: pointer.x - Math.cos(endAngle) * SWORD_PHYSICS.BLADE_LENGTH,
+          y: pointer.y - Math.sin(endAngle) * SWORD_PHYSICS.BLADE_LENGTH,
+        }
+        const pivot = {
+          x: lerp(startPivot.x, endPivot.x, t),
+          y: lerp(startPivot.y, endPivot.y, t),
+        }
+        const angle = lerp(startAngle, endAngle, t)
+        currentAngleRef.current = angle
+        if (blade) {
+          blade.style.transform = bladeTransform({ pivot, angle, scale: lerp(1.08, 1, t) })
+          blade.style.opacity = '1'
+        }
+        visiblePlan = []
+        if (elapsed >= SLASH_PATH_CONFIG.RECOVERY_DURATION_MS) {
+          drawnPointsRef.current = []
+          metricsRef.current = null
+          executionDistanceRef.current = 0
+          previousExecutionTipRef.current = null
+          cutIdsRef.current.clear()
+          setPhase(PHASES.READY, now)
+        }
+      }
 
-          if (nowInside) {
-            if (!traversal) {
-              const intersections = segmentCircleIntersections(prevTip, tip, center, radius)
-              const entryPoint = intersections.length
-                ? pointAlong(prevTip, tip, Math.min(...intersections))
-                : { ...tip }
-              crossing.set(id, {
-                entry: entryPoint,
-                startedAt: now,
-                lastTip: { ...tip },
-                distance: frameDistance,
-                direction: frameDistance > 0 ? frameVector : null,
-                maxTurn: 0,
-                powered: movingWithPower,
-              })
-            } else {
-              const travel = vectorBetween(traversal.lastTip, tip)
-              const travelDistance = vectorLength(travel)
-              traversal.distance += travelDistance
-              if (traversal.direction && travelDistance > 1) {
-                traversal.maxTurn = Math.max(traversal.maxTurn, angleBetweenDegrees(traversal.direction, travel))
-              }
-              if (travelDistance > 1) traversal.direction = travel
-              traversal.lastTip = { ...tip }
-              if (movingWithPower) traversal.powered = true
-            }
-          } else if (traversal) {
-            const intersections = segmentCircleIntersections(prevTip, tip, center, radius)
-            const exitPoint = intersections.length
-              ? pointAlong(prevTip, tip, Math.max(...intersections))
-              : { ...prevTip }
-            const chord = Math.hypot(exitPoint.x - traversal.entry.x, exitPoint.y - traversal.entry.y)
-            const duration = now - traversal.startedAt
-            const committed =
-              traversal.powered
-              && duration >= physicsConfig.MIN_COMMITMENT_MS
-              && traversal.distance >= physicsConfig.MIN_COMMITTED_DISTANCE
-              && traversal.maxTurn <= physicsConfig.MAX_DIRECTION_CHANGE_DEGREES
-
-            if (committed && chord >= minChord && !recovering && !onCooldown(id)) {
-              doCut(id, traversal.entry, exitPoint, center)
-            }
-            crossing.delete(id)
-          }
-        })
-
-        crossing.forEach((_, id) => {
-          if (!activeIds.has(id)) crossing.delete(id)
-        })
-        cooldown.forEach((time, id) => {
-          if (now - time >= physicsConfig.CUT_COOLDOWN_MS) cooldown.delete(id)
-        })
+      if (plan) plan.setAttribute('points', pointsAttribute(visiblePlan))
+      if (layerRef.current) {
+        layerRef.current.classList.toggle('is-tensioned', phase === PHASES.DRAWING)
+        layerRef.current.classList.toggle('is-executing', phase === PHASES.EXECUTING)
       }
 
       raf = window.requestAnimationFrame(loop)
@@ -285,18 +323,19 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
     return () => {
       window.cancelAnimationFrame(raf)
       window.removeEventListener('pointermove', onMove)
-      cooldownRef.current.clear()
-      crossingRef.current.clear()
-      trailPointsRef.current = []
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      cutIdsRef.current.clear()
     }
   }, [enabled, registryRef])
 
   if (!enabled) return null
 
   return (
-    <div className="sword-cursor-layer" ref={layerRef} aria-hidden="true">
+    <div className="sword-cursor-layer" ref={layerRef} data-phase={PHASES.READY} aria-hidden="true">
       <svg className="sword-trail" width="100%" height="100%">
-        <polyline ref={trailRef} className="sword-trail-line" points="" />
+        <polyline ref={planRef} className="sword-plan-line" points="" />
       </svg>
 
       {flashes.map((flash) => (
