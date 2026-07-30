@@ -6,74 +6,115 @@ import {
   stepSword,
   isSwinging,
 } from './swordPhysics.js'
+import {
+  HEAVY_HAND_PHYSICS,
+  createHandState,
+  stepHand,
+} from './swordHandPhysics.js'
 import { segmentCircleIntersections, pointAlong } from './slashGeometry.js'
 
 let flashKey = 0
 
-// Local katana geometry. The pivot (the hands, on the grip) is at
-// (PIVOT_X, PIVOT_Y); the blade is drawn pointing along +x so a rotation about
-// the pivot aims it at the physics tip. Room is left behind the pivot for the
-// long two-hand grip, and above the axis for the blade's curve (sori).
 const PIVOT_X = 48
 const PIVOT_Y = 34
 const TIP_X = PIVOT_X + SWORD_PHYSICS.BLADE_LENGTH
 const SVG_W = TIP_X + 22
 const SVG_H = 66
-const TRAIL_MAX = 18
+const TRAIL_MAX = 24
 
-// Derived blade shapes (curved, single-edged, tapering to the kissaki point).
 const BASE_X = PIVOT_X + 16
 const MID_X = (BASE_X + TIP_X) / 2
-const SORI = 17 // how far the tip curves up off the axis
+const SORI = 20
 const GRIP_BACK = PIVOT_X - 40
 const BLADE_PATH =
-  `M ${BASE_X} ${PIVOT_Y - 3.2} ` +
+  `M ${BASE_X} ${PIVOT_Y - 3.8} ` +
   `Q ${MID_X} ${PIVOT_Y - SORI + 2} ${TIP_X} ${PIVOT_Y - SORI} ` +
-  `L ${TIP_X + 6} ${PIVOT_Y - SORI + 3.5} ` +
-  `Q ${MID_X} ${PIVOT_Y - 4} ${BASE_X} ${PIVOT_Y + 3.4} Z`
+  `L ${TIP_X + 7} ${PIVOT_Y - SORI + 4} ` +
+  `Q ${MID_X} ${PIVOT_Y - 4} ${BASE_X} ${PIVOT_Y + 4.2} Z`
 const HAMON_PATH =
-  `M ${BASE_X + 5} ${PIVOT_Y + 0.6} ` +
-  `Q ${MID_X} ${PIVOT_Y - 5.5} ${TIP_X - 3} ${PIVOT_Y - SORI + 3}`
+  `M ${BASE_X + 5} ${PIVOT_Y + 0.8} ` +
+  `Q ${MID_X} ${PIVOT_Y - 6} ${TIP_X - 3} ${PIVOT_Y - SORI + 3.5}`
 
-// Perception effects from the director change how the blade feels/aims.
 function physicsFor(profile) {
   if (profile === 'heavy') {
-    return { ...SWORD_PHYSICS, DAMPING: 0.955, GRAVITY: SWORD_PHYSICS.GRAVITY * 1.35 }
+    return {
+      ...SWORD_PHYSICS,
+      DAMPING: 0.968,
+      GRAVITY: SWORD_PHYSICS.GRAVITY * 1.18,
+      MIN_COMMITMENT_MS: 185,
+      RECOVERY_MS: 320,
+    }
   }
   if (profile === 'light') {
     return {
       ...SWORD_PHYSICS,
-      DAMPING: 0.9,
-      GRAVITY: SWORD_PHYSICS.GRAVITY * 0.6,
-      MIN_TIP_SPEED: SWORD_PHYSICS.MIN_TIP_SPEED * 0.85,
+      DAMPING: 0.925,
+      GRAVITY: SWORD_PHYSICS.GRAVITY * 0.68,
+      MIN_TIP_SPEED: 600,
+      MIN_COMMITMENT_MS: 110,
+      MIN_COMMITTED_DISTANCE: 62,
+      RECOVERY_MS: 170,
     }
   }
   return SWORD_PHYSICS
 }
 
-// A physical sword. The cursor is the hand/pommel; the blade is a weighted
-// pendulum (swordPhysics) that trails, whips and settles as you move. A game is
-// cut only when the blade TIP traces across it — entering its hitbox and exiting
-// again (a full pass), while whipping fast enough. That entry->exit trace is the
-// cut line. Merely resting the blade on a game, or grazing its edge, never cuts.
-//
-// `perception` (from the Mandala director) can mirror the aim (invertPointerX)
-// and swap the blade profile (light / heavy) mid-descent.
+function handPhysicsFor(profile) {
+  if (profile === 'heavy') {
+    return {
+      ...HEAVY_HAND_PHYSICS,
+      ACCELERATION: 2050,
+      MAX_SPEED: 610,
+      DRAG: 0.915,
+      REVERSAL_RESISTANCE: 0.46,
+    }
+  }
+  if (profile === 'light') {
+    return {
+      ...HEAVY_HAND_PHYSICS,
+      ACCELERATION: 3300,
+      MAX_SPEED: 980,
+      DRAG: 0.86,
+      REVERSAL_RESISTANCE: 0.72,
+    }
+  }
+  return HEAVY_HAND_PHYSICS
+}
+
+function vectorBetween(a, b) {
+  return { x: b.x - a.x, y: b.y - a.y }
+}
+
+function vectorLength(vector) {
+  return Math.hypot(vector.x, vector.y)
+}
+
+function angleBetweenDegrees(a, b) {
+  const aLength = vectorLength(a)
+  const bLength = vectorLength(b)
+  if (aLength < 1e-6 || bLength < 1e-6) return 0
+  const cosine = Math.max(-1, Math.min(1, (a.x * b.x + a.y * b.y) / (aLength * bLength)))
+  return Math.acos(cosine) * (180 / Math.PI)
+}
+
+// The pointer supplies intent, not position. A simulated hand chases it with
+// limited acceleration and speed; the weighted blade then swings from that hand.
+// A cut requires a sustained, mostly one-directional traversal through a target.
 export default function SwordCursor({ enabled, registryRef, onResolve, perception }) {
   const [flashes, setFlashes] = useState([])
   const layerRef = useRef(null)
   const bladeRef = useRef(null)
   const trailRef = useRef(null)
-  const handRef = useRef({ x: 0, y: 0 })
-  const stateRef = useRef(null)
+  const pointerTargetRef = useRef({ x: 0, y: 0 })
+  const handStateRef = useRef(null)
+  const swordStateRef = useRef(null)
   const trailPointsRef = useRef([])
   const cooldownRef = useRef(new Map())
-  // Per-game whip-traversal state: id -> { entry:{x,y}, whipped:bool }. An entry
-  // is recorded when the tip enters a game; a cut fires when it exits.
+  const recoveryUntilRef = useRef(0)
+  // id -> { entry, startedAt, lastTip, distance, direction, maxTurn, powered }
   const crossingRef = useRef(new Map())
   const onResolveRef = useRef(onResolve)
   onResolveRef.current = onResolve
-  // Latest perception effects, read live inside the frame loop / pointer handler.
   const perceptionRef = useRef(perception)
   perceptionRef.current = perception
 
@@ -84,18 +125,19 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
       x: (typeof window !== 'undefined' ? window.innerWidth : 640) / 2,
       y: (typeof window !== 'undefined' ? window.innerHeight : 480) / 2,
     }
-    handRef.current = { ...startHand }
-    stateRef.current = createSwordState(startHand)
+    pointerTargetRef.current = { ...startHand }
+    handStateRef.current = createHandState(startHand)
+    swordStateRef.current = createSwordState(startHand)
     trailPointsRef.current = []
     cooldownRef.current.clear()
     crossingRef.current.clear()
+    recoveryUntilRef.current = 0
 
     const onMove = (event) => {
-      // Inverted aim mirrors horizontal motion around the screen centre.
       const x = perceptionRef.current?.invertPointerX
         ? window.innerWidth - event.clientX
         : event.clientX
-      handRef.current = { x, y: event.clientY }
+      pointerTargetRef.current = { x, y: event.clientY }
     }
     window.addEventListener('pointermove', onMove, { passive: true })
 
@@ -107,46 +149,56 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
       setFlashes((current) => [...current, { key, x, y }])
       window.setTimeout(() => {
         setFlashes((current) => current.filter((flash) => flash.key !== key))
-      }, 300)
+      }, 360)
     }
 
     const loop = (now) => {
       const dt = (now - last) / 1000
       last = now
-      const hand = handRef.current
+      const profile = perceptionRef.current?.bladeProfile
+      const physicsConfig = physicsFor(profile)
+      const handConfig = handPhysicsFor(profile)
 
-      const physicsConfig = physicsFor(perceptionRef.current?.bladeProfile)
-      const state = stepSword(stateRef.current, { hand, dt, config: physicsConfig })
-      stateRef.current = state
+      const handState = stepHand(handStateRef.current, {
+        target: pointerTargetRef.current,
+        dt,
+        config: handConfig,
+      })
+      handStateRef.current = handState
+      const hand = handState.position
 
-      // Draw the blade: translate the pivot onto the hand, rotate to the tip.
+      const swordState = stepSword(swordStateRef.current, { hand, dt, config: physicsConfig })
+      swordStateRef.current = swordState
+
       const blade = bladeRef.current
       if (blade) {
-        blade.style.transform = `translate(${hand.x - PIVOT_X}px, ${hand.y - PIVOT_Y}px) rotate(${state.angle}rad)`
+        blade.style.transform = `translate(${hand.x - PIVOT_X}px, ${hand.y - PIVOT_Y}px) rotate(${swordState.angle}rad)`
         blade.style.opacity = '1'
       }
 
-      // Draw the tip's swing trail.
       const trail = trailPointsRef.current
-      trail.push({ x: state.tip.x, y: state.tip.y })
+      trail.push({ x: swordState.tip.x, y: swordState.tip.y })
       if (trail.length > TRAIL_MAX) trail.shift()
       if (trailRef.current) {
-        trailRef.current.setAttribute('points', trail.map((p) => `${p.x},${p.y}`).join(' '))
+        trailRef.current.setAttribute('points', trail.map((point) => `${point.x},${point.y}`).join(' '))
       }
 
-      // Cut: a game is resolved only when the tip TRACES ACROSS it — entering
-      // its hitbox and exiting again, while whipping fast enough on the way. The
-      // entry->exit chord is the cut line.
-      const swinging = isSwinging(state, physicsConfig)
-      if (layerRef.current) layerRef.current.classList.toggle('is-swinging', swinging)
+      const movingWithPower = isSwinging(swordState, physicsConfig)
+      const recovering = now < recoveryUntilRef.current
+      if (layerRef.current) {
+        layerRef.current.classList.toggle('is-swinging', movingWithPower && !recovering)
+        layerRef.current.classList.toggle('is-recovering', recovering)
+      }
 
       const registry = registryRef.current
       if (registry) {
         const crossing = crossingRef.current
         const cooldown = cooldownRef.current
-        const prevTip = state.prev
-        const tip = state.tip
-        const onCooldown = (id) => now - (cooldown.get(id) ?? -Infinity) < SWORD_PHYSICS.CUT_COOLDOWN_MS
+        const prevTip = swordState.prev
+        const tip = swordState.tip
+        const frameVector = vectorBetween(prevTip, tip)
+        const frameDistance = vectorLength(frameVector)
+        const onCooldown = (id) => now - (cooldown.get(id) ?? -Infinity) < physicsConfig.CUT_COOLDOWN_MS
 
         const doCut = (id, entry, exit, center) => {
           onResolveRef.current?.(id, {
@@ -158,6 +210,7 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
             by: exit.y,
           })
           cooldown.set(id, now)
+          recoveryUntilRef.current = now + physicsConfig.RECOVERY_MS
           addFlash(center.x, center.y)
         }
 
@@ -167,50 +220,61 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
           activeIds.add(id)
           const center = { x: entry.x, y: entry.y }
           const radius = entry.radius
-          const minChord = radius * SWORD_PHYSICS.CUT_MIN_CHORD_FRACTION
+          const minChord = radius * physicsConfig.CUT_MIN_CHORD_FRACTION
           const nowInside = Math.hypot(tip.x - center.x, tip.y - center.y) <= radius
-          const st = crossing.get(id)
+          const traversal = crossing.get(id)
 
           if (nowInside) {
-            // Inside the game: open (or continue) a traversal, tracking whether
-            // the tip has whipped fast enough at any point while crossing.
-            if (!st) {
-              const ts = segmentCircleIntersections(prevTip, tip, center, radius)
-              const entryPoint = ts.length ? pointAlong(prevTip, tip, Math.min(...ts)) : { ...tip }
-              crossing.set(id, { entry: entryPoint, whipped: swinging })
-            } else if (swinging) {
-              st.whipped = true
+            if (!traversal) {
+              const intersections = segmentCircleIntersections(prevTip, tip, center, radius)
+              const entryPoint = intersections.length
+                ? pointAlong(prevTip, tip, Math.min(...intersections))
+                : { ...tip }
+              crossing.set(id, {
+                entry: entryPoint,
+                startedAt: now,
+                lastTip: { ...tip },
+                distance: frameDistance,
+                direction: frameDistance > 0 ? frameVector : null,
+                maxTurn: 0,
+                powered: movingWithPower,
+              })
+            } else {
+              const travel = vectorBetween(traversal.lastTip, tip)
+              const travelDistance = vectorLength(travel)
+              traversal.distance += travelDistance
+              if (traversal.direction && travelDistance > 1) {
+                traversal.maxTurn = Math.max(traversal.maxTurn, angleBetweenDegrees(traversal.direction, travel))
+              }
+              if (travelDistance > 1) traversal.direction = travel
+              traversal.lastTip = { ...tip }
+              if (movingWithPower) traversal.powered = true
             }
-          } else if (st) {
-            // Just left the game: a completed traversal. Cut if it was a real
-            // whip that spanned enough of the game.
-            const ts = segmentCircleIntersections(prevTip, tip, center, radius)
-            const exitPoint = ts.length ? pointAlong(prevTip, tip, Math.max(...ts)) : { ...prevTip }
-            const chord = Math.hypot(exitPoint.x - st.entry.x, exitPoint.y - st.entry.y)
-            if (st.whipped && chord >= minChord && !onCooldown(id)) {
-              doCut(id, st.entry, exitPoint, center)
+          } else if (traversal) {
+            const intersections = segmentCircleIntersections(prevTip, tip, center, radius)
+            const exitPoint = intersections.length
+              ? pointAlong(prevTip, tip, Math.max(...intersections))
+              : { ...prevTip }
+            const chord = Math.hypot(exitPoint.x - traversal.entry.x, exitPoint.y - traversal.entry.y)
+            const duration = now - traversal.startedAt
+            const committed =
+              traversal.powered
+              && duration >= physicsConfig.MIN_COMMITMENT_MS
+              && traversal.distance >= physicsConfig.MIN_COMMITTED_DISTANCE
+              && traversal.maxTurn <= physicsConfig.MAX_DIRECTION_CHANGE_DEGREES
+
+            if (committed && chord >= minChord && !recovering && !onCooldown(id)) {
+              doCut(id, traversal.entry, exitPoint, center)
             }
             crossing.delete(id)
-          } else if (swinging) {
-            // Fast flick: the tip passed clean through between two frames without
-            // a frame landing inside. Treat a full through-pass as a cut.
-            const ts = segmentCircleIntersections(prevTip, tip, center, radius)
-            if (ts.length === 2) {
-              const a = pointAlong(prevTip, tip, Math.min(...ts))
-              const b = pointAlong(prevTip, tip, Math.max(...ts))
-              if (Math.hypot(b.x - a.x, b.y - a.y) >= minChord && !onCooldown(id)) {
-                doCut(id, a, b, center)
-              }
-            }
           }
         })
 
-        // Drop traversal + cooldown state for games no longer on the plane.
         crossing.forEach((_, id) => {
           if (!activeIds.has(id)) crossing.delete(id)
         })
-        cooldown.forEach((t, id) => {
-          if (now - t >= SWORD_PHYSICS.CUT_COOLDOWN_MS) cooldown.delete(id)
+        cooldown.forEach((time, id) => {
+          if (now - time >= physicsConfig.CUT_COOLDOWN_MS) cooldown.delete(id)
         })
       }
 
@@ -241,20 +305,17 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
 
       <div className="sword-blade" ref={bladeRef} style={{ transformOrigin: `${PIVOT_X}px ${PIVOT_Y}px`, opacity: 0 }}>
         <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} width={SVG_W} height={SVG_H}>
-          {/* tsuka (long two-hand grip) + kashira cap, behind the pivot */}
           <rect
             x={GRIP_BACK}
-            y={PIVOT_Y - 3.8}
+            y={PIVOT_Y - 4.4}
             width={PIVOT_X + 8 - GRIP_BACK}
-            height={7.6}
-            rx={3.2}
+            height={8.8}
+            rx={3.4}
             className="sword-katana-grip"
           />
           <line x1={GRIP_BACK + 3} y1={PIVOT_Y} x2={PIVOT_X + 6} y2={PIVOT_Y} className="sword-katana-wrap" />
-          <rect x={GRIP_BACK - 3} y={PIVOT_Y - 4.6} width={4.5} height={9.2} rx={1.6} className="sword-katana-fitting" />
-          {/* tsuba (guard) at the pivot */}
-          <ellipse cx={PIVOT_X + 9} cy={PIVOT_Y} rx={3.4} ry={11.5} className="sword-katana-tsuba" />
-          {/* blade + hamon */}
+          <rect x={GRIP_BACK - 3} y={PIVOT_Y - 5.2} width={4.8} height={10.4} rx={1.6} className="sword-katana-fitting" />
+          <ellipse cx={PIVOT_X + 9} cy={PIVOT_Y} rx={3.8} ry={12.8} className="sword-katana-tsuba" />
           <path d={BLADE_PATH} className="sword-blade-steel" />
           <path d={HAMON_PATH} className="sword-katana-hamon" fill="none" />
         </svg>
