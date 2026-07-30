@@ -9,7 +9,7 @@
 export const SWORD_PHYSICS = Object.freeze({
   BLADE_LENGTH: 158, // long reach makes broad deliberate arcs
   DAMPING: 0.958, // high retained momentum; slow to reverse
-  GRAVITY: 14200, // strong downward weight
+  GRAVITY: 1200, // strong downward weight
   CONSTRAINT_ITERATIONS: 5,
   MAX_DT: 1 / 40,
 

@@ -50,7 +50,7 @@ function physicsFor(profile) {
       ...SWORD_PHYSICS,
       DAMPING: 0.925,
       GRAVITY: SWORD_PHYSICS.GRAVITY * 0.68,
-      MIN_TIP_SPEED: 600,
+      MIN_TIP_SPEED: 900,
       MIN_COMMITMENT_MS: 110,
       MIN_COMMITTED_DISTANCE: 62,
       RECOVERY_MS: 170,

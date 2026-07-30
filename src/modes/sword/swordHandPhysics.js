@@ -5,10 +5,10 @@
 // teleporting it around the screen. Kept pure and deterministic for testing.
 
 export const HEAVY_HAND_PHYSICS = Object.freeze({
-  ACCELERATION: 2450, // px/s^2 toward the pointer target
-  MAX_SPEED: 760, // px/s hard cap on hand travel
-  DRAG: 0.9, // velocity retained each 60 Hz frame
-  ARRIVAL_RADIUS: 20, // begin braking this close to the target
+  ACCELERATION: 5450, // px/s^2 toward the pointer target
+  MAX_SPEED: 1760, // px/s hard cap on hand travel
+  DRAG: 0.95, // velocity retained each 60 Hz frame
+  ARRIVAL_RADIUS: 5, // begin braking this close to the target
   STOP_SPEED: 8, // snap tiny residual velocity to zero
   REVERSAL_RESISTANCE: 0.56, // acceleration retained when reversing direction
   MAX_DT: 1 / 30,
