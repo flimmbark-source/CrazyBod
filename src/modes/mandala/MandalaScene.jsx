@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
 import { MANDALA_CONFIG, mandalaAxisAt } from './mandalaConfig.js'
+import { movementForEncounter } from './mandalaEnemyMovement.js'
 import { ENCOUNTER_STATES } from './mandalaState.js'
 import MandalaTube from './MandalaTube.jsx'
 
@@ -13,13 +14,14 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
 // The single per-frame driver: advances the sim, flies the camera down the
 // tube, and resolves every encounter's screen position. Encounters always stay
-// on their authored tube path. Reaching the former sword plane only enables
-// their screen-space hitbox; it no longer docks or redirects the panel.
+// on their tube path, with a small kind-specific local motion layered on top.
+// Reaching the former sword plane only enables their screen-space hitbox; it
+// never docks or redirects the panel.
 function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, registryRef, twistScale = 1, config }) {
   const camera = useThree((state) => state.camera)
   const size = useThree((state) => state.size)
 
-  useFrame((_, rawDelta) => {
+  useFrame((frameState, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05)
     const inputs = inputsRef.current
     const run = step(delta, {
@@ -40,6 +42,7 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, regis
     const enemies = enemiesRef.current
     const registry = registryRef.current
     const seen = new Set()
+    const elapsedSeconds = frameState.clock.elapsedTime
 
     for (const encounter of run.encounters) {
       // Finished encounters are removed from interaction immediately; the DOM
@@ -48,19 +51,24 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, regis
         continue
       }
 
-      const distanceAhead = encounter.routeZ - run.travelDistance
+      const baseDistanceAhead = encounter.routeZ - run.travelDistance
+      const motion = movementForEncounter(encounter, elapsedSeconds)
+      // Positive motion.z is a temporary surge toward the player.
+      const distanceAhead = baseDistanceAhead - motion.z
+
       if (distanceAhead < config.SLASH_REAR_LIMIT - 2 || distanceAhead > config.APPROACHING_DISTANCE + 10) {
         continue
       }
 
       const axis = mandalaAxisAt(encounter.routeZ, config)
-      const worldX = axis.x + encounter.offset.x * config.TUBE_RADIUS
-      const worldY = axis.y + encounter.offset.y * config.TUBE_RADIUS
+      const worldX = axis.x + (encounter.offset.x + motion.x) * config.TUBE_RADIUS
+      const worldY = axis.y + (encounter.offset.y + motion.y) * config.TUBE_RADIUS
       const worldZ = -distanceAhead
       tmp.set(worldX, worldY, worldZ).project(camera)
 
       // Once the panel has fully crossed behind the camera it naturally leaves
-      // the screen. The simulation will mark it passed at the rear limit.
+      // the screen. The simulation marks it passed using its base route timing,
+      // so a temporary forward surge cannot create or avoid overload by itself.
       if (tmp.z > 1) continue
 
       const screenX = (tmp.x * 0.5 + 0.5) * size.width
@@ -78,11 +86,12 @@ function MandalaStepper({ runRef, step, inputsRef, onOverload, enemiesRef, regis
         parked: false,
         state: encounter.state,
         distanceAhead,
+        rotation: motion.rotation,
       })
 
-      // Cutting begins at exactly the same travel threshold that previously
-      // parked the minigame on the sword plane, but the panel keeps moving.
-      if (encounter.state === ENCOUNTER_STATES.ACTIVE && distanceAhead > config.SLASH_REAR_LIMIT) {
+      // Cutting begins from the encounter's authoritative lifecycle threshold.
+      // The hitbox follows the visible profile movement exactly.
+      if (encounter.state === ENCOUNTER_STATES.ACTIVE && baseDistanceAhead > config.SLASH_REAR_LIMIT) {
         registry.set(encounter.id, {
           x: screenX,
           y: screenY,
