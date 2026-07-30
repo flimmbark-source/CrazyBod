@@ -48,6 +48,11 @@ const POV = Object.freeze({
   AIM_MS: 430,
   HOLD_MS: 115,
   RECOVERY_MS: 360,
+  SLASH_SCALE: 3.25,
+  SLASH_ROTATE_X: 18,
+  SLASH_ROTATE_Y: -12,
+  SWAY_X: 52,
+  SWAY_Y: 24,
 })
 
 const pointsString = (points) => points.map((point) => `${point.x},${point.y}`).join(' ')
@@ -56,10 +61,6 @@ const angleBetween = (a, b, fallback = 0) => (
     ? Math.atan2(b.y - a.y, b.x - a.x)
     : fallback
 )
-const pivotBehindTip = (tip, angle) => ({
-  x: tip.x - Math.cos(angle) * SWORD_PHYSICS.BLADE_LENGTH,
-  y: tip.y - Math.sin(angle) * SWORD_PHYSICS.BLADE_LENGTH,
-})
 
 function applyPose(node, pose, shake = null) {
   if (!node) return
@@ -91,6 +92,7 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
   const cutIdsRef = useRef(new Set())
   const crossingsRef = useRef(new Map())
   const animationRef = useRef(null)
+  const holdTimerRef = useRef(null)
   const onResolveRef = useRef(onResolve)
   const perceptionRef = useRef(perception)
   onResolveRef.current = onResolve
@@ -187,13 +189,46 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
       })
     }
 
+    const recoverToPointer = () => {
+      setPhase(PHASES.RECOVERING)
+      const pointer = pointerRef.current
+      const returnPose = {
+        x: pointer.x,
+        y: pointer.y,
+        angle: Math.PI / 2,
+        scale: 1,
+        rotateX: 0,
+        rotateY: 0,
+      }
+      animationRef.current = animate(currentPoseRef.current, {
+        ...returnPose,
+        duration: POV.RECOVERY_MS,
+        ease: 'out(3)',
+        onUpdate: () => applyPose(bladeRef.current, currentPoseRef.current),
+        onComplete: () => {
+          swordStateRef.current = createSwordState(pointerRef.current)
+          pointsRef.current = []
+          metricsRef.current = null
+          cutIdsRef.current.clear()
+          crossingsRef.current.clear()
+          if (planRef.current) planRef.current.setAttribute('points', '')
+          setPhase(PHASES.READY)
+        },
+      })
+    }
+
     const startExecution = () => {
       const metrics = metricsRef.current
       if (!metrics) return
       setPhase(PHASES.EXECUTING)
+
       const driver = { distance: 0 }
       let previousTip = metrics.points[0]
-      const duration = Math.max(260, (metrics.length / SLASH_PATH_CONFIG.EXECUTION_SPEED) * 1000)
+      const duration = Math.max(320, (metrics.length / SLASH_PATH_CONFIG.EXECUTION_SPEED) * 1000)
+      const povAnchor = {
+        x: window.innerWidth * POV.X,
+        y: window.innerHeight * POV.Y,
+      }
 
       animationRef.current = animate(driver, {
         distance: metrics.length,
@@ -202,52 +237,32 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
         onUpdate: () => {
           const sample = pointAtDistance(metrics, driver.distance)
           const tip = sample.point
-          const angle = angleBetween(previousTip, tip, currentPoseRef.current.angle)
-          const pivot = pivotBehindTip(tip, angle)
+          const tangent = angleBetween(previousTip, tip, currentPoseRef.current.angle)
           const progress = metrics.length > 0 ? driver.distance / metrics.length : 1
+          const screenX = window.innerWidth > 0 ? tip.x / window.innerWidth - 0.5 : 0
+          const screenY = window.innerHeight > 0 ? tip.y / window.innerHeight - 0.5 : 0
+
+          // The sword remains held in the player's foreground. The path controls
+          // its facing and swing, while only a small body sway moves the hilt.
           const pose = {
-            x: pivot.x,
-            y: pivot.y,
-            angle,
-            scale: 1.25 + Math.sin(progress * Math.PI) * 0.22,
-            rotateX: 0,
-            rotateY: 0,
+            x: povAnchor.x + screenX * POV.SWAY_X,
+            y: povAnchor.y + screenY * POV.SWAY_Y,
+            angle: tangent,
+            scale: POV.SLASH_SCALE + Math.sin(progress * Math.PI) * 0.38,
+            rotateX: POV.SLASH_ROTATE_X + Math.sin(progress * Math.PI) * -12,
+            rotateY: POV.SLASH_ROTATE_Y + screenX * 18,
           }
           currentPoseRef.current = pose
           applyPose(bladeRef.current, pose)
+
+          // Collision and trail erasure still follow the authored line exactly.
           cutAlong(previousTip, tip, performance.now())
           previousTip = tip
           if (planRef.current) {
             planRef.current.setAttribute('points', pointsString(remainingPathPoints(metrics, driver.distance)))
           }
         },
-        onComplete: () => {
-          setPhase(PHASES.RECOVERING)
-          const pointer = pointerRef.current
-          const returnPose = {
-            x: pointer.x,
-            y: pointer.y,
-            angle: Math.PI / 2,
-            scale: 1,
-            rotateX: 0,
-            rotateY: 0,
-          }
-          animationRef.current = animate(currentPoseRef.current, {
-            ...returnPose,
-            duration: POV.RECOVERY_MS,
-            ease: 'out(3)',
-            onUpdate: () => applyPose(bladeRef.current, currentPoseRef.current),
-            onComplete: () => {
-              swordStateRef.current = createSwordState(pointerRef.current)
-              pointsRef.current = []
-              metricsRef.current = null
-              cutIdsRef.current.clear()
-              crossingsRef.current.clear()
-              if (planRef.current) planRef.current.setAttribute('points', '')
-              setPhase(PHASES.READY)
-            },
-          })
-        },
+        onComplete: recoverToPointer,
       })
     }
 
@@ -269,7 +284,7 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
         ease: 'out(4)',
         onUpdate: () => applyPose(bladeRef.current, currentPoseRef.current),
         onComplete: () => {
-          window.setTimeout(startExecution, POV.HOLD_MS)
+          holdTimerRef.current = window.setTimeout(startExecution, POV.HOLD_MS)
         },
       })
     }
@@ -352,7 +367,7 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
 
       if (layerRef.current) {
         layerRef.current.classList.toggle('is-tensioned', phase === PHASES.DRAWING)
-        layerRef.current.classList.toggle('is-pov', phase === PHASES.AIMING)
+        layerRef.current.classList.toggle('is-pov', phase === PHASES.AIMING || phase === PHASES.EXECUTING)
         layerRef.current.classList.toggle('is-executing', phase === PHASES.EXECUTING)
       }
 
@@ -363,6 +378,7 @@ export default function PlannedSwordCursor({ enabled, registryRef, onResolve, pe
     return () => {
       window.cancelAnimationFrame(raf)
       animationRef.current?.pause?.()
+      if (holdTimerRef.current) window.clearTimeout(holdTimerRef.current)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerdown', down)
       window.removeEventListener('pointerup', up)
