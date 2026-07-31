@@ -153,6 +153,7 @@ export function advanceMandala(state, { deltaSeconds, travelSpeed, config = MAND
   const safeDelta = Math.max(0, deltaSeconds)
   const travelDelta = Math.max(0, travelSpeed) * safeDelta
   const travelDistance = state.travelDistance + travelDelta
+  const holdDistance = config.SWORD_PLANE_HOLD_DISTANCE ?? config.INTERACTION_DISTANCE
   let newlyPassed = 0
 
   let encounters = state.encounters.map((encounter) => {
@@ -163,16 +164,17 @@ export function advanceMandala(state, { deltaSeconds, travelSpeed, config = MAND
     const previousDistanceAhead = encounter.routeZ - state.travelDistance
     const unheldDistanceAhead = encounter.routeZ - travelDistance
 
-    // The first frame this encounter reaches the sword plane, pin it exactly to
-    // that plane and begin its own hold. No other encounter or subsystem pauses.
+    // The first frame this encounter reaches the visual sword plane, pin it
+    // exactly there and begin its own hold. It may already be slashable from the
+    // slightly farther interaction threshold.
     if (
       !swordPlaneHoldStarted
-      && previousDistanceAhead > config.INTERACTION_DISTANCE
-      && unheldDistanceAhead <= config.INTERACTION_DISTANCE
+      && previousDistanceAhead > holdDistance
+      && unheldDistanceAhead <= holdDistance
     ) {
       swordPlaneHoldStarted = true
       swordPlaneHoldRemaining = Math.max(0, config.SWORD_PLANE_HOLD_SECONDS ?? 1)
-      routeZ = travelDistance + config.INTERACTION_DISTANCE
+      routeZ = travelDistance + holdDistance
     } else if (swordPlaneHoldStarted && swordPlaneHoldRemaining > 0) {
       // Move this encounter forward by the same amount as the player for only
       // the held portion of this frame. Its distance-ahead therefore stays fixed
