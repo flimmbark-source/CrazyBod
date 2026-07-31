@@ -5,6 +5,7 @@ import {
   applySwordReleaseImpulse,
   createSwordState,
   stepSword,
+  isSwinging,
   isSwingingForward,
 } from './swordPhysics.js'
 import { segmentCircleIntersections, pointAlong } from './slashGeometry.js'
@@ -47,8 +48,7 @@ function physicsFor(profile) {
       ...SWORD_PHYSICS,
       DAMPING: 0.965,
       GRAVITY: SWORD_PHYSICS.GRAVITY * 1.35,
-      READY_SUPPORT: SWORD_PHYSICS.READY_SUPPORT * 0.88,
-      WINDUP_SUPPORT: SWORD_PHYSICS.WINDUP_SUPPORT * 0.88,
+      HOLD_STIFFNESS: SWORD_PHYSICS.HOLD_STIFFNESS * 0.88,
     }
   }
   if (profile === 'light') {
@@ -57,37 +57,44 @@ function physicsFor(profile) {
       DAMPING: 0.925,
       GRAVITY: SWORD_PHYSICS.GRAVITY * 0.6,
       MIN_TIP_SPEED: SWORD_PHYSICS.MIN_TIP_SPEED * 0.85,
-      READY_SUPPORT: SWORD_PHYSICS.READY_SUPPORT * 1.15,
-      WINDUP_SUPPORT: SWORD_PHYSICS.WINDUP_SUPPORT * 1.15,
+      HOLD_STIFFNESS: SWORD_PHYSICS.HOLD_STIFFNESS * 1.15,
     }
   }
   return SWORD_PHYSICS
 }
 
 function attackSupport(phase, phaseElapsedMs, config) {
+  const stiffness = config.HOLD_STIFFNESS ?? 1
   if (phase === ATTACK_PHASES.READY) {
-    return { targetAngle: config.READY_ANGLE, support: config.READY_SUPPORT }
+    return {
+      targetAngle: config.READY_ANGLE,
+      support: config.READY_SUPPORT * stiffness,
+    }
   }
   if (phase === ATTACK_PHASES.WINDING) {
-    return { targetAngle: config.WINDUP_ANGLE, support: config.WINDUP_SUPPORT }
+    return {
+      targetAngle: config.WINDUP_ANGLE,
+      support: config.WINDUP_SUPPORT * stiffness,
+    }
   }
   if (phase === ATTACK_PHASES.RECOVERING) {
     const recovery = Math.min(1, phaseElapsedMs / config.RECOVERY_MS)
     return {
       targetAngle: config.READY_ANGLE,
-      support: config.RECOVERY_SUPPORT
-        + (config.READY_SUPPORT - config.RECOVERY_SUPPORT) * recovery,
+      support: (
+        config.RECOVERY_SUPPORT
+        + (config.READY_SUPPORT - config.RECOVERY_SUPPORT) * recovery
+      ) * stiffness,
     }
   }
   return { targetAngle: null, support: 0 }
 }
 
-// The blade is physically supported in an upright, slanted guard. Holding the
+// The blade is physically supported in a left-rotated guard. Holding the
 // primary pointer button draws it backward against gravity; releasing injects a
 // clockwise tangential impulse and lets the Verlet blade produce the actual arc.
-// Only that forward released whip can cut. Follow-through and recovery are
-// therefore mandatory, so continuously scribbling the cursor is no longer an
-// effective attack.
+// Whip and damage remain attached to the physical sword at all times: any fast
+// enough full tip traversal can cut, regardless of attack phase.
 export default function SwordCursor({ enabled, registryRef, onResolve, perception }) {
   const [flashes, setFlashes] = useState([])
   const layerRef = useRef(null)
@@ -140,8 +147,6 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
       if (event.button !== 0 || phaseRef.current !== ATTACK_PHASES.READY) return
       event.preventDefault()
       windupStartedAtRef.current = performance.now()
-      crossingRef.current.clear()
-      trailPointsRef.current = []
       setPhase(ATTACK_PHASES.WINDING, windupStartedAtRef.current)
     }
 
@@ -161,14 +166,11 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
         dt: lastFrameDtRef.current,
         config,
       })
-      crossingRef.current.clear()
-      trailPointsRef.current = [{ ...stateRef.current.tip }]
       setPhase(ATTACK_PHASES.SWINGING, now)
     }
 
     const cancelWindup = () => {
       if (phaseRef.current !== ATTACK_PHASES.WINDING) return
-      crossingRef.current.clear()
       setPhase(ATTACK_PHASES.RECOVERING)
     }
 
@@ -209,27 +211,23 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
       stateRef.current = state
 
       if (phase === ATTACK_PHASES.SWINGING) {
-        const forwardWhip = isSwingingForward(state, config)
         const swingFinished = phaseElapsedMs >= config.MAX_SWING_MS
           || (
             phaseElapsedMs >= config.MIN_SWING_MS
             && state.angularVelocity < config.MIN_FORWARD_ANGULAR_SPEED * 0.45
           )
         if (swingFinished) {
-          crossingRef.current.clear()
           setPhase(ATTACK_PHASES.RECOVERING, now)
         }
-        if (layerRef.current) layerRef.current.classList.toggle('is-swinging', forwardWhip)
-      } else {
-        crossingRef.current.clear()
-        if (layerRef.current) layerRef.current.classList.remove('is-swinging')
-        if (
-          phase === ATTACK_PHASES.RECOVERING
-          && phaseElapsedMs >= config.RECOVERY_MS
-        ) {
-          setPhase(ATTACK_PHASES.READY, now)
-        }
+      } else if (
+        phase === ATTACK_PHASES.RECOVERING
+        && phaseElapsedMs >= config.RECOVERY_MS
+      ) {
+        setPhase(ATTACK_PHASES.READY, now)
       }
+
+      const whipping = isSwinging(state, config)
+      if (layerRef.current) layerRef.current.classList.toggle('is-swinging', whipping)
 
       const blade = bladeRef.current
       if (blade) {
@@ -237,13 +235,11 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
         blade.style.opacity = '1'
       }
 
-      const canCut = phaseRef.current === ATTACK_PHASES.SWINGING
-        && isSwingingForward(state, config)
       const trail = trailPointsRef.current
-      if (canCut) {
+      if (whipping) {
         trail.push({ x: state.tip.x, y: state.tip.y })
         if (trail.length > TRAIL_MAX) trail.shift()
-      } else if (phaseRef.current !== ATTACK_PHASES.SWINGING) {
+      } else {
         trail.length = 0
       }
       if (trailRef.current) {
@@ -251,7 +247,7 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
       }
 
       const registry = registryRef.current
-      if (registry && canCut) {
+      if (registry && whipping) {
         const crossing = crossingRef.current
         const cooldown = cooldownRef.current
         const prevTip = state.prev
@@ -317,6 +313,8 @@ export default function SwordCursor({ enabled, registryRef, onResolve, perceptio
         crossing.forEach((_, id) => {
           if (!activeIds.has(id)) crossing.delete(id)
         })
+      } else {
+        crossingRef.current.clear()
       }
 
       cooldownRef.current.forEach((time, id) => {
