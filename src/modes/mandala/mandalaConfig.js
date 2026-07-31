@@ -19,6 +19,9 @@ export const MANDALA_CONFIG = Object.freeze({
   APPROACHING_DISTANCE: 46, // enters view, starts reading
   ARRIVING_DISTANCE: 20, // close, settling to face the camera
   INTERACTION_DISTANCE: 10, // reaches the interaction plane -> becomes active
+  // Each encounter individually holds at the sword plane before continuing.
+  // The rest of the Mandala, including other encounters, keeps advancing.
+  SWORD_PLANE_HOLD_SECONDS: 1,
   // While active, an encounter is slashable until it falls this far behind the
   // plane. Past it, the encounter is unreachable but still counts as load.
   SLASH_REAR_LIMIT: -3,
