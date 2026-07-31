@@ -18,7 +18,10 @@ export const MANDALA_CONFIG = Object.freeze({
   // These thresholds classify that distance into lifecycle states.
   APPROACHING_DISTANCE: 46, // enters view, starts reading
   ARRIVING_DISTANCE: 20, // close, settling to face the camera
-  INTERACTION_DISTANCE: 10, // reaches the interaction plane -> becomes active
+  INTERACTION_DISTANCE: 10, // becomes active and slashable
+  // Hold slightly closer than the activation threshold so the panel visually
+  // reaches the sword plane before it stops.
+  SWORD_PLANE_HOLD_DISTANCE: 8.5,
   // Each encounter individually holds at the sword plane before continuing.
   // The rest of the Mandala, including other encounters, keeps advancing.
   SWORD_PLANE_HOLD_SECONDS: 1,
