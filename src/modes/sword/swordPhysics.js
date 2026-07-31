@@ -20,14 +20,20 @@ export const SWORD_PHYSICS = Object.freeze({
   MAX_DT: 1 / 40,
 
   // --- Held attack cycle ---------------------------------------------------
-  // Screen-space angles: -PI/2 points straight up; increasing angles rotate
-  // clockwise. The ready stance is upright and slightly forward, while holding
-  // click pulls the blade back across the player's body.
-  READY_ANGLE: -1.08,
-  WINDUP_ANGLE: -2.42,
+  // Screen-space angles: -PI/2 points straight up; decreasing angles rotate
+  // counter-clockwise. Both held poses are rotated 90 degrees left from their
+  // previous orientation while preserving the same wind-up distance.
+  READY_ANGLE: -1.08 - Math.PI / 2,
+  WINDUP_ANGLE: -2.42 - Math.PI / 2,
+
+  // Master multiplier for how firmly the player's hands hold the target pose.
+  // Raise this for a stiffer, more controlled blade; lower it for more sag,
+  // sway and overshoot. The phase-specific values retain their relative feel.
+  HOLD_STIFFNESS: 1.65,
   READY_SUPPORT: 12,
   WINDUP_SUPPORT: 18,
   RECOVERY_SUPPORT: 8,
+
   MAX_CHARGE_MS: 460,
   MIN_RELEASE_ANGULAR_SPEED: 8.8,
   MAX_RELEASE_ANGULAR_SPEED: 14.2,
@@ -37,6 +43,8 @@ export const SWORD_PHYSICS = Object.freeze({
   RECOVERY_MS: 340,
 
   // --- Cut tuning ----------------------------------------------------------
+  // Whip and damage are based only on physical tip speed, in every attack
+  // phase. The click cycle changes how the sword moves; it does not gate damage.
   MIN_TIP_SPEED: 720,
   CUT_MIN_CHORD_FRACTION: 0.76,
   CUT_COOLDOWN_MS: 360,
@@ -143,7 +151,11 @@ export function stepSword(
   }
 }
 
-export function isSwingingForward(state, config = SWORD_PHYSICS) {
+export function isSwinging(state, config = SWORD_PHYSICS) {
   return state.tipSpeed >= config.MIN_TIP_SPEED
+}
+
+export function isSwingingForward(state, config = SWORD_PHYSICS) {
+  return isSwinging(state, config)
     && state.angularVelocity >= config.MIN_FORWARD_ANGULAR_SPEED
 }
