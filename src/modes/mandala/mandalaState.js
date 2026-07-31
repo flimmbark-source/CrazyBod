@@ -104,6 +104,8 @@ export function spawnEncounter(state, { kind, distanceAhead, config = MANDALA_CO
     state: ENCOUNTER_STATES.DISTANT,
     hitsRemaining: 1,
     sourceMicrogameKind: kind ?? null,
+    swordPlaneHoldStarted: false,
+    swordPlaneHoldRemaining: 0,
   }
 
   return {
@@ -148,17 +150,59 @@ export function travelSpeedFor({ diving, config = MANDALA_CONFIG }) {
 // Advance the simulation by one step. `travelSpeed` is supplied by the caller
 // (already accounting for Dive) so this function stays agnostic about input.
 export function advanceMandala(state, { deltaSeconds, travelSpeed, config = MANDALA_CONFIG }) {
-  const travelDelta = Math.max(0, travelSpeed) * Math.max(0, deltaSeconds)
+  const safeDelta = Math.max(0, deltaSeconds)
+  const travelDelta = Math.max(0, travelSpeed) * safeDelta
   const travelDistance = state.travelDistance + travelDelta
   let newlyPassed = 0
 
   let encounters = state.encounters.map((encounter) => {
-    const distanceAhead = encounter.routeZ - travelDistance
+    let routeZ = encounter.routeZ
+    let swordPlaneHoldStarted = encounter.swordPlaneHoldStarted ?? false
+    let swordPlaneHoldRemaining = encounter.swordPlaneHoldRemaining ?? 0
+
+    const previousDistanceAhead = encounter.routeZ - state.travelDistance
+    const unheldDistanceAhead = encounter.routeZ - travelDistance
+
+    // The first frame this encounter reaches the sword plane, pin it exactly to
+    // that plane and begin its own hold. No other encounter or subsystem pauses.
+    if (
+      !swordPlaneHoldStarted
+      && previousDistanceAhead > config.INTERACTION_DISTANCE
+      && unheldDistanceAhead <= config.INTERACTION_DISTANCE
+    ) {
+      swordPlaneHoldStarted = true
+      swordPlaneHoldRemaining = Math.max(0, config.SWORD_PLANE_HOLD_SECONDS ?? 1)
+      routeZ = travelDistance + config.INTERACTION_DISTANCE
+    } else if (swordPlaneHoldStarted && swordPlaneHoldRemaining > 0) {
+      // Move this encounter forward by the same amount as the player for only
+      // the held portion of this frame. Its distance-ahead therefore stays fixed
+      // while held, then naturally resumes closing if the timer expires mid-frame.
+      const heldSeconds = Math.min(safeDelta, swordPlaneHoldRemaining)
+      const heldFraction = safeDelta > 0 ? heldSeconds / safeDelta : 0
+      routeZ += travelDelta * heldFraction
+      swordPlaneHoldRemaining = Math.max(0, swordPlaneHoldRemaining - heldSeconds)
+    }
+
+    const distanceAhead = routeZ - travelDistance
     const nextState = progressEncounterState(encounter.state, distanceAhead, config)
     if (nextState === ENCOUNTER_STATES.PASSED && encounter.state !== ENCOUNTER_STATES.PASSED) {
       newlyPassed += 1
     }
-    return nextState === encounter.state ? encounter : { ...encounter, state: nextState }
+
+    const changed = routeZ !== encounter.routeZ
+      || nextState !== encounter.state
+      || swordPlaneHoldStarted !== encounter.swordPlaneHoldStarted
+      || swordPlaneHoldRemaining !== encounter.swordPlaneHoldRemaining
+
+    return changed
+      ? {
+          ...encounter,
+          routeZ,
+          state: nextState,
+          swordPlaneHoldStarted,
+          swordPlaneHoldRemaining,
+        }
+      : encounter
   })
 
   // Drop finished encounters after they have travelled well behind the player.
