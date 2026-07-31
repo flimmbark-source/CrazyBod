@@ -106,7 +106,7 @@ export const MANDALA_SCRIPT = Object.freeze({
       effects: {
         // Everything tilts: red core, mirrored aim, a lighter frantic blade.
         background: { color: '#1a0910', fogNear: 9, fogFar: 52 },
-        perception: { invertPointerX: true, bladeProfile: 'light' },
+        perception: { invertPointerX: false, bladeProfile: 'light' },
         interaction: { twistScale: 3.2 },
       },
       waves: [

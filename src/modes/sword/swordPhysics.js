@@ -23,8 +23,8 @@ export const SWORD_PHYSICS = Object.freeze({
   // Screen-space angles: -PI/2 points straight up; decreasing angles rotate
   // counter-clockwise. Both held poses are rotated 90 degrees left from their
   // previous orientation while preserving the same wind-up distance.
-  READY_ANGLE: -1.08 - Math.PI / 2,
-  WINDUP_ANGLE: -2.42 - Math.PI / 2,
+  READY_ANGLE: -1.08 - Math.PI / 3,
+  WINDUP_ANGLE: -2.42 - Math.PI / 3,
 
   // Master multiplier for how firmly the player's hands hold the target pose.
   // Raise this for a stiffer, more controlled blade; lower it for more sag,
