@@ -12,7 +12,7 @@ import sillyTrumpetUrl from './floraphonic-silly-trumpet-3-187810.mp3'
 import barkUrl from './OutsideSounds/audiopapkin-barking-large-and-small-dog-290711.mp3'
 import busIdleUrl from './OutsideSounds/freesound_community-bus-engine-idling-26992.mp3'
 import busPassUrl from './OutsideSounds/freesound_community-bus-passing-104115.mp3'
-
+import carnivalUrl from './OutsideSounds/freesound_community-street-carnival-2-68333.mp3'
 import cityUrl from './OutsideSounds/km007-city-ambience-9272.mp3'
 import motorcycleUrl from './OutsideSounds/universfield-fast-motorcycle-pass-by-559409.mp3'
 
@@ -20,6 +20,7 @@ const STEPS_OUTSIDE_AT = 15
 const ENTERS_CAFE_AT = 29
 const ALARM_MS = 2000
 const CELEBRATION_TRUMPET_STAGGER_MS = 300
+const CARNIVAL_CAFE_VOLUME_MULTIPLIER = 0.25
 
 function makeAudio(url, { loop = false, volume = 0.3 } = {}) {
   if (typeof Audio === 'undefined') return null
@@ -29,6 +30,12 @@ function makeAudio(url, { loop = false, volume = 0.3 } = {}) {
   audio.__crazyBodBaseVolume = volume
   audio.preload = 'auto'
   return audio
+}
+
+function setClipVolume(audio, globalVolume, multiplier = 1) {
+  if (!audio) return
+  const baseVolume = Number(audio.__crazyBodBaseVolume ?? audio.volume)
+  audio.volume = Math.min(1, Math.max(0, baseVolume * globalVolume * multiplier))
 }
 
 function startClip(audio) {
@@ -179,6 +186,7 @@ export default function useJourneyAudio({
       goHome: makeAudio(goHomeUrl),
       overloaded: makeAudio(overloadedUrl),
       cafe: makeAudio(cafeUrl, { loop: true, volume: 0.425 }),
+      carnival: makeAudio(carnivalUrl, { volume: 0.35 }),
       celebrationTrumpets: [
         makeAudio(sillyTrumpetUrl, { volume: 0.55 }),
         makeAudio(sillyTrumpetUrl, { volume: 0.55 }),
@@ -209,16 +217,20 @@ export default function useJourneyAudio({
       clips.goHome,
       clips.overloaded,
       clips.cafe,
+      clips.carnival,
       ...clips.celebrationTrumpets,
       ...clips.outside,
     ].filter(Boolean)
   }
 
   useEffect(() => {
-    allClips().forEach((audio) => {
-      const baseVolume = Number(audio.__crazyBodBaseVolume ?? audio.volume)
-      audio.volume = Math.min(1, Math.max(0, baseVolume * volume))
-    })
+    const clips = clipsRef.current
+    allClips().forEach((audio) => setClipVolume(audio, volume))
+    setClipVolume(
+      clips.carnival,
+      volume,
+      cafeFiredRef.current ? CARNIVAL_CAFE_VOLUME_MULTIPLIER : 1,
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volume])
 
@@ -236,6 +248,7 @@ export default function useJourneyAudio({
     stopClip(clips.alarm)
     stopClip(clips.rustle)
     stopClip(clips.cafe)
+    stopClip(clips.carnival)
     clips.celebrationTrumpets.forEach(stopClip)
     clips.outside.forEach(stopClip)
   }
@@ -269,6 +282,7 @@ export default function useJourneyAudio({
       stopInRunClips()
       stopClip(clips.goHome)
       stopClip(clips.overloaded)
+      setClipVolume(clips.carnival, volume)
       tutorialPausedSetRef.current.clear()
       outsideFiredRef.current = false
       cafeFiredRef.current = false
@@ -284,7 +298,7 @@ export default function useJourneyAudio({
       stopInRunClips()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status])
+  }, [status, volume])
 
   useEffect(() => {
     if (startCueToken <= 0) return
@@ -334,9 +348,10 @@ export default function useJourneyAudio({
     if (!cafeFiredRef.current && dayElapsed >= ENTERS_CAFE_AT) {
       cafeFiredRef.current = true
       stopClip(clips.gravel)
+      setClipVolume(clips.carnival, volume, CARNIVAL_CAFE_VOLUME_MULTIPLIER)
       startClip(clips.cafe)
     }
-  }, [dayElapsed, status])
+  }, [dayElapsed, status, volume])
 
   useEffect(() => {
     const loadIncreased = load > prevLoadRef.current
@@ -346,7 +361,8 @@ export default function useJourneyAudio({
       && !cafeFiredRef.current
       && loadIncreased
     ) {
-      const pool = clipsRef.current.outside
+      const clips = clipsRef.current
+      const pool = [...clips.outside, clips.carnival].filter(Boolean)
       if (pool.length) startClip(pool[Math.floor(Math.random() * pool.length)])
     }
     prevLoadRef.current = load
