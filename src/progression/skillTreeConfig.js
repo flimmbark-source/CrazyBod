@@ -99,7 +99,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'plan',
-    name: 'Each minigame spawn may pause time for 2s. (20%)',
+    name: 'Each minigame spawn may pause time for 1s. (20%)',
     tagline: 'Getting Ready',
     category: 'preparation',
     palette: PALETTES.preparation,
@@ -114,9 +114,9 @@ export const SKILL_TREE_NODES = [
     effect: {
       techniqueId: 'plan',
       triggerDay: 13.1,
-      addedSeconds: 2,
+      addedSeconds: 1,
       staggerPairs: 2,
-      staggerDelaySeconds: 2,
+      staggerDelaySeconds: 1,
     },
   },
   {
@@ -149,13 +149,13 @@ export const SKILL_TREE_NODES = [
     category: 'automatic',
     palette: PALETTES.automatic,
     cost: 150,
-    prerequisites: ['thisIsNormal'],
+    prerequisites: ['autotarget'],
     x: 70,
     y: 30,
     icon: 'bolt',
     hook: 'microgameCompletionRate',
     description: '',
-    detail: 'Progress-based minigames complete 50% faster.',
+    detail: 'Do things as fast as possible, even if you dont want to.',
     effect: { completionRateMultiplier: 1.5 },
   },
   {
@@ -165,7 +165,7 @@ export const SKILL_TREE_NODES = [
     category: 'automatic',
     palette: PALETTES.automatic,
     cost: 125,
-    prerequisites: ['fasterCompletion'],
+    prerequisites: ['thisIsNormal'],
     x: 70,
     y: 66,
     icon: 'target',
@@ -181,7 +181,7 @@ export const SKILL_TREE_NODES = [
   },
   {
     id: 'adrenaline',
-    name: 'Each minigame spawn may pause time for 2s.(20%)',
+    name: 'Each minigame spawn may pause time for 1s.(20%)',
     tagline: 'Automatic',
     category: 'automatic',
     palette: PALETTES.automatic,
@@ -193,7 +193,7 @@ export const SKILL_TREE_NODES = [
     hook: 'onLoadChanged',
     description: '',
     detail: 'Get your adrenaline pumping to slow down time.',
-    effect: { belowLimit: 1, pauseSeconds: 2 },
+    effect: { belowLimit: 1, pauseSeconds: 1 },
   },
   {
     id: 'suppress',
