@@ -575,3 +575,85 @@
   box-shadow: 0 0 0 5px rgba(155, 185, 144, 0.3), 0 3px 0 #302b38;
   cursor: default;
 }
+
+/* Every game must negotiate for the height available inside the shared window.
+   minmax(0, 1fr) prevents a fixed-size playfield from pushing the controls and
+   progress bar below the clipped body area. */
+.new-minigame,
+.balance-game,
+.muscle-game,
+.dizziness-game,
+.memory-game,
+.heavy-eyes-game,
+.micro-rest-game,
+.light-game {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.balance-game,
+.muscle-game,
+.dizziness-game,
+.heavy-eyes-game,
+.micro-rest-game,
+.light-game {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+
+.memory-game {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.new-minigame > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+.new-minigame > :not(small):not(.mini-progress):not(.mini-button-row) {
+  max-height: 100%;
+  align-self: center;
+}
+
+.tremor-field,
+.pressure-field,
+.joint-field,
+.spiral-field,
+.direction-stage,
+.afterimage-flash,
+.rest-orb,
+.light-symbol,
+.grip-button,
+.heart,
+.two-eyes {
+  max-height: 100%;
+}
+
+@media (max-height: 720px), (max-width: 760px) {
+  .new-minigame { gap: 4px; }
+  .new-minigame > small {
+    font-size: 10px;
+    line-height: 1;
+  }
+  .new-minigame button {
+    min-height: 26px;
+    padding-block: 2px;
+  }
+  .mini-button-row { min-height: 26px; }
+
+  .tremor-field,
+  .pressure-field,
+  .joint-field,
+  .spiral-field { min-height: 42px; }
+
+  .direction-stage,
+  .afterimage-flash,
+  .rest-orb,
+  .light-symbol,
+  .grip-button,
+  .heart { width: auto; aspect-ratio: 1; }
+
+  .two-eyes button { height: min(44px, 100%); }
+  .memory-sequence b,
+  .thought-sequence b { width: 34px; height: 34px; }
+  .switch-grid button,
+  .packing-grid button { min-height: 30px; height: auto; }
+}
