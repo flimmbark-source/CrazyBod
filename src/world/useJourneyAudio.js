@@ -88,23 +88,22 @@ function readJourneyState() {
     : null
   const status = statusClass?.slice('status-'.length) ?? 'intro'
   const tutorialPaused = Boolean(document.querySelector('.tutorial-layer'))
-  const celebrationVisible = Boolean(document.querySelector('.cafe-celebration'))
   const load = document.querySelectorAll('.load-pips i.filled').length
 
-  return { status, tutorialPaused, celebrationVisible, load }
+  return { status, tutorialPaused, load }
 }
 
-function mutationShowsStartCue(record) {
+function mutationAddsClass(record, className) {
   if (record.type === 'attributes') {
     return record.target instanceof Element
-      && record.target.classList.contains('race-start-cue-start')
+      && record.target.classList.contains(className)
   }
 
   return Array.from(record.addedNodes).some((node) => (
     node instanceof Element
     && (
-      node.classList.contains('race-start-cue-start')
-      || Boolean(node.querySelector('.race-start-cue-start'))
+      node.classList.contains(className)
+      || Boolean(node.querySelector(`.${className}`))
     )
   ))
 }
@@ -114,6 +113,7 @@ export function JourneyAudioBridge() {
     ...readJourneyState(),
     dayElapsed: 0,
     startCueToken: 0,
+    celebrationToken: 0,
   }))
 
   useEffect(() => {
@@ -140,12 +140,15 @@ export function JourneyAudioBridge() {
       if (!frame) frame = window.requestAnimationFrame(update)
     }
     const observer = new MutationObserver((records) => {
-      const startCueAppeared = records.some(mutationShowsStartCue)
-      if (startCueAppeared) {
+      const startCueAppeared = records.some((record) => mutationAddsClass(record, 'race-start-cue-start'))
+      const celebrationAppeared = records.some((record) => mutationAddsClass(record, 'cafe-celebration'))
+
+      if (startCueAppeared || celebrationAppeared) {
         setSignals((current) => ({
           ...current,
           ...readJourneyState(),
-          startCueToken: current.startCueToken + 1,
+          startCueToken: current.startCueToken + (startCueAppeared ? 1 : 0),
+          celebrationToken: current.celebrationToken + (celebrationAppeared ? 1 : 0),
         }))
       } else {
         scheduleUpdate()
@@ -171,10 +174,10 @@ export function JourneyAudioBridge() {
 export default function useJourneyAudio({
   status,
   startCueToken,
+  celebrationToken,
   dayElapsed,
   load,
   tutorialPaused,
-  celebrationVisible,
   volume = 1,
 }) {
   const clipsRef = useRef(null)
@@ -203,7 +206,6 @@ export default function useJourneyAudio({
   const outsideFiredRef = useRef(false)
   const cafeFiredRef = useRef(false)
   const prevLoadRef = useRef(load)
-  const prevCelebrationVisibleRef = useRef(Boolean(celebrationVisible))
   const alarmTimerRef = useRef(null)
   const celebrationTimerRef = useRef(null)
   const tutorialPausedSetRef = useRef(new Set())
@@ -287,7 +289,6 @@ export default function useJourneyAudio({
       outsideFiredRef.current = false
       cafeFiredRef.current = false
       prevLoadRef.current = 0
-      prevCelebrationVisibleRef.current = false
     } else if (status === 'home') {
       stopInRunClips()
       startClip(clips.goHome)
@@ -319,9 +320,7 @@ export default function useJourneyAudio({
   }, [startCueToken])
 
   useEffect(() => {
-    const appeared = celebrationVisible && !prevCelebrationVisibleRef.current
-    prevCelebrationVisibleRef.current = Boolean(celebrationVisible)
-    if (!appeared) return
+    if (celebrationToken <= 0) return
 
     const [first, second] = clipsRef.current.celebrationTrumpets
     startClip(first)
@@ -330,7 +329,7 @@ export default function useJourneyAudio({
       celebrationTimerRef.current = null
       startClip(second)
     }, CELEBRATION_TRUMPET_STAGGER_MS)
-  }, [celebrationVisible])
+  }, [celebrationToken])
 
   useEffect(() => {
     if (status !== 'playing') return
