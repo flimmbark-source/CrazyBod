@@ -3,16 +3,17 @@
 // requirement never means touching component logic.
 //
 // Coordinates are authored on a 0-100 grid (percent of the tree canvas, y
-// increasing downward). The Mandala re-centres the tree: the Sword sits at the
-// middle and the tree grows outward from it. Fixed coordinates keep responsive
-// behaviour under our control.
+// increasing downward). Fixed coordinates keep responsive behaviour under our
+// control.
 //
 // Dependencies are expressed as `prerequisites: [...ids]`. A legacy single
 // `parent` is still honoured through prerequisitesOf() so old shapes keep
 // working, but new nodes should use `prerequisites`.
 
-// The Sword is the Mandala root and the revealed-by-default centre of the tree.
-export const STARTING_NODE_ID = 'swordCursor'
+// Stable public release: the original coping tree remains the player-facing
+// progression root. Experimental Mandala nodes stay in the data model so work
+// can resume later without deleting saves or implementation.
+export const STARTING_NODE_ID = 'thisIsNormal'
 
 const PALETTES = {
   mandala: { accent: '#c9a24b', dark: '#f0b429', light: '#f6ecd2' },
@@ -23,7 +24,7 @@ const PALETTES = {
 }
 
 export const SKILL_TREE_NODES = [
-  // --- Mandala centre -----------------------------------------------------
+  // --- Experimental Mandala nodes (hidden in the stable release UI) -------
   {
     id: 'swordCursor',
     name: 'Sword Cursor',
@@ -57,7 +58,7 @@ export const SKILL_TREE_NODES = [
     effect: { enablesDive: true },
   },
 
-  // --- Existing coping tree (now grows south from the Sword) ---------------
+  // --- Stable coping tree -------------------------------------------------
   {
     id: 'thisIsNormal',
     name: 'Overload Capacity +1',
@@ -65,7 +66,7 @@ export const SKILL_TREE_NODES = [
     category: 'passive',
     palette: PALETTES.passive,
     cost: 50,
-    prerequisites: ['swordCursor'],
+    prerequisites: [],
     x: 50,
     y: 76,
     icon: 'plus',
