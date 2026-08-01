@@ -1,5 +1,27 @@
 import { useCallback, useEffect, useRef } from 'react'
 
+const PROGRESSION_STORAGE_KEY = 'crazybod:progression'
+const COMPLETION_RATE_NODE_ID = 'fasterCompletion'
+let cachedProgressionJson = null
+let cachedCompletionRate = 1
+
+function currentCompletionRate() {
+  try {
+    const raw = window.localStorage.getItem(PROGRESSION_STORAGE_KEY)
+    if (raw === cachedProgressionJson) return cachedCompletionRate
+
+    cachedProgressionJson = raw
+    const progression = raw ? JSON.parse(raw) : null
+    cachedCompletionRate = progression?.enabledNodeIds?.includes(COMPLETION_RATE_NODE_ID)
+      ? 1.5
+      : 1
+  } catch {
+    cachedCompletionRate = 1
+  }
+
+  return cachedCompletionRate
+}
+
 export function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value))
 }
@@ -49,7 +71,7 @@ export function useAnimationFrame(callback, active = true, framesPerSecond = 30)
       if (accumulated >= frameInterval) {
         const delta = Math.min(accumulated, 80)
         accumulated %= frameInterval
-        callbackRef.current(now, delta)
+        callbackRef.current(now, delta * currentCompletionRate())
       }
 
       frame = requestAnimationFrame(tick)
