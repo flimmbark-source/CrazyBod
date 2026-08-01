@@ -29,7 +29,7 @@ export default function SuppressionTechnique({ requiredPresses, onComplete }) {
         bump()
       }
     }
-    window.addEventListener('keydown', onKey, true) // capture: beat the minigames
+    window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [bump])
 
@@ -37,18 +37,27 @@ export default function SuppressionTechnique({ requiredPresses, onComplete }) {
 
   return (
     <div className="suppression-overlay" role="alertdialog" aria-label="Suppress visible distress">
-      <div className="suppression-core" style={{ '--squeeze': 1 - ratio * 0.4 }}>
-        <span className="suppression-eyebrow">HOLD IT DOWN</span>
-        <strong className="suppression-title">SUPPRESS</strong>
-        <p className="suppression-hint">Mash Space to force it down.</p>
-        <div className="suppression-meter">
+      <section className="suppression-core" style={{ '--squeeze': 1 - ratio * 0.04 }}>
+        <div className="suppression-speaker-row">
+          <span className="suppression-portrait" aria-hidden="true">!</span>
+          <div className="suppression-copy">
+            <span className="suppression-eyebrow">HOLD IT DOWN</span>
+            <strong className="suppression-title">SUPPRESS</strong>
+            <p className="suppression-hint">Mash Space to force it down.</p>
+          </div>
+        </div>
+
+        <div className="suppression-meter" aria-hidden="true">
           <i style={{ transform: `scaleX(${ratio})` }} />
         </div>
-        <span className="suppression-count">{presses} / {requiredPresses}</span>
-        <button type="button" className="suppression-mash" onClick={bump}>
-          SQUEEZE
-        </button>
-      </div>
+
+        <div className="suppression-actions">
+          <span className="suppression-count">{presses} / {requiredPresses}</span>
+          <button type="button" className="suppression-mash" onClick={bump}>
+            SQUEEZE
+          </button>
+        </div>
+      </section>
     </div>
   )
 }
