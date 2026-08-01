@@ -11,7 +11,8 @@ import {
   isPurchased,
   isRevealed,
 } from './progressionStore.js'
-import { deriveProgressionEffects } from './deriveProgressionEffects.js'
+
+const RELEASE_HIDDEN_NODE_IDS = new Set(['swordCursor', 'mandalaDive'])
 
 const ICONS = {
   sword: <path d="M18 4l2 2-8 8-1 3 3-1 8-8M6 18l3 3M4 20l3-3" />,
@@ -151,18 +152,24 @@ export default function SkillTreeScreen({
   onToggle,
   onResetTree,
   onResetFull,
-  onEnterMandala,
 }) {
   const [activeId, setActiveId] = useState(null)
   const [deniedId, setDeniedId] = useState(null)
+  const visibleNodes = SKILL_TREE_NODES.filter((node) => !RELEASE_HIDDEN_NODE_IDS.has(node.id))
   const active = activeId ? SKILL_TREE_NODES_BY_ID[activeId] : null
-  const activeVisible = active && isRevealed(progression, active.id) ? active : null
+  const activeVisible = active
+    && !RELEASE_HIDDEN_NODE_IDS.has(active.id)
+    && isRevealed(progression, active.id)
+    ? active
+    : null
   const activeState = activeVisible ? nodeState(progression, activeVisible) : 'hidden'
-  const mandalaReady = deriveProgressionEffects(progression.enabledNodeIds).mandalaEnabled
 
-  // Connectors between revealed nodes; brighter once both ends are owned.
+  // Connectors between visible, revealed nodes; brighter once both ends are owned.
   const visibleEdges = SKILL_TREE_EDGES.filter(
-    (edge) => isRevealed(progression, edge.from) && isRevealed(progression, edge.to),
+    (edge) => !RELEASE_HIDDEN_NODE_IDS.has(edge.from)
+      && !RELEASE_HIDDEN_NODE_IDS.has(edge.to)
+      && isRevealed(progression, edge.from)
+      && isRevealed(progression, edge.to),
   )
 
   const clickNode = (node, state) => {
@@ -215,7 +222,7 @@ export default function SkillTreeScreen({
             })}
           </svg>
 
-          {SKILL_TREE_NODES.map((node) => {
+          {visibleNodes.map((node) => {
             const state = nodeState(progression, node)
             const owned = isOwnedState(state)
 
@@ -275,12 +282,6 @@ export default function SkillTreeScreen({
       <button type="button" className="skill-tree-start" onClick={onStartDay}>
         START THE DAY
       </button>
-
-      {mandalaReady && onEnterMandala && (
-        <button type="button" className="skill-tree-enter-mandala" onClick={onEnterMandala}>
-          ENTER THE MANDALA
-        </button>
-      )}
     </div>
   )
 }
