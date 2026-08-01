@@ -30,17 +30,17 @@ function readJourneyState() {
   return { status, tutorialPaused, load }
 }
 
-function mutationShowsReadyCue(record) {
+function mutationAddsClass(record, className) {
   if (record.type === 'attributes') {
     return record.target instanceof Element
-      && record.target.classList.contains('race-start-cue-ready')
+      && record.target.classList.contains(className)
   }
 
   return Array.from(record.addedNodes).some((node) => (
     node instanceof Element
     && (
-      node.classList.contains('race-start-cue-ready')
-      || Boolean(node.querySelector('.race-start-cue-ready'))
+      node.classList.contains(className)
+      || Boolean(node.querySelector(`.${className}`))
     )
   ))
 }
@@ -84,6 +84,7 @@ export default function ReadyJourneyAudioBridge() {
     ...readJourneyState(),
     dayElapsed: 0,
     startCueToken: 0,
+    celebrationToken: 0,
   }))
   const [volume, setVolume] = useState(readStoredVolume)
 
@@ -121,22 +122,24 @@ export default function ReadyJourneyAudioBridge() {
       if (!frame) frame = window.requestAnimationFrame(update)
     }
     const observer = new MutationObserver((records) => {
-      const readyCueAppeared = records.some(mutationShowsReadyCue)
-      if (readyCueAppeared) {
+      const readyCueAppeared = records.some((record) => mutationAddsClass(record, 'race-start-cue-ready'))
+      const celebrationAppeared = records.some((record) => mutationAddsClass(record, 'cafe-celebration'))
+
+      if (readyCueAppeared || celebrationAppeared) {
         setSignals((current) => ({
           ...current,
           ...readJourneyState(),
-          startCueToken: current.startCueToken + 1,
+          startCueToken: current.startCueToken + (readyCueAppeared ? 1 : 0),
+          celebrationToken: current.celebrationToken + (celebrationAppeared ? 1 : 0),
         }))
       } else {
         scheduleUpdate()
       }
     })
 
-    // Every derived signal (status class, tutorial layer, load pips, ready cue)
-    // comes from class or childList changes. Filtering to the class attribute
-    // and dropping characterData avoids waking on the per-frame HUD text and
-    // inline-style updates that would otherwise fire this observer ~60x/second.
+    // Every derived signal (status class, tutorial layer, load pips, ready cue,
+    // celebration) comes from class or childList changes. Filtering to the class
+    // attribute avoids waking on per-frame HUD text and inline-style updates.
     observer.observe(document.body, {
       subtree: true,
       childList: true,
