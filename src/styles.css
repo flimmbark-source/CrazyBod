@@ -114,7 +114,7 @@ button { font: inherit; }
 .microgame {
   position: absolute;
   display: grid;
-  grid-template-rows: 31px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   width: var(--microgame-width);
   min-width: 0;
   height: var(--microgame-height);

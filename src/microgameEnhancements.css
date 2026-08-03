@@ -5,13 +5,26 @@
   box-shadow: 9px 10px 0 rgba(40, 35, 49, 0.82);
 }
 
+.microgame.keyboard-active .microgame-header {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
 .microgame.keyboard-active .microgame-header i { display: none; }
+.microgame.keyboard-active .microgame-header span { flex: none; }
 .microgame.keyboard-active .microgame-header::after {
   content: attr(data-key-hint);
-  margin-left: auto;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  opacity: 0.9;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
 }
 
 .microgame-discomfort .discomfort-game button {
