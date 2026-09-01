@@ -1,6 +1,5 @@
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import * as THREE from 'three'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
 import SnapshotCaptureBridge from './world/SnapshotCaptureBridge.jsx'
 import { deriveProgressionEffects } from './progression/deriveProgressionEffects.js'
@@ -361,6 +360,10 @@ function App() {
   const score = scoreForElapsed(dayElapsed)
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
   const currentPhaseId = phaseFor(dayElapsed).id
+  // The 3D scene only animates during the countdown, an active run, or a mandala
+  // descent. Every other screen shows a still backdrop, so the render loop can
+  // idle (see the Canvas `frameloop` prop below).
+  const sceneAnimating = status === 'countdown' || status === 'playing' || status === 'mandala'
   // Capacity is derived from the enabled skill nodes plus any per-run bonus
   // (e.g. a successful rehearsal). First run with nothing enabled is 5.
   const capacity = computeCapacity(progression.enabledNodeIds, runCapacityBonus)
@@ -1142,6 +1145,12 @@ function App() {
       <div className="world-layer">
         <Canvas
           shadows="basic"
+          // Only run the 60fps render loop while something in the 3D scene is
+          // actually moving. On the intro, skill tree and results screens the
+          // world is a frozen backdrop, so switch to on-demand rendering to stop
+          // burning CPU/GPU (and battery) drawing identical frames — a real win
+          // on laptops, mobile and lower-powered browsers.
+          frameloop={sceneAnimating ? 'always' : 'demand'}
           camera={{ position: [0.55, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }}
           dpr={[1, 1.25]}
           gl={{
@@ -1150,8 +1159,9 @@ function App() {
             stencil: false,
             powerPreference: 'high-performance',
             precision: 'mediump',
-            // Keep the last frame readable so run snapshots can copy it.
-            preserveDrawingBuffer: true,
+            // Snapshots re-render one frame on demand (see SnapshotCaptureBridge),
+            // so preserveDrawingBuffer stays off — it costs every browser a bit of
+            // per-frame work and blocks some compositor fast-paths.
           }}
           performance={{ min: 0.6 }}
         >
@@ -1790,129 +1800,6 @@ function FatigueGame({ onResolve, paused = false }) {
       </button>
       <div className="tiny-progress"><i style={{ width: `${(held / needed) * 100}%` }} /></div>
     </div>
-  )
-}
-
-function JourneyScene({ elapsed, active }) {
-  const target = useMemo(() => new THREE.Vector3(), [])
-  const look = useMemo(() => new THREE.Vector3(), [])
-
-  useFrame(({ camera }, delta) => {
-    const progress = Math.min(elapsed / DAY_LENGTH, 1)
-    const z = 5 - progress * 88
-    const x = Math.sin(progress * Math.PI * 3) * 0.55
-    const bob = active ? Math.sin(elapsed * 6.5) * 0.035 : 0
-    target.set(x, 1.65 + bob, z)
-    camera.position.lerp(target, 1 - Math.pow(0.001, delta))
-    look.set(x * 0.6, 1.5, z - 7)
-    camera.lookAt(look)
-  })
-
-  return (
-    <>
-      <color attach="background" args={['#b8a7bb']} />
-      <fog attach="fog" args={['#b8a7bb', 13, 45]} />
-      <ambientLight intensity={1.3} />
-      <directionalLight position={[5, 10, 4]} intensity={2.2} castShadow />
-      <World />
-    </>
-  )
-}
-
-function Block({ position, scale, color, rotation = [0, 0, 0] }) {
-  return (
-    <mesh position={position} scale={scale} rotation={rotation}>
-      <boxGeometry />
-      <meshStandardMaterial color={color} flatShading />
-    </mesh>
-  )
-}
-
-function Person({ position, color = '#d97862' }) {
-  return (
-    <group position={position}>
-      <mesh position={[0, 1.52, 0]}>
-        <icosahedronGeometry args={[0.23, 1]} />
-        <meshStandardMaterial color="#d7a982" flatShading />
-      </mesh>
-      <mesh position={[0, 0.9, 0]}>
-        <cylinderGeometry args={[0.23, 0.33, 1, 6]} />
-        <meshStandardMaterial color={color} flatShading />
-      </mesh>
-      <mesh position={[-0.13, 0.25, 0]} rotation={[0, 0, 0.06]}>
-        <cylinderGeometry args={[0.07, 0.09, 0.72, 5]} />
-        <meshStandardMaterial color="#424253" flatShading />
-      </mesh>
-      <mesh position={[0.13, 0.25, 0]} rotation={[0, 0, -0.06]}>
-        <cylinderGeometry args={[0.07, 0.09, 0.72, 5]} />
-        <meshStandardMaterial color="#424253" flatShading />
-      </mesh>
-    </group>
-  )
-}
-
-function World() {
-  const buildingRows = useMemo(
-    () => Array.from({ length: 9 }, (_, index) => ({
-      z: -28 - index * 5.4,
-      height: 3.2 + (index % 3) * 0.75,
-      color: ['#c7776d', '#8797a6', '#d0a05f'][index % 3],
-    })),
-    [],
-  )
-
-  return (
-    <group>
-      <Block position={[0, -0.18, -38]} scale={[12, 0.25, 92]} color="#756f79" />
-
-      <group>
-        <Block position={[0, 0, 1]} scale={[4.6, 0.2, 9]} color="#9b806d" />
-        <Block position={[-3.9, 2.1, 0]} scale={[0.25, 4.4, 8]} color="#d2b69d" />
-        <Block position={[3.9, 2.1, 0]} scale={[0.25, 4.4, 8]} color="#d2b69d" />
-        <Block position={[0, 2.1, 6]} scale={[8, 4.4, 0.25]} color="#c79e89" />
-        <Block position={[-1.8, 0.55, -1]} scale={[2.1, 0.8, 3]} color="#725b65" />
-        <Block position={[-1.8, 1.02, -1]} scale={[1.85, 0.16, 2.8]} color="#d7c4b8" />
-        <Block position={[2.2, 1, -2]} scale={[1.4, 2, 0.7]} color="#6b735f" />
-        <Block position={[0, 2.05, -7]} scale={[2.2, 4.1, 0.3]} color="#b47862" />
-      </group>
-
-      <group position={[0, 0, -15]}>
-        <Block position={[0, 0, 0]} scale={[3.1, 0.2, 13]} color="#9c8b76" />
-        <Block position={[-2.9, 1.8, 0]} scale={[0.2, 3.8, 13]} color="#c8b49a" />
-        <Block position={[2.9, 1.8, 0]} scale={[0.2, 3.8, 13]} color="#c8b49a" />
-        <Block position={[0, 3.55, 0]} scale={[6, 0.18, 13]} color="#b49b86" />
-      </group>
-
-      <group>
-        <Block position={[0, 0.02, -48]} scale={[4.8, 0.18, 42]} color="#73747d" />
-        <Block position={[-4.4, 0.08, -48]} scale={[2, 0.28, 42]} color="#b39d87" />
-        <Block position={[4.4, 0.08, -48]} scale={[2, 0.28, 42]} color="#b39d87" />
-        {buildingRows.map((building, index) => (
-          <group key={building.z}>
-            <Block position={[-7.2, building.height / 2, building.z]} scale={[3.5, building.height, 4.4]} color={building.color} />
-            <Block position={[7.2, building.height / 2, building.z - 1.8]} scale={[3.5, building.height + 0.8, 4.4]} color={building.color} />
-            <Block position={[-4.1, 1.4, building.z + 1.5]} scale={[0.16, 2.8, 0.16]} color="#454653" />
-            <mesh position={[-4.1, 2.85, building.z + 1.5]}>
-              <octahedronGeometry args={[0.27, 0]} />
-              <meshStandardMaterial color="#f3d88b" flatShading />
-            </mesh>
-            {index % 2 === 0 && <Person position={[2.3, 0, building.z]} color="#637f91" />}
-          </group>
-        ))}
-      </group>
-
-      <group position={[0, 0, -82]}>
-        <Block position={[0, 0, 0]} scale={[8.5, 0.24, 15]} color="#8a725f" />
-        <Block position={[-6.7, 2.6, 0]} scale={[0.28, 5.3, 15]} color="#724f46" />
-        <Block position={[6.7, 2.6, 0]} scale={[0.28, 5.3, 15]} color="#724f46" />
-        <Block position={[0, 5.1, 0]} scale={[13.5, 0.25, 15]} color="#6f514c" />
-        <Block position={[0, 1, -7]} scale={[8, 1.8, 1.1]} color="#4f5961" />
-        <Block position={[0, 1.92, -7]} scale={[8.4, 0.18, 1.4]} color="#d1a55f" />
-        <Block position={[-3.5, 0.8, -1.4]} scale={[2.2, 1.2, 2]} color="#b48261" />
-        <Block position={[3.5, 0.8, -2.5]} scale={[2.2, 1.2, 2]} color="#b48261" />
-        <Person position={[0, 0, -5.6]} color="#a65d63" />
-      </group>
-    </group>
   )
 }
 

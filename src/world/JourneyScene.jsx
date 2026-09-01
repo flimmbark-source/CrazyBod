@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 const PLAYER_PATH = [
@@ -371,9 +371,10 @@ function Atmosphere({ elapsed }) {
   return <fog attach="fog" args={['#b8a7bb', 10, 48]} />
 }
 
-function Bedroom({ elapsed }) {
-  const apartmentDoorProgress = clamp01((elapsed - 13.05) / 1.15)
-
+// The bedroom shell never changes shape during a run, so it is split out and
+// memoized: the 10 Hz day-clock re-render no longer reconciles these ~40 meshes.
+// Only the apartment door (below) is redrawn as it swings, driven by `elapsed`.
+const BedroomStatic = memo(function BedroomStatic() {
   return (
     <group>
       <Box position={[0, -0.12, -1]} size={[8, 0.24, 14]} color="#9b806d" />
@@ -456,12 +457,6 @@ function Bedroom({ elapsed }) {
         <Box position={[1.62, 1.9, -4.0]} size={[1.25, 3.8, 0.2]} color="#b49b86" />
         <Box position={[0, 3.5, -4.0]} size={[2.0, 0.6, 0.2]} color="#b49b86" />
         <Box position={[0, 0.04, -3.85]} size={[2.25, 0.08, 0.75]} color="#725f54" />
-        <Door
-          position={[-0.95, 0, -3.86]}
-          color="#9f675b"
-          progress={apartmentDoorProgress}
-          openAngle={Math.PI * 0.49}
-        />
         <Box position={[-1.7, 1.75, -1.3]} size={[0.12, 1.2, 0.45]} color="#725f54" />
         <Cylinder position={[-1.55, 2.1, -1.05]} args={[0.05, 0.05, 0.35, 7]} color="#4f4c52" castShadow={false} />
         <Cylinder position={[-1.55, 1.72, -1.05]} args={[0.05, 0.05, 0.35, 7]} color="#4f4c52" castShadow={false} />
@@ -470,9 +465,28 @@ function Bedroom({ elapsed }) {
       <pointLight position={[-0.8, 3.4, 1.2]} intensity={1.45} color="#ffd99d" distance={13} decay={2} />
     </group>
   )
+})
+
+function Bedroom({ elapsed }) {
+  const apartmentDoorProgress = clamp01((elapsed - 13.05) / 1.15)
+
+  return (
+    <group>
+      <BedroomStatic />
+      {/* The swinging apartment door is the only animated part of the bedroom. */}
+      <group position={[0, 0, -10.8]}>
+        <Door
+          position={[-0.95, 0, -3.86]}
+          color="#9f675b"
+          progress={apartmentDoorProgress}
+          openAngle={Math.PI * 0.49}
+        />
+      </group>
+    </group>
+  )
 }
 
-function Street({ active }) {
+const Street = memo(function Street({ active }) {
   const buildings = useMemo(
     () => Array.from({ length: 7 }, (_, index) => ({
       z: -24 - index * 7,
@@ -556,9 +570,9 @@ function Street({ active }) {
       <AnimatedPerson position={[-1.55, 0, -67.5]} rotation={[0, 0.5, 0]} color="#c98a5f" accent="#56464e" mode="idle" active={active} phase={1.8} />
     </group>
   )
-}
+})
 
-function CafeBackdrop() {
+const CafeBackdrop = memo(function CafeBackdrop() {
   const buildings = [
     [-10.6, -77.0, 6.8, 8.6, 7.2, '#68717a'],
     [10.8, -77.4, 7.0, 9.2, 7.4, '#6c6670'],
@@ -614,12 +628,11 @@ function CafeBackdrop() {
       ))}
     </group>
   )
-}
+})
 
-function CafeFacade({ elapsed, active }) {
-  const cafeDoorProgress = clamp01((elapsed - 28.75) / 0.9)
-  const maraMode = elapsed >= 24 && elapsed < 29.2 ? 'wave' : 'idle'
-
+// Static café storefront (backdrop, walls, sign, threshold). Memoized so the
+// day-clock tick stops reconciling it; only the door and Mara change per frame.
+const CafeFacadeStatic = memo(function CafeFacadeStatic() {
   return (
     <group>
       <CafeBackdrop />
@@ -636,6 +649,18 @@ function CafeFacade({ elapsed, active }) {
       <Box position={[-1.28, 1.82, -73.38]} size={[0.18, 3.64, 0.5]} color="#4f3a38" />
       <Box position={[1.28, 1.82, -73.38]} size={[0.18, 3.64, 0.5]} color="#4f3a38" />
       <Box position={[0, 3.55, -73.38]} size={[2.72, 0.2, 0.5]} color="#4f3a38" />
+      <Box position={[0, 0.02, -73.55]} size={[2.6, 0.08, 2.4]} color="#8f725c" />
+    </group>
+  )
+})
+
+function CafeFacade({ elapsed, active }) {
+  const cafeDoorProgress = clamp01((elapsed - 28.75) / 0.9)
+  const maraMode = elapsed >= 24 && elapsed < 29.2 ? 'wave' : 'idle'
+
+  return (
+    <group>
+      <CafeFacadeStatic />
       <Door
         position={[-1.26, 0, -73.18]}
         color="#4f5961"
@@ -644,8 +669,6 @@ function CafeFacade({ elapsed, active }) {
         width={2.52}
         height={3.45}
       />
-      <Box position={[0, 0.02, -73.55]} size={[2.6, 0.08, 2.4]} color="#8f725c" />
-
       <AnimatedPerson
         position={[-2.2, 0, -70.9]}
         rotation={[0, Math.PI, 0]}
@@ -659,7 +682,7 @@ function CafeFacade({ elapsed, active }) {
   )
 }
 
-function CafeInterior({ elapsed, active }) {
+const CafeInterior = memo(function CafeInterior({ active }) {
   return (
     <group>
       <Box position={[0, -0.12, -87]} size={[14, 0.24, 27]} color="#8a725f" />
@@ -727,7 +750,7 @@ function CafeInterior({ elapsed, active }) {
       <pointLight position={[0, 4.4, -91]} intensity={2.4} color="#ffd5a0" distance={18} decay={2} />
     </group>
   )
-}
+})
 
 function World({ elapsed, active }) {
   const bedroomVisible = elapsed < 19
@@ -744,7 +767,7 @@ function World({ elapsed, active }) {
       </group>
       <group visible={cafeVisible}>
         <CafeFacade elapsed={elapsed} active={active && cafeVisible} />
-        <CafeInterior elapsed={elapsed} active={active && cafeVisible} />
+        <CafeInterior active={active && cafeVisible} />
       </group>
     </group>
   )

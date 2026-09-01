@@ -87,7 +87,13 @@ function readJourneyState() {
     ? Array.from(shell.classList).find((name) => name.startsWith('status-'))
     : null
   const status = statusClass?.slice('status-'.length) ?? 'intro'
-  const tutorialPaused = Boolean(document.querySelector('.tutorial-layer'))
+  // In-run tutorial callouts pause gameplay, so we duck the audio with them. The
+  // results-screen skill-tree tip is also a `.tutorial-layer`, but it appears
+  // after the run over the results music — it must not pause the overload/home
+  // jingle, so it is excluded here.
+  const tutorialPaused = Boolean(
+    document.querySelector('.tutorial-layer:not(.tutorial-layer-results-skill-tree)'),
+  )
   const load = document.querySelectorAll('.load-pips i.filled').length
 
   return { status, tutorialPaused, load }
