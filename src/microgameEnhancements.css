@@ -9,7 +9,7 @@
 .microgame.keyboard-active .microgame-header::after {
   content: attr(data-key-hint);
   margin-left: auto;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   opacity: 0.9;
 }

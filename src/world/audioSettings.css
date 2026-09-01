@@ -38,7 +38,7 @@
   height: 32px;
   border-width: 1px;
   border-radius: 9px;
-  font-size: 17px;
+  font-size: 19px;
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24);
 }
 
@@ -64,7 +64,7 @@
 
 .audio-settings-panel label,
 .audio-settings-panel output {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
@@ -93,7 +93,7 @@
   .audio-settings-embedded .audio-settings-gear {
     width: 30px;
     height: 30px;
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .audio-settings-panel {

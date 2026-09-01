@@ -1,0 +1,245 @@
+/* Mandala mode + Sword cursor overlay. */
+
+/* During a descent the whole screen is the tube; hide the OS cursor so only the
+   drawn sword shows. Buttons in overlays still work (the sword layer is
+   pointer-events:none). */
+.status-mandala { cursor: none; }
+
+/* --- Sword cursor overlay ------------------------------------------------ */
+.sword-cursor-layer {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sword-trail {
+  position: absolute;
+  inset: 0;
+}
+
+.sword-trail-line {
+  fill: none;
+  stroke: rgba(255, 244, 214, 0.55);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(240, 180, 41, 0.7));
+  transition: stroke-width 60ms linear, stroke 60ms linear;
+}
+.sword-cursor-layer.is-swinging .sword-trail-line {
+  stroke: rgba(255, 250, 224, 0.95);
+  stroke-width: 7;
+}
+
+/* The blade element is positioned + rotated imperatively each frame (its pivot
+   is placed on the hand). Only static styling lives here. */
+.sword-blade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+  filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.55));
+}
+/* Katana */
+.sword-blade-steel { fill: #e7e0cd; stroke: #a2926a; stroke-width: 0.8; transition: fill 60ms linear; }
+.sword-katana-hamon { stroke: rgba(255, 255, 255, 0.72); stroke-width: 1.1; }
+.sword-katana-grip { fill: #26222c; }
+.sword-katana-wrap { stroke: #4a4450; stroke-width: 1.1; stroke-dasharray: 3 3; }
+.sword-katana-fitting { fill: #c9a24b; }
+.sword-katana-tsuba { fill: #b9942f; stroke: #6f541d; stroke-width: 0.7; }
+.sword-cursor-layer.is-swinging .sword-blade-steel { fill: #fff7db; }
+
+.sword-hit-flash {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 245, 200, 0.95), rgba(240, 180, 41, 0.35) 45%, transparent 70%);
+  animation: sword-hit 300ms ease-out forwards;
+}
+
+@keyframes sword-hit {
+  from { opacity: 1; scale: 0.4; }
+  to { opacity: 0; scale: 1.5; }
+}
+
+/* --- Minigame enemies ---------------------------------------------------- */
+.mandala-enemy-layer {
+  position: fixed;
+  z-index: 35; /* above the tube canvas, below the sword (z 90) */
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mandala-enemy {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 236px;
+  height: 202px;
+  opacity: 0; /* hidden until the rAF loop positions it */
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.enemy-content {
+  position: absolute;
+  inset: 0;
+}
+
+/* The real microgame window, stretched to fill the enemy box and stripped of
+   its in-game positioning/entrance so it just reads as a foe. */
+.mandala-enemy-microgame.microgame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  animation: none;
+}
+.mandala-enemy .microgame,
+.mandala-enemy .microgame * {
+  pointer-events: none;
+}
+
+/* Active foes (at the interaction plane) are the ones you can cut. */
+.mandala-enemy.is-active .microgame { animation: enemy-active-pulse 0.5s ease-in-out infinite alternate; }
+@keyframes enemy-active-pulse {
+  from { box-shadow: 7px 8px 0 rgba(40, 35, 49, 0.72), 0 0 0 3px rgba(240, 180, 41, 0.85); }
+  to { box-shadow: 7px 8px 0 rgba(40, 35, 49, 0.72), 0 0 0 4px #f0b429, 0 0 24px rgba(240, 180, 41, 0.8); }
+}
+.mandala-enemy.is-arriving .microgame { box-shadow: 7px 8px 0 rgba(40, 35, 49, 0.72), 0 0 0 2px rgba(240, 180, 41, 0.45); }
+
+/* Death: the panel is snapshotted and split into two halves clipped along the
+   actual blade line, which slide apart + fade. Rendered in a separate,
+   non-React layer (.mandala-death-layer) so list re-renders can't wipe them. */
+.mandala-death-layer {
+  position: fixed;
+  z-index: 3000; /* on the plane, above in-pipe foes */
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mandala-death {
+  position: absolute;
+  width: 236px;
+  height: 202px;
+  transform: translate(-50%, -50%);
+}
+
+.enemy-half {
+  position: absolute;
+  inset: 0;
+  transition: transform 520ms cubic-bezier(0.2, 0.6, 0.3, 1), opacity 520ms ease-out;
+  will-change: transform, opacity;
+}
+
+.enemy-flash {
+  position: absolute;
+  inset: -10px;
+  z-index: 2;
+  border-radius: 14px;
+  background: radial-gradient(circle, rgba(255, 250, 220, 0.95), rgba(240, 180, 41, 0.3) 55%, transparent 72%);
+  opacity: 0;
+  pointer-events: none;
+}
+.mandala-death .enemy-flash { animation: enemy-flash 520ms ease-out forwards; }
+
+@keyframes enemy-flash {
+  0% { opacity: 0; }
+  18% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mandala-enemy.is-active .microgame { animation: none; }
+  .enemy-half { transition-duration: 1ms; }
+  .mandala-enemy.is-dying .enemy-flash { animation-duration: 1ms; }
+}
+
+/* --- Mandala HUD --------------------------------------------------------- */
+.mandala-hud {
+  position: absolute;
+  z-index: 40;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 16px;
+  border: 2px solid #302b38;
+  border-radius: 999px;
+  color: #f6ecd2;
+  background: rgba(20, 14, 26, 0.72);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+.mandala-hud .mandala-section { font-size: 12px; color: #f6ecd2; opacity: 0.92; }
+.mandala-hud .mandala-section em { font-style: normal; color: #c9a24b; }
+.mandala-hud .mandala-depth { font-size: 15px; color: #f0b429; }
+.mandala-hud .mandala-load { font-size: 13px; }
+.mandala-hud .mandala-load.near-capacity { color: #f5837f; }
+
+.mandala-hint {
+  position: absolute;
+  z-index: 40;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #f6ecd2;
+  background: rgba(20, 14, 26, 0.6);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.mandala-exit {
+  position: absolute;
+  z-index: 41;
+  right: 18px;
+  top: 16px;
+  padding: 8px 14px;
+  border: 2px solid #302b38;
+  border-radius: 9px;
+  color: #f6ecd2;
+  background: rgba(40, 30, 48, 0.85);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.mandala-exit:hover { background: rgba(120, 60, 70, 0.9); }
+
+/* Skill-tree entry button, shown only when the Sword is enabled. */
+.skill-tree-enter-mandala {
+  margin-top: 8px;
+  padding: 11px 18px;
+  border: 3px solid #6d4c1f;
+  border-radius: 10px;
+  color: #16110b;
+  background: #f0b429;
+  box-shadow: 0 5px 0 #6d4c1f;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.skill-tree-enter-mandala:active { transform: translateY(3px); box-shadow: 0 2px 0 #6d4c1f; }
+
+/* Real connectors between skill nodes. */
+.skill-tree-edge-line {
+  stroke: rgba(247, 240, 232, 0.28);
+  stroke-width: 0.5;
+}
+.skill-tree-edge-line.edge-owned { stroke: rgba(240, 180, 41, 0.72); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sword-hit-flash { animation-duration: 1ms; }
+}

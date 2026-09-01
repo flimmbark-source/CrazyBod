@@ -7,6 +7,7 @@ import rustleUrl from './freesound_community-foley-getting-in-and-out-of-bed-she
 import goHomeUrl from './sergequadrado-brass-funk-jingle-449585.mp3'
 import overloadedUrl from './sonican-big-band-detective-30-seconds-486239.mp3'
 import cafeUrl from './freesound_community-cafe-noise-32940.mp3'
+import sillyTrumpetUrl from './floraphonic-silly-trumpet-3-187810.mp3'
 
 import barkUrl from './OutsideSounds/audiopapkin-barking-large-and-small-dog-290711.mp3'
 import busIdleUrl from './OutsideSounds/freesound_community-bus-engine-idling-26992.mp3'
@@ -18,6 +19,8 @@ import motorcycleUrl from './OutsideSounds/universfield-fast-motorcycle-pass-by-
 const STEPS_OUTSIDE_AT = 15
 const ENTERS_CAFE_AT = 29
 const ALARM_MS = 2000
+const CELEBRATION_TRUMPET_STAGGER_MS = 300
+const CARNIVAL_CAFE_VOLUME_MULTIPLIER = 0.25
 
 function makeAudio(url, { loop = false, volume = 0.3 } = {}) {
   if (typeof Audio === 'undefined') return null
@@ -27,6 +30,12 @@ function makeAudio(url, { loop = false, volume = 0.3 } = {}) {
   audio.__crazyBodBaseVolume = volume
   audio.preload = 'auto'
   return audio
+}
+
+function setClipVolume(audio, globalVolume, multiplier = 1) {
+  if (!audio) return
+  const baseVolume = Number(audio.__crazyBodBaseVolume ?? audio.volume)
+  audio.volume = Math.min(1, Math.max(0, baseVolume * globalVolume * multiplier))
 }
 
 function startClip(audio) {
@@ -78,23 +87,29 @@ function readJourneyState() {
     ? Array.from(shell.classList).find((name) => name.startsWith('status-'))
     : null
   const status = statusClass?.slice('status-'.length) ?? 'intro'
-  const tutorialPaused = Boolean(document.querySelector('.tutorial-layer'))
+  // In-run tutorial callouts pause gameplay, so we duck the audio with them. The
+  // results-screen skill-tree tip is also a `.tutorial-layer`, but it appears
+  // after the run over the results music — it must not pause the overload/home
+  // jingle, so it is excluded here.
+  const tutorialPaused = Boolean(
+    document.querySelector('.tutorial-layer:not(.tutorial-layer-results-skill-tree)'),
+  )
   const load = document.querySelectorAll('.load-pips i.filled').length
 
   return { status, tutorialPaused, load }
 }
 
-function mutationShowsStartCue(record) {
+function mutationAddsClass(record, className) {
   if (record.type === 'attributes') {
     return record.target instanceof Element
-      && record.target.classList.contains('race-start-cue-start')
+      && record.target.classList.contains(className)
   }
 
   return Array.from(record.addedNodes).some((node) => (
     node instanceof Element
     && (
-      node.classList.contains('race-start-cue-start')
-      || Boolean(node.querySelector('.race-start-cue-start'))
+      node.classList.contains(className)
+      || Boolean(node.querySelector(`.${className}`))
     )
   ))
 }
@@ -104,6 +119,7 @@ export function JourneyAudioBridge() {
     ...readJourneyState(),
     dayElapsed: 0,
     startCueToken: 0,
+    celebrationToken: 0,
   }))
 
   useEffect(() => {
@@ -130,12 +146,15 @@ export function JourneyAudioBridge() {
       if (!frame) frame = window.requestAnimationFrame(update)
     }
     const observer = new MutationObserver((records) => {
-      const startCueAppeared = records.some(mutationShowsStartCue)
-      if (startCueAppeared) {
+      const startCueAppeared = records.some((record) => mutationAddsClass(record, 'race-start-cue-start'))
+      const celebrationAppeared = records.some((record) => mutationAddsClass(record, 'cafe-celebration'))
+
+      if (startCueAppeared || celebrationAppeared) {
         setSignals((current) => ({
           ...current,
           ...readJourneyState(),
-          startCueToken: current.startCueToken + 1,
+          startCueToken: current.startCueToken + (startCueAppeared ? 1 : 0),
+          celebrationToken: current.celebrationToken + (celebrationAppeared ? 1 : 0),
         }))
       } else {
         scheduleUpdate()
@@ -158,7 +177,15 @@ export function JourneyAudioBridge() {
   return null
 }
 
-export default function useJourneyAudio({ status, startCueToken, dayElapsed, load, tutorialPaused, volume = 1 }) {
+export default function useJourneyAudio({
+  status,
+  startCueToken,
+  celebrationToken,
+  dayElapsed,
+  load,
+  tutorialPaused,
+  volume = 1,
+}) {
   const clipsRef = useRef(null)
   if (clipsRef.current === null) {
     clipsRef.current = {
@@ -168,7 +195,12 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       goHome: makeAudio(goHomeUrl),
       overloaded: makeAudio(overloadedUrl),
       cafe: makeAudio(cafeUrl, { loop: true, volume: 0.425 }),
-      outside: [barkUrl, busIdleUrl, busPassUrl, carnivalUrl, cityUrl, motorcycleUrl]
+      carnival: makeAudio(carnivalUrl, { volume: 0.35 }),
+      celebrationTrumpets: [
+        makeAudio(sillyTrumpetUrl, { volume: 0.55 }),
+        makeAudio(sillyTrumpetUrl, { volume: 0.55 }),
+      ].filter(Boolean),
+      outside: [barkUrl, busIdleUrl, busPassUrl, cityUrl, motorcycleUrl]
         .map((url) => makeAudio(url, { volume: 0.35 }))
         .filter(Boolean),
     }
@@ -181,6 +213,7 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
   const cafeFiredRef = useRef(false)
   const prevLoadRef = useRef(load)
   const alarmTimerRef = useRef(null)
+  const celebrationTimerRef = useRef(null)
   const tutorialPausedSetRef = useRef(new Set())
 
   const allClips = () => {
@@ -192,15 +225,20 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       clips.goHome,
       clips.overloaded,
       clips.cafe,
+      clips.carnival,
+      ...clips.celebrationTrumpets,
       ...clips.outside,
     ].filter(Boolean)
   }
 
   useEffect(() => {
-    allClips().forEach((audio) => {
-      const baseVolume = Number(audio.__crazyBodBaseVolume ?? audio.volume)
-      audio.volume = Math.min(1, Math.max(0, baseVolume * volume))
-    })
+    const clips = clipsRef.current
+    allClips().forEach((audio) => setClipVolume(audio, volume))
+    setClipVolume(
+      clips.carnival,
+      volume,
+      cafeFiredRef.current ? CARNIVAL_CAFE_VOLUME_MULTIPLIER : 1,
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volume])
 
@@ -210,10 +248,16 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       window.clearTimeout(alarmTimerRef.current)
       alarmTimerRef.current = null
     }
+    if (celebrationTimerRef.current) {
+      window.clearTimeout(celebrationTimerRef.current)
+      celebrationTimerRef.current = null
+    }
     stopClip(clips.gravel)
     stopClip(clips.alarm)
     stopClip(clips.rustle)
     stopClip(clips.cafe)
+    stopClip(clips.carnival)
+    clips.celebrationTrumpets.forEach(stopClip)
     clips.outside.forEach(stopClip)
   }
 
@@ -246,6 +290,7 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       stopInRunClips()
       stopClip(clips.goHome)
       stopClip(clips.overloaded)
+      setClipVolume(clips.carnival, volume)
       tutorialPausedSetRef.current.clear()
       outsideFiredRef.current = false
       cafeFiredRef.current = false
@@ -260,7 +305,7 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       stopInRunClips()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status])
+  }, [status, volume])
 
   useEffect(() => {
     if (startCueToken <= 0) return
@@ -281,6 +326,18 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
   }, [startCueToken])
 
   useEffect(() => {
+    if (celebrationToken <= 0) return
+
+    const [first, second] = clipsRef.current.celebrationTrumpets
+    startClip(first)
+    if (celebrationTimerRef.current) window.clearTimeout(celebrationTimerRef.current)
+    celebrationTimerRef.current = window.setTimeout(() => {
+      celebrationTimerRef.current = null
+      startClip(second)
+    }, CELEBRATION_TRUMPET_STAGGER_MS)
+  }, [celebrationToken])
+
+  useEffect(() => {
     if (status !== 'playing') return
     const clips = clipsRef.current
     if (!outsideFiredRef.current && dayElapsed >= STEPS_OUTSIDE_AT) {
@@ -296,9 +353,10 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
     if (!cafeFiredRef.current && dayElapsed >= ENTERS_CAFE_AT) {
       cafeFiredRef.current = true
       stopClip(clips.gravel)
+      setClipVolume(clips.carnival, volume, CARNIVAL_CAFE_VOLUME_MULTIPLIER)
       startClip(clips.cafe)
     }
-  }, [dayElapsed, status])
+  }, [dayElapsed, status, volume])
 
   useEffect(() => {
     const loadIncreased = load > prevLoadRef.current
@@ -308,7 +366,8 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
       && !cafeFiredRef.current
       && loadIncreased
     ) {
-      const pool = clipsRef.current.outside
+      const clips = clipsRef.current
+      const pool = [...clips.outside, clips.carnival].filter(Boolean)
       if (pool.length) startClip(pool[Math.floor(Math.random() * pool.length)])
     }
     prevLoadRef.current = load
@@ -332,5 +391,8 @@ export default function useJourneyAudio({ status, startCueToken, dayElapsed, loa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorialPaused])
 
-  useEffect(() => () => allClips().forEach(stopClip), [])
+  useEffect(() => () => {
+    if (celebrationTimerRef.current) window.clearTimeout(celebrationTimerRef.current)
+    allClips().forEach(stopClip)
+  }, [])
 }

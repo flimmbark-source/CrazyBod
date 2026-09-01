@@ -18,7 +18,9 @@ export const CAFE_BEAT_START_AT = DAY_LENGTH - 5
 
 export const CAFE_BEAT_TIMINGS = Object.freeze({
   interludeMs: 5000,
-  ruptureMs: 2100,
+  // Keep Mara's final rupture line on screen long enough to be fully read
+  // before the departure animation begins.
+  ruptureMs: 5000,
   departureMs: 2300,
   aftermathMs: 3000,
   celebrationMs: 1800,

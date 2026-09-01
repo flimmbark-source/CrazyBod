@@ -1,7 +1,12 @@
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import * as THREE from 'three'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
+import SnapshotCaptureBridge from './world/SnapshotCaptureBridge.jsx'
+import { deriveProgressionEffects } from './progression/deriveProgressionEffects.js'
+import { useMandalaRun } from './modes/mandala/useMandalaRun.js'
+import MandalaScene from './modes/mandala/MandalaScene.jsx'
+import MandalaEnemyLayer from './modes/mandala/MandalaEnemyLayer.jsx'
+import SwordCursor from './modes/sword/SwordCursor.jsx'
 import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
@@ -55,6 +60,26 @@ const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 const READY_CUE_MS = 1150
 const START_CUE_MS = 650
 
+// Run snapshots: a handful of candid shots taken before the first conversation,
+// then one at every dialogue choice. Kept in memory for the run only.
+const MAX_RUN_SNAPSHOTS = 14
+const AMBIENT_SNAPSHOT_COUNT = 3
+// The first conversation (Mara) opens at day 25s; keep the candid shots before
+// it, spaced out across the early walk.
+const AMBIENT_SNAPSHOT_WINDOW = [4, 23]
+
+// Pick a few ascending, well-spaced random day-times for the candid snapshots.
+function buildAmbientSnapshotTimes() {
+  const [start, end] = AMBIENT_SNAPSHOT_WINDOW
+  const span = (end - start) / AMBIENT_SNAPSHOT_COUNT
+  const times = []
+  for (let index = 0; index < AMBIENT_SNAPSHOT_COUNT; index += 1) {
+    const slotStart = start + span * index
+    times.push(slotStart + Math.random() * span * 0.8)
+  }
+  return times
+}
+
 const MICROGAME_NAMES = EXPANDED_MICROGAME_NAMES
 
 const COMPLETION_SHARDS = [
@@ -90,6 +115,13 @@ const ORDER_DIALOGUE = {
 
 function getPhase(elapsed) {
   return phaseLabel(elapsed)
+}
+
+// Caption for a choice snapshot: the line the player picked, in quotes.
+function quoteChoice(dialogue, index) {
+  const option = dialogue?.options?.[index]
+  const text = typeof option === 'string' ? option : option?.label ?? ''
+  return text ? `“${text}”` : ''
 }
 
 function seededFraction(seed, value) {
@@ -230,6 +262,7 @@ function App() {
   const [cafeBeatPhase, setCafeBeatPhase] = useState(CAFE_BEAT_PHASES.INACTIVE)
   const [cafeDialogueIndex, setCafeDialogueIndex] = useState(0)
   const [result, setResult] = useState(null)
+  const [runSnapshots, setRunSnapshots] = useState([])
   const [completionEffects, setCompletionEffects] = useState([])
   const [tutorialEnabled, setTutorialEnabled] = useState(() => {
     try {
@@ -243,6 +276,24 @@ function App() {
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
   const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
+  // Central capability derivation (Sword / Mandala / Dive) from enabled nodes.
+  const progressionEffects = deriveProgressionEffects(progression.enabledNodeIds)
+  // Mandala travel simulation. Owned by its own hook; App only coordinates.
+  const mandala = useMandalaRun()
+  // Screen-space slash targets: encounters (inside the Canvas) project into this
+  // Map every frame; the Sword overlay (DOM) reads it to test slashes.
+  const mandalaRegistryRef = useRef(new Map())
+  // Screen-space enemy projections (id -> {kind,x,y,pixelRadius,state,...}) the
+  // DOM minigame-enemy layer renders from, plus the set of ids the sword just
+  // cut (drained by the enemy layer to play death animations).
+  const mandalaEnemiesRef = useRef(new Map())
+  // id -> cut info {cx,cy,ax,ay,bx,by} (screen px) for foes the sword just cut;
+  // drained by the enemy layer to slice each panel along the actual blade path.
+  const mandalaDeathsRef = useRef(new Map())
+  // Live inputs the in-Canvas stepper reads each frame. A stable object mutated
+  // imperatively so key events never need a React re-render.
+  const mandalaInputsRef = useRef({ diveEnabled: false, forwardHeld: false, capacity: 5 })
+  const mandalaRunIdRef = useRef(null)
   const [firstUnlockPending, setFirstUnlockPending] = useState(false)
   const [treeFirstView, setTreeFirstView] = useState(false)
   const [runCapacityBonus, setRunCapacityBonus] = useState(0)
@@ -280,10 +331,39 @@ function App() {
   const spawnedCountRef = useRef(0)
   const suppressedCountRef = useRef(0)
   const runFinishedRef = useRef(false)
+  // Registered by the in-Canvas SnapshotCaptureBridge; returns a JPEG data URL
+  // of the current 3D frame, or null if capture is unavailable.
+  const captureSnapshotRef = useRef(null)
+  const snapshotIdRef = useRef(0)
+  // Ascending day-times still awaiting a candid snapshot this run.
+  const pendingSnapshotTimesRef = useRef([])
+
+  const registerSnapshotCapture = useCallback((fn) => {
+    captureSnapshotRef.current = fn
+  }, [])
+
+  // Grab the current frame and file it as a run snapshot. Safe to call from a
+  // click handler: it reads the last rendered frame, it does not force a render.
+  const takeSnapshot = useCallback((caption, kind) => {
+    const capture = captureSnapshotRef.current
+    if (typeof capture !== 'function') return
+    const src = capture()
+    if (!src) return
+    const id = snapshotIdRef.current
+    snapshotIdRef.current += 1
+    setRunSnapshots((current) => {
+      const next = [...current, { id, src, caption: caption ?? '', kind: kind ?? 'ambient' }]
+      return next.length > MAX_RUN_SNAPSHOTS ? next.slice(next.length - MAX_RUN_SNAPSHOTS) : next
+    })
+  }, [])
 
   const score = scoreForElapsed(dayElapsed)
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
   const currentPhaseId = phaseFor(dayElapsed).id
+  // The 3D scene only animates during the countdown, an active run, or a mandala
+  // descent. Every other screen shows a still backdrop, so the render loop can
+  // idle (see the Canvas `frameloop` prop below).
+  const sceneAnimating = status === 'countdown' || status === 'playing' || status === 'mandala'
   // Capacity is derived from the enabled skill nodes plus any per-run bonus
   // (e.g. a successful rehearsal). First run with nothing enabled is 5.
   const capacity = computeCapacity(progression.enabledNodeIds, runCapacityBonus)
@@ -313,13 +393,17 @@ function App() {
     && !suppressing
     && !cafeBeatActive
     && !activeTechnique?.pausesDay
+  // Spawning keeps going through Mara's conversation: the symptoms don't stop
+  // just because you sat down. The café dialogue reads `distortion` off `load`,
+  // so the talk garbles as the board fills. Spawning only stops once she erupts
+  // and leaves (the frozen phases), when the board is already inert.
   const spawningEnabled = status === 'playing'
     && directorReady
     && !tutorialPaused
     && !orderingPaused
     && !spawnPaused
     && !suppressing
-    && !cafeBeatActive
+    && !cafeBeatFrozen
     && !activeTechnique?.pausesSpawns
 
   const beginGame = useCallback((withTutorial) => {
@@ -348,6 +432,9 @@ function App() {
     spawnedCountRef.current = 0
     suppressedCountRef.current = 0
     runFinishedRef.current = false
+    snapshotIdRef.current = 0
+    pendingSnapshotTimesRef.current = buildAmbientSnapshotTimes()
+    setRunSnapshots([])
     setDayElapsed(0)
     setSpawnElapsed(0)
     setActiveTechnique(null)
@@ -555,9 +642,10 @@ function App() {
     requestSpawns(batch.kinds)
   }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns, progression.purchasedNodeIds.length])
 
-  // Release pending (staggered) spawns once their delay has elapsed.
+  // Release pending (staggered) spawns once their delay has elapsed. Held only
+  // while the board is frozen (Mara's walk-out), not during the conversation.
   useEffect(() => {
-    if (status !== 'playing' || spawnPaused || cafeBeatActive) return
+    if (status !== 'playing' || spawnPaused || cafeBeatFrozen) return
     const queue = pendingSpawnsRef.current
     if (queue.length === 0) return
 
@@ -571,7 +659,7 @@ function App() {
       pendingSpawnsRef.current = rest
       ready.forEach((item) => spawnMicrogame(item.kind))
     }
-  }, [spawnElapsed, load, status, spawnPaused, cafeBeatActive, spawnMicrogame])
+  }, [spawnElapsed, load, status, spawnPaused, cafeBeatFrozen, spawnMicrogame])
 
   useEffect(() => {
     if (status !== 'playing') return
@@ -590,11 +678,52 @@ function App() {
     peakLoadRef.current = Math.max(peakLoadRef.current, load)
   }, [load, status])
 
+  // Candid run snapshots: fire the pending random shots as the day crosses each
+  // scheduled time (all before the first conversation).
+  useEffect(() => {
+    if (status !== 'playing') return
+    const pending = pendingSnapshotTimesRef.current
+    if (pending.length === 0 || dayElapsed < pending[0]) return
+    let fired = false
+    while (pending.length > 0 && dayElapsed >= pending[0]) {
+      pending.shift()
+      fired = true
+    }
+    if (fired) takeSnapshot(getPhase(dayElapsed), 'ambient')
+  }, [dayElapsed, status, takeSnapshot])
+
   // One authoritative end-of-run transaction. Builds the result from real run
-  // data (not from rendered DOM), so it survives unscored technique time.
-  const finishRun = useCallback((outcome) => {
+  // data (not from rendered DOM), so it survives unscored technique time. A
+  // Mandala descent passes its own summary and reuses this exact path, so
+  // results + banking happen once through the same flow as a surface run.
+  const finishRun = useCallback((outcome, mandalaSummary = null) => {
     if (runFinishedRef.current) return
     runFinishedRef.current = true
+
+    if (mandalaSummary) {
+      const capacity = capacityRef.current
+      const finalScore = Math.max(0, Math.round(mandalaSummary.depth) + mandalaSummary.resolvedCount * 5)
+      setResult({
+        runId: mandalaSummary.runId ?? `mandala-${Date.now()}`,
+        outcome,
+        source: 'mandala',
+        rawScore: finalScore,
+        finalScore,
+        penalty: 0,
+        dayElapsed: 0,
+        runElapsed: 0,
+        clearedCount: mandalaSummary.resolvedCount,
+        suppressedCount: 0,
+        peakLoad: capacity,
+        capacity,
+        activeAtEnd: capacity,
+        appeared: mandalaSummary.resolvedCount,
+        mandalaDepth: Math.round(mandalaSummary.depth),
+        techniques: {},
+      })
+      setStatus(outcome)
+      return
+    }
 
     const finishedDay = Math.min(DAY_LENGTH, dayElapsedRef.current)
     const rawScore = scoreForElapsed(finishedDay)
@@ -650,6 +779,74 @@ function App() {
     setTreeFirstView(false)
     setStatus('intro')
   }, [])
+
+  // --- Mandala mode ------------------------------------------------------
+  // Overload during a descent routes straight into the existing results path.
+  const handleMandalaOverload = useCallback((summary) => {
+    finishRun('overload', { ...summary, runId: mandalaRunIdRef.current })
+  }, [finishRun])
+
+  // A cut foe: resolve it in the sim (removes its load) and record the cut
+  // geometry so the enemy layer slices its panel along the actual blade path.
+  const handleMandalaResolve = useCallback((id, cut = null) => {
+    mandala.resolveEncounter(id)
+    mandalaDeathsRef.current.set(id, cut)
+  }, [mandala])
+
+  // TEMPORARY dev entry: available from the skill tree whenever the Sword is
+  // enabled. This is a documented prototype entry point, not the final trigger.
+  const enterMandala = useCallback(() => {
+    mandalaRunIdRef.current = `mandala-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+    runFinishedRef.current = false
+    mandalaInputsRef.current.forwardHeld = false
+    setResult(null)
+    setRunSnapshots([])
+    setMicrogames([])
+    microgamesRef.current = []
+    mandala.enter()
+    setStatus('mandala')
+  }, [mandala])
+
+  const exitMandala = useCallback(() => {
+    mandalaInputsRef.current.forwardHeld = false
+    mandala.exit()
+    setStatus('skillTree')
+  }, [mandala])
+
+  // Keep the live inputs the in-Canvas stepper reads each frame up to date.
+  useEffect(() => {
+    mandalaInputsRef.current.diveEnabled = progressionEffects.diveEnabled
+    mandalaInputsRef.current.capacity = capacity
+  })
+
+  // Dive input: hold W / ArrowUp to accelerate. Only while in the Mandala, only
+  // when Dive is enabled. The held flag is cleared on every exit path (mode
+  // exit, overload -> results, window blur, unmount) so it never sticks.
+  useEffect(() => {
+    if (status !== 'mandala') {
+      mandalaInputsRef.current.forwardHeld = false
+      return undefined
+    }
+    const isForwardKey = (key) => key === 'w' || key === 'W' || key === 'ArrowUp'
+    const onKeyDown = (event) => {
+      if (isForwardKey(event.key)) mandalaInputsRef.current.forwardHeld = true
+    }
+    const onKeyUp = (event) => {
+      if (isForwardKey(event.key)) mandalaInputsRef.current.forwardHeld = false
+    }
+    const clear = () => {
+      mandalaInputsRef.current.forwardHeld = false
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', clear)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', clear)
+      mandalaInputsRef.current.forwardHeld = false
+    }
+  }, [status])
 
   const handleResetFull = useCallback(() => {
     resetFull()
@@ -900,17 +1097,21 @@ function App() {
     finishRun('home')
   }
 
-  const answerDialogue = () => {
+  const answerDialogue = (index) => {
+    // Snapshot the scene as it looks at the click, before the box closes.
+    takeSnapshot(quoteChoice(MARA_DIALOGUE, index), 'choice')
     setDialogueAnswered(true)
     setDialogueOpen(false)
   }
 
-  const answerOrderDialogue = () => {
+  const answerOrderDialogue = (index) => {
+    takeSnapshot(quoteChoice(ORDER_DIALOGUE, index), 'choice')
     setOrderDialogueAnswered(true)
     setOrderDialogueOpen(false)
   }
 
-  const answerCafeDialogue = () => {
+  const answerCafeDialogue = (index) => {
+    takeSnapshot(quoteChoice(CAFE_DIALOGUE[cafeDialogueIndex], index), 'choice')
     const next = advanceCafeConversation(cafeDialogueIndex)
     setCafeDialogueIndex(next.dialogueIndex)
     setCafeBeatPhase(next.phase)
@@ -944,6 +1145,12 @@ function App() {
       <div className="world-layer">
         <Canvas
           shadows="basic"
+          // Only run the 60fps render loop while something in the 3D scene is
+          // actually moving. On the intro, skill tree and results screens the
+          // world is a frozen backdrop, so switch to on-demand rendering to stop
+          // burning CPU/GPU (and battery) drawing identical frames — a real win
+          // on laptops, mobile and lower-powered browsers.
+          frameloop={sceneAnimating ? 'always' : 'demand'}
           camera={{ position: [0.55, 1.65, 3.1], fov: 68, near: 0.08, far: 150 }}
           dpr={[1, 1.25]}
           gl={{
@@ -952,18 +1159,71 @@ function App() {
             stencil: false,
             powerPreference: 'high-performance',
             precision: 'mediump',
+            // Snapshots re-render one frame on demand (see SnapshotCaptureBridge),
+            // so preserveDrawingBuffer stays off — it costs every browser a bit of
+            // per-frame work and blocks some compositor fast-paths.
           }}
           performance={{ min: 0.6 }}
         >
-          <AuthoredJourneyScene
-            elapsed={dayElapsed}
-            active={dayAdvancing}
-            cameraEnabled={!cafeBeatActive}
-            dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
-          />
-          <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
+          {status === 'mandala' ? (
+            <MandalaScene
+              runRef={mandala.runRef}
+              step={mandala.step}
+              registryRef={mandalaRegistryRef}
+              enemiesRef={mandalaEnemiesRef}
+              inputsRef={mandalaInputsRef}
+              onOverload={handleMandalaOverload}
+              background={mandala.sample.effects.background}
+              twistScale={mandala.sample.effects.interaction.twistScale ?? 1}
+            />
+          ) : (
+            <>
+              <AuthoredJourneyScene
+                elapsed={dayElapsed}
+                active={dayAdvancing}
+                cameraEnabled={!cafeBeatActive}
+                dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
+              />
+              <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
+            </>
+          )}
+          <SnapshotCaptureBridge registerCapture={registerSnapshotCapture} />
         </Canvas>
       </div>
+
+      {status === 'mandala' && (
+        <>
+          <MandalaEnemyLayer enemiesRef={mandalaEnemiesRef} deathsRef={mandalaDeathsRef} />
+          <SwordCursor
+            enabled={progressionEffects.swordEnabled}
+            registryRef={mandalaRegistryRef}
+            onResolve={handleMandalaResolve}
+            perception={mandala.sample.effects.perception}
+          />
+          <div className="mandala-hud" aria-live="polite">
+            {mandala.sample.sectionName && (
+              <span className="mandala-section">
+                {mandala.sample.sectionName}
+                {mandala.sample.waveCount > 0 && (
+                  <em> · WAVE {mandala.sample.waveIndex + 1}/{mandala.sample.waveCount}</em>
+                )}
+              </span>
+            )}
+            <span className="mandala-depth">DEPTH {Math.round(mandala.sample.depth)}</span>
+            <span className={`mandala-load${mandala.sample.activeCount >= capacity - 1 ? ' near-capacity' : ''}`}>
+              LOAD {mandala.sample.activeCount}/{capacity}
+            </span>
+          </div>
+          <div className="mandala-hint">
+            {progressionEffects.diveEnabled
+              ? 'Slash foes as they arrive. Hold W / ↑ to Dive.'
+              : 'Slash foes as they arrive.'}
+          </div>
+          <button type="button" className="mandala-exit" onClick={exitMandala}>
+            LEAVE
+          </button>
+        </>
+      )}
 
       {startCue && (
         <section
@@ -1172,6 +1432,7 @@ function App() {
           onToggle={toggleNode}
           onResetTree={resetTree}
           onResetFull={handleResetFull}
+          onEnterMandala={enterMandala}
         />
       )}
 
@@ -1186,6 +1447,7 @@ function App() {
             ? () => openSkillTree(firstUnlockPending)
             : undefined}
           emphasizeSkillTree={firstUnlockPending}
+          snapshots={runSnapshots}
         />
       )}
     </main>
@@ -1538,129 +1800,6 @@ function FatigueGame({ onResolve, paused = false }) {
       </button>
       <div className="tiny-progress"><i style={{ width: `${(held / needed) * 100}%` }} /></div>
     </div>
-  )
-}
-
-function JourneyScene({ elapsed, active }) {
-  const target = useMemo(() => new THREE.Vector3(), [])
-  const look = useMemo(() => new THREE.Vector3(), [])
-
-  useFrame(({ camera }, delta) => {
-    const progress = Math.min(elapsed / DAY_LENGTH, 1)
-    const z = 5 - progress * 88
-    const x = Math.sin(progress * Math.PI * 3) * 0.55
-    const bob = active ? Math.sin(elapsed * 6.5) * 0.035 : 0
-    target.set(x, 1.65 + bob, z)
-    camera.position.lerp(target, 1 - Math.pow(0.001, delta))
-    look.set(x * 0.6, 1.5, z - 7)
-    camera.lookAt(look)
-  })
-
-  return (
-    <>
-      <color attach="background" args={['#b8a7bb']} />
-      <fog attach="fog" args={['#b8a7bb', 13, 45]} />
-      <ambientLight intensity={1.3} />
-      <directionalLight position={[5, 10, 4]} intensity={2.2} castShadow />
-      <World />
-    </>
-  )
-}
-
-function Block({ position, scale, color, rotation = [0, 0, 0] }) {
-  return (
-    <mesh position={position} scale={scale} rotation={rotation}>
-      <boxGeometry />
-      <meshStandardMaterial color={color} flatShading />
-    </mesh>
-  )
-}
-
-function Person({ position, color = '#d97862' }) {
-  return (
-    <group position={position}>
-      <mesh position={[0, 1.52, 0]}>
-        <icosahedronGeometry args={[0.23, 1]} />
-        <meshStandardMaterial color="#d7a982" flatShading />
-      </mesh>
-      <mesh position={[0, 0.9, 0]}>
-        <cylinderGeometry args={[0.23, 0.33, 1, 6]} />
-        <meshStandardMaterial color={color} flatShading />
-      </mesh>
-      <mesh position={[-0.13, 0.25, 0]} rotation={[0, 0, 0.06]}>
-        <cylinderGeometry args={[0.07, 0.09, 0.72, 5]} />
-        <meshStandardMaterial color="#424253" flatShading />
-      </mesh>
-      <mesh position={[0.13, 0.25, 0]} rotation={[0, 0, -0.06]}>
-        <cylinderGeometry args={[0.07, 0.09, 0.72, 5]} />
-        <meshStandardMaterial color="#424253" flatShading />
-      </mesh>
-    </group>
-  )
-}
-
-function World() {
-  const buildingRows = useMemo(
-    () => Array.from({ length: 9 }, (_, index) => ({
-      z: -28 - index * 5.4,
-      height: 3.2 + (index % 3) * 0.75,
-      color: ['#c7776d', '#8797a6', '#d0a05f'][index % 3],
-    })),
-    [],
-  )
-
-  return (
-    <group>
-      <Block position={[0, -0.18, -38]} scale={[12, 0.25, 92]} color="#756f79" />
-
-      <group>
-        <Block position={[0, 0, 1]} scale={[4.6, 0.2, 9]} color="#9b806d" />
-        <Block position={[-3.9, 2.1, 0]} scale={[0.25, 4.4, 8]} color="#d2b69d" />
-        <Block position={[3.9, 2.1, 0]} scale={[0.25, 4.4, 8]} color="#d2b69d" />
-        <Block position={[0, 2.1, 6]} scale={[8, 4.4, 0.25]} color="#c79e89" />
-        <Block position={[-1.8, 0.55, -1]} scale={[2.1, 0.8, 3]} color="#725b65" />
-        <Block position={[-1.8, 1.02, -1]} scale={[1.85, 0.16, 2.8]} color="#d7c4b8" />
-        <Block position={[2.2, 1, -2]} scale={[1.4, 2, 0.7]} color="#6b735f" />
-        <Block position={[0, 2.05, -7]} scale={[2.2, 4.1, 0.3]} color="#b47862" />
-      </group>
-
-      <group position={[0, 0, -15]}>
-        <Block position={[0, 0, 0]} scale={[3.1, 0.2, 13]} color="#9c8b76" />
-        <Block position={[-2.9, 1.8, 0]} scale={[0.2, 3.8, 13]} color="#c8b49a" />
-        <Block position={[2.9, 1.8, 0]} scale={[0.2, 3.8, 13]} color="#c8b49a" />
-        <Block position={[0, 3.55, 0]} scale={[6, 0.18, 13]} color="#b49b86" />
-      </group>
-
-      <group>
-        <Block position={[0, 0.02, -48]} scale={[4.8, 0.18, 42]} color="#73747d" />
-        <Block position={[-4.4, 0.08, -48]} scale={[2, 0.28, 42]} color="#b39d87" />
-        <Block position={[4.4, 0.08, -48]} scale={[2, 0.28, 42]} color="#b39d87" />
-        {buildingRows.map((building, index) => (
-          <group key={building.z}>
-            <Block position={[-7.2, building.height / 2, building.z]} scale={[3.5, building.height, 4.4]} color={building.color} />
-            <Block position={[7.2, building.height / 2, building.z - 1.8]} scale={[3.5, building.height + 0.8, 4.4]} color={building.color} />
-            <Block position={[-4.1, 1.4, building.z + 1.5]} scale={[0.16, 2.8, 0.16]} color="#454653" />
-            <mesh position={[-4.1, 2.85, building.z + 1.5]}>
-              <octahedronGeometry args={[0.27, 0]} />
-              <meshStandardMaterial color="#f3d88b" flatShading />
-            </mesh>
-            {index % 2 === 0 && <Person position={[2.3, 0, building.z]} color="#637f91" />}
-          </group>
-        ))}
-      </group>
-
-      <group position={[0, 0, -82]}>
-        <Block position={[0, 0, 0]} scale={[8.5, 0.24, 15]} color="#8a725f" />
-        <Block position={[-6.7, 2.6, 0]} scale={[0.28, 5.3, 15]} color="#724f46" />
-        <Block position={[6.7, 2.6, 0]} scale={[0.28, 5.3, 15]} color="#724f46" />
-        <Block position={[0, 5.1, 0]} scale={[13.5, 0.25, 15]} color="#6f514c" />
-        <Block position={[0, 1, -7]} scale={[8, 1.8, 1.1]} color="#4f5961" />
-        <Block position={[0, 1.92, -7]} scale={[8.4, 0.18, 1.4]} color="#d1a55f" />
-        <Block position={[-3.5, 0.8, -1.4]} scale={[2.2, 1.2, 2]} color="#b48261" />
-        <Block position={[3.5, 0.8, -2.5]} scale={[2.2, 1.2, 2]} color="#b48261" />
-        <Person position={[0, 0, -5.6]} color="#a65d63" />
-      </group>
-    </group>
   )
 }
 

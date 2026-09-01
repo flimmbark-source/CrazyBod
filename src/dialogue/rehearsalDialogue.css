@@ -13,7 +13,7 @@
 
 .rehearsal-dialogue-clock strong {
   color: #282331;
-  font-size: 13px;
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -69,7 +69,7 @@
   border: 2px solid #282331;
   border-radius: 50%;
   font-style: normal;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 900;
   background: #d7cdbf;
 }

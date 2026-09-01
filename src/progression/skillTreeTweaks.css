@@ -28,7 +28,7 @@
   color: #fffaf4;
   background: transparent;
   box-shadow: none;
-  font-size: 19px;
+  font-size: 20px;
   line-height: 1;
   letter-spacing: 0.12em;
   transform: translateX(-50%);
@@ -156,7 +156,7 @@
 
 .tree-node-lock {
   color: inherit;
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 750;
   text-shadow: none;
 }
@@ -166,7 +166,7 @@
   top: -17px;
   right: -22px;
   color: #57d6a6;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 850;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -221,7 +221,7 @@
   display: block;
   margin-bottom: 4px;
   color: var(--node-accent);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -230,7 +230,7 @@
 .skill-node-popup h2 {
   margin: 0;
   color: #282331;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.1;
   letter-spacing: -0.01em;
 }
@@ -238,7 +238,7 @@
 .skill-node-popup p {
   margin: 8px 0 0;
   color: #302b38;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 650;
   line-height: 1.35;
 }
@@ -247,7 +247,7 @@
   display: block;
   margin-top: 5px;
   color: #625d82;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.35;
 }
 
@@ -261,21 +261,21 @@
 }
 
 .skill-popup-cost span {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .skill-popup-cost strong {
   color: var(--node-accent);
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1;
 }
 
 .skill-popup-hint {
   margin-top: 9px;
   color: #657c8f;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.3;
 }
@@ -302,7 +302,7 @@
 }
 
 .skill-tree-bank strong {
-  font-size: 18px;
+  font-size: 19px;
 }
 
 .bank-unlocked {
@@ -310,7 +310,7 @@
   border: 0;
   color: #efcf69;
   background: transparent;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .skill-tree-close {
@@ -348,7 +348,7 @@
   color: #282331;
   background: #efcf69;
   box-shadow: none;
-  font-size: 12px;
+  font-size: 15px;
   letter-spacing: 0.06em;
 }
 
@@ -370,7 +370,7 @@
   color: rgba(255, 250, 244, 0.52);
   background: transparent;
   box-shadow: none;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .skill-tree-reset:hover,
@@ -392,7 +392,7 @@
 @media (max-width: 760px) {
   .skill-tree-title {
     top: 20px;
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .skill-tree-board {
@@ -424,7 +424,7 @@
   .tree-node-owned {
     top: -14px;
     right: -17px;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .skill-node-popup,

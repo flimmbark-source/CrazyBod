@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import RunSnapshotLane from './RunSnapshots.jsx'
 
 // React-owned results screen. Everything here is driven by the result object
 // created by finishRun, so the summary does not infer state from rendered DOM.
@@ -47,6 +48,7 @@ function prefersReducedMotion() {
 }
 
 function resultSummary(result) {
+  if (result.source === 'mandala') return `Mandala depth reached: ${result.mandalaDepth ?? 0}.`
   if (result.outcome === 'complete') return 'You made it to the café.'
   const duration = `${result.dayElapsed.toFixed(1)} seconds`
   return `after ${duration}.`
@@ -243,6 +245,7 @@ export default function ResultsScreen({
   onTutorial,
   onSkillTree,
   emphasizeSkillTree = false,
+  snapshots = [],
 }) {
   const isOverload = result.outcome === 'overload'
   const isHome = result.outcome === 'home'
@@ -297,6 +300,7 @@ export default function ResultsScreen({
           {showSkillTreeTip && onSkillTree && (
             <SkillTreeTutorialTip onDismiss={() => setShowSkillTreeTip(false)} />
           )}
+          <RunSnapshotLane snapshots={snapshots} />
         </>
       )}
     </div>
