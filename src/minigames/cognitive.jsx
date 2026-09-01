@@ -7,11 +7,13 @@ import {
   useMicrogameKeys,
   useOnceResolve,
 } from './shared.jsx'
+import { useT } from '../i18n/i18n.js'
 
 const MEMORY_KEYS = ['A', 'D', 'W', 'S']
 const KEY_CODES = { A: 'KeyA', D: 'KeyD', W: 'KeyW', S: 'KeyS' }
 
 export function WorkingMemoryGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const sequence = useMemo(() => shuffled(MEMORY_KEYS).slice(0, 3), [])
   const [showing, setShowing] = useState(true)
@@ -37,7 +39,7 @@ export function WorkingMemoryGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'REMEMBER THE KEYS',
+    hint: t('mg.rememberKeys'),
     onKeyDown: (event) => {
       const key = Object.entries(KEY_CODES).find(([, code]) => code === event.code)?.[0]
       if (!key || event.repeat) return false
@@ -48,7 +50,7 @@ export function WorkingMemoryGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame memory-game">
-      <small>{showing ? 'REMEMBER' : 'REPEAT'}</small>
+      <small>{showing ? t('mg.remember') : t('mg.repeat')}</small>
       <div className="memory-sequence">
         {sequence.map((key, keyIndex) => (
           <b key={keyIndex} className={!showing && keyIndex >= index ? 'hidden' : ''}>{showing ? key : keyIndex < index ? '✓' : '?'}</b>
@@ -72,13 +74,14 @@ const SWITCH_ITEMS = [
 ]
 
 export function TaskSwitchingGame({ onResolve }) {
+  const t = useT()
   const [step, setStep] = useState(0)
   const [offset, setOffset] = useState(0)
   const [mistake, setMistake] = useState(false)
   const resolve = useOnceResolve(onResolve)
   const rule = step < 2
-    ? { property: 'color', target: 'red', label: 'CLICK RED' }
-    : { property: 'shape', target: 'triangle', label: 'NOW: TRIANGLES' }
+    ? { property: 'color', target: 'red', label: t('mg.clickRed') }
+    : { property: 'shape', target: 'triangle', label: t('mg.nowTriangles') }
   const items = SWITCH_ITEMS.map((_, index) => SWITCH_ITEMS[(index + offset) % SWITCH_ITEMS.length])
 
   const choose = (item) => {
@@ -123,6 +126,7 @@ const DIRECTIONS = [
 ]
 
 export function DirectionLossGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const direction = useMemo(() => DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)], [])
   const rotation = useMemo(() => [90, 180, 270][Math.floor(Math.random() * 3)], [])
@@ -148,7 +152,7 @@ export function DirectionLossGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'PRESS THE ORIGINAL DIRECTION',
+    hint: t('mg.pressOriginalDir'),
     onKeyDown: (event) => {
       const candidate = DIRECTIONS.find((item) => item.code === event.code || item.alt === event.code)
       if (!candidate || event.repeat) return false
@@ -159,7 +163,7 @@ export function DirectionLossGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className={wrong ? 'new-minigame direction-game wrong' : 'new-minigame direction-game'}>
-      <small>{showing ? 'REMEMBER THIS DIRECTION' : 'PRESS THE ORIGINAL'}</small>
+      <small>{showing ? t('mg.rememberDir') : t('mg.pressOriginal')}</small>
       <div className="direction-stage" style={{ transform: showing ? 'none' : `rotate(${rotation}deg)` }}>
         <b>{direction.label}</b>
       </div>
@@ -177,6 +181,7 @@ const PACK_ITEMS = [
 ]
 
 export function PackingCheckGame({ onResolve }) {
+  const t = useT()
   const required = useMemo(() => shuffled(PACK_ITEMS).slice(0, 3), [])
   const [packed, setPacked] = useState([])
   const [wrong, setWrong] = useState(null)
@@ -198,7 +203,7 @@ export function PackingCheckGame({ onResolve }) {
 
   return (
     <div className="new-minigame packing-game">
-      <small>PACK: {required.map(([name]) => name).join(' · ')}</small>
+      <small>{t('mg.packPrefix')} {required.map(([name]) => t(`mg.item.${name.toLowerCase()}`)).join(' · ')}</small>
       <div className="packing-grid">
         {PACK_ITEMS.map(([name, icon]) => (
           <button
@@ -206,7 +211,7 @@ export function PackingCheckGame({ onResolve }) {
             type="button"
             className={`${packed.includes(name) ? 'packed' : ''} ${wrong === name ? 'wrong' : ''}`}
             onClick={() => pack(name)}
-          ><b>{icon}</b><span>{name}</span></button>
+          ><b>{icon}</b><span>{t(`mg.item.${name.toLowerCase()}`)}</span></button>
         ))}
       </div>
       <Progress value={(packed.length / required.length) * 100} />
@@ -217,6 +222,7 @@ export function PackingCheckGame({ onResolve }) {
 const THOUGHT_ICONS = ['●', '▲', '◆', '✚', '■', '☾']
 
 export function InterruptedThoughtGame({ onResolve }) {
+  const t = useT()
   const sequence = useMemo(() => shuffled(THOUGHT_ICONS).slice(0, 3), [])
   const [phase, setPhase] = useState('study')
   const [index, setIndex] = useState(0)
@@ -243,16 +249,16 @@ export function InterruptedThoughtGame({ onResolve }) {
 
   return (
     <div className={wrong ? 'new-minigame interrupted-game wrong' : 'new-minigame interrupted-game'}>
-      {phase === 'study' && <><small>KEEP THIS THOUGHT</small><div className="thought-sequence">{sequence.map((icon) => <b key={icon}>{icon}</b>)}</div></>}
+      {phase === 'study' && <><small>{t('mg.keepThought')}</small><div className="thought-sequence">{sequence.map((icon) => <b key={icon}>{icon}</b>)}</div></>}
       {phase === 'interrupt' && (
         <div className="thought-popup">
-          <strong>WAIT—DID YOU LOCK THE DOOR?</strong>
-          <button type="button" onClick={() => setPhase('recall')}>CLOSE</button>
+          <strong>{t('mg.lockDoor')}</strong>
+          <button type="button" onClick={() => setPhase('recall')}>{t('mg.close')}</button>
         </div>
       )}
       {phase === 'recall' && (
         <>
-          <small>CONTINUE THE THOUGHT</small>
+          <small>{t('mg.continueThought')}</small>
           <div className="thought-options">
             {THOUGHT_ICONS.map((icon) => <button key={icon} type="button" onClick={() => recall(icon)}>{icon}</button>)}
           </div>
@@ -264,6 +270,7 @@ export function InterruptedThoughtGame({ onResolve }) {
 }
 
 export function CheckingGame({ onResolve }) {
+  const t = useT()
   const [switches, setSwitches] = useState([false, false, false, false])
   const resolve = useOnceResolve(onResolve)
 
@@ -292,11 +299,11 @@ export function CheckingGame({ onResolve }) {
 
   return (
     <div className="new-minigame checking-game">
-      <small>GET EVERY CHECK ON</small>
+      <small>{t('mg.getEveryCheck')}</small>
       <div className="checking-switches">
         {switches.map((on, index) => (
           <button key={index} type="button" className={on ? 'on' : ''} onClick={() => toggle(index)}>
-            <i /> <span>{on ? 'YES' : 'CHECK'}</span>
+            <i /> <span>{on ? t('mg.yes') : t('mg.check')}</span>
           </button>
         ))}
       </div>
@@ -305,6 +312,7 @@ export function CheckingGame({ onResolve }) {
 }
 
 export function RacingHeartGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const phaseRef = useRef(0)
   const [phase, setPhase] = useState(0)
@@ -333,7 +341,7 @@ export function RacingHeartGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'TAP SPACE ON THE BEAT',
+    hint: t('mg.tapSpaceBeat'),
     onKeyDown: (event) => {
       if (event.code !== 'Space' || event.repeat) return false
       tap()
@@ -344,7 +352,7 @@ export function RacingHeartGame({ onResolve }) {
   const pulse = 1 + Math.sin(phase * Math.PI * 2) * 0.18
   return (
     <div ref={rootRef} className={miss ? 'new-minigame heart-game miss' : 'new-minigame heart-game'}>
-      <small>TAP WITH THE BEAT</small>
+      <small>{t('mg.tapWithBeat')}</small>
       <button type="button" className="heart" style={{ transform: `scale(${pulse})` }} onClick={tap}>♥</button>
       <div className="beat-pips">{Array.from({ length: 4 }).map((_, index) => <i key={index} className={index < hits ? 'hit' : ''} />)}</div>
     </div>

@@ -1,22 +1,8 @@
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { DAY_ELAPSED_EVENT } from '../config/gameConfig.js'
+import { useSettings } from '../settings/settingsStore.js'
 import useJourneyAudio from './useJourneyAudio.js'
 import useRequestedJourneySfx from './useRequestedJourneySfx.js'
-
-const AUDIO_VOLUME_KEY = 'crazybod:audio-volume'
-
-function readStoredVolume() {
-  try {
-    const storedValue = window.localStorage.getItem(AUDIO_VOLUME_KEY)
-    if (storedValue === null) return 0.5
-
-    const stored = Number(storedValue)
-    return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.5
-  } catch {
-    return 0.5
-  }
-}
 
 function readJourneyState() {
   const shell = document.querySelector('.game-shell')
@@ -45,40 +31,6 @@ function mutationAddsClass(record, className) {
   ))
 }
 
-function AudioSettings({ volume, onVolumeChange, embedded = false }) {
-  const [open, setOpen] = useState(false)
-  const percentage = Math.round(volume * 100)
-
-  return (
-    <aside className={`audio-settings${embedded ? ' audio-settings-embedded' : ''}${open ? ' audio-settings-open' : ''}`}>
-      <button
-        className="audio-settings-gear"
-        type="button"
-        aria-label={open ? 'Close sound settings' : 'Open sound settings'}
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        ⚙
-      </button>
-      {open && (
-        <div className="audio-settings-panel">
-          <label htmlFor="journey-volume">SOUND</label>
-          <input
-            id="journey-volume"
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={percentage}
-            onChange={(event) => onVolumeChange(Number(event.target.value) / 100)}
-          />
-          <output htmlFor="journey-volume">{percentage}%</output>
-        </div>
-      )}
-    </aside>
-  )
-}
-
 export default function ReadyJourneyAudioBridge() {
   const [signals, setSignals] = useState(() => ({
     ...readJourneyState(),
@@ -86,17 +38,9 @@ export default function ReadyJourneyAudioBridge() {
     startCueToken: 0,
     celebrationToken: 0,
   }))
-  const [volume, setVolume] = useState(readStoredVolume)
-
-  const changeVolume = (nextVolume) => {
-    const clamped = Math.min(1, Math.max(0, nextVolume))
-    setVolume(clamped)
-    try {
-      window.localStorage.setItem(AUDIO_VOLUME_KEY, String(clamped))
-    } catch {
-      // Audio still updates for this session when storage is unavailable.
-    }
-  }
+  // Volume is owned by the shared settings store so the settings menu (rendered
+  // in the main App tree) and this audio driver stay in sync across roots.
+  const { volume } = useSettings()
 
   useEffect(() => {
     const handleDayElapsed = (event) => {
@@ -157,19 +101,7 @@ export default function ReadyJourneyAudioBridge() {
   useRequestedJourneySfx({ ...signals, volume })
   useJourneyAudio({ ...signals, volume })
 
-  if (signals.status === 'home') {
-    return <AudioSettings volume={volume} onVolumeChange={changeVolume} />
-  }
-
-  if (signals.status === 'intro') {
-    const startingContainer = document.querySelector('.status-intro .overlay-card')
-    if (startingContainer) {
-      return createPortal(
-        <AudioSettings embedded volume={volume} onVolumeChange={changeVolume} />,
-        startingContainer,
-      )
-    }
-  }
-
+  // This bridge is now audio-only; the settings menu (volume + language) is
+  // rendered by the App tree on every non-play screen.
   return null
 }

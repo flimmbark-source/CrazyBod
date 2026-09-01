@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import RunSnapshotLane from './RunSnapshots.jsx'
+import SettingsMenu from '../settings/SettingsMenu.jsx'
+import { useT } from '../i18n/i18n.js'
 
 // React-owned results screen. Everything here is driven by the result object
 // created by finishRun, so the summary does not infer state from rendered DOM.
@@ -24,19 +26,11 @@ function markSkillTreeTipSeen() {
   }
 }
 
-const RESULT_COPY = {
-  overload: {
-    eyebrow: 'DAY RESULT',
-    title: 'OVERLOADED',
-  },
-  home: {
-    eyebrow: 'DAY RESULT',
-    title: 'RETURNED HOME',
-  },
-  complete: {
-    eyebrow: 'DAY RESULT',
-    title: 'YOU DID IT!',
-  },
+// Result title keys per outcome; the eyebrow is shared.
+const RESULT_TITLE_KEY = {
+  overload: 'result.overload.title',
+  home: 'result.home.title',
+  complete: 'result.complete.title',
 }
 
 function prefersReducedMotion() {
@@ -47,39 +41,39 @@ function prefersReducedMotion() {
   }
 }
 
-function resultSummary(result) {
-  if (result.source === 'mandala') return `Mandala depth reached: ${result.mandalaDepth ?? 0}.`
-  if (result.outcome === 'complete') return 'You made it to the café.'
-  const duration = `${result.dayElapsed.toFixed(1)} seconds`
-  return `after ${duration}.`
+function resultSummary(t, result) {
+  if (result.source === 'mandala') return t('result.summary.mandala', { depth: result.mandalaDepth ?? 0 })
+  if (result.outcome === 'complete') return t('result.summary.complete')
+  return t('result.summary.after', { seconds: result.dayElapsed.toFixed(1) })
 }
 
 function ScoreLedger({ result, banked }) {
+  const t = useT()
   const isOverload = result.outcome === 'overload'
   const wasBanked = banked != null
 
   return (
     <div className="score-ledger">
       <div className="score-ledger-row">
-        <span>EARNED</span>
+        <span>{t('ledger.earned')}</span>
         <strong>{result.rawScore}</strong>
       </div>
       {isOverload ? (
         <div className="score-ledger-row penalty">
-          <span>OVERLOAD PENALTY</span>
+          <span>{t('ledger.penalty')}</span>
           <strong>-{result.penalty}</strong>
         </div>
       ) : (
         <div className="score-ledger-row protected">
-          <span>SCORE KEPT</span>
-          <strong>100%</strong>
+          <span>{t('ledger.kept')}</span>
+          <strong>{t('ledger.keptValue')}</strong>
         </div>
       )}
       <div className="score-ledger-row total" aria-live={wasBanked ? 'polite' : undefined}>
-        <span>{wasBanked ? 'BANKED' : 'FINAL SCORE'}</span>
+        <span>{wasBanked ? t('ledger.banked') : t('ledger.final')}</span>
         <div className="score-total-value">
           <strong>{wasBanked ? `+${result.finalScore}` : result.finalScore}</strong>
-          {wasBanked && <small>BANK TOTAL {banked}</small>}
+          {wasBanked && <small>{t('ledger.bankTotal', { total: banked })}</small>}
         </div>
       </div>
     </div>
@@ -87,6 +81,7 @@ function ScoreLedger({ result, banked }) {
 }
 
 function OverloadBust({ capacity }) {
+  const t = useT()
   return (
     <section className="overload-bust-stage" role="alert" aria-live="assertive">
       <div className="bust-static" />
@@ -97,11 +92,11 @@ function OverloadBust({ capacity }) {
         ))}
       </div>
       <div className="bust-copy">
-        <span>CAPACITY</span>
-        <strong>OVERLOAD</strong>
-        <em>TOO MANY THINGS AT ONCE</em>
+        <span>{t('bust.capacity')}</span>
+        <strong>{t('bust.overload')}</strong>
+        <em>{t('bust.tooMany')}</em>
       </div>
-      <div className="bust-meter" aria-label={`Overload ${capacity} of ${capacity}`}>
+      <div className="bust-meter" aria-label={t('bust.aria', { capacity })}>
         {Array.from({ length: capacity }).map((_, index) => (
           <i key={index} />
         ))}
@@ -111,6 +106,7 @@ function OverloadBust({ capacity }) {
 }
 
 function HomeReturn({ capacity, activeAtEnd }) {
+  const t = useT()
   return (
     <section className="home-return-stage" role="status" aria-live="polite">
       <div className="home-hush" />
@@ -120,11 +116,11 @@ function HomeReturn({ capacity, activeAtEnd }) {
         ))}
       </div>
       <div className="home-copy">
-        <strong>WENT HOME</strong>
+        <strong>{t('home.wentHome')}</strong>
       </div>
       <div
         className="home-meter"
-        aria-label={`Went home with ${activeAtEnd} of ${capacity} capacity occupied`}
+        aria-label={t('home.aria', { active: activeAtEnd, capacity })}
       >
         {Array.from({ length: capacity }).map((_, index) => (
           <i key={index} className={index < activeAtEnd ? 'filled' : ''} />
@@ -137,6 +133,7 @@ function HomeReturn({ capacity, activeAtEnd }) {
 // A tutorial-style callout, matching the in-run tutorial steps, that points at
 // the skill tree button on the first result screen and explains upgrades.
 function SkillTreeTutorialTip({ onDismiss }) {
+  const t = useT()
   const calloutRef = useRef(null)
   const [placement, setPlacement] = useState({ left: 0, top: 0, direction: 'above', ready: false })
 
@@ -182,10 +179,10 @@ function SkillTreeTutorialTip({ onDismiss }) {
         }}
       >
         <i className="tutorial-pointer" aria-hidden="true" />
-        <span>NEW: SKILL TREE</span>
-        <strong>Spend your points.</strong>
-        <p>Open the skill tree to upgrade your character.</p>
-        <button className="tutorial-next" type="button" onClick={onDismiss}>GOT IT</button>
+        <span>{t('skillTip.eyebrow')}</span>
+        <strong>{t('skillTip.title')}</strong>
+        <p>{t('skillTip.body')}</p>
+        <button className="tutorial-next" type="button" onClick={onDismiss}>{t('common.gotIt')}</button>
       </aside>
     </section>
   )
@@ -201,23 +198,24 @@ function ResultsCard({
   emphasizeSkillTree,
   highlightSkillTree = false,
 }) {
-  const copy = RESULT_COPY[result.outcome]
+  const t = useT()
   const actionClass = `results-actions${onSkillTree ? ' has-skill-tree' : ''}`
 
   return (
     <section className="results-screen" aria-labelledby="results-title">
+      <SettingsMenu variant="fixed" />
       <div className="results-card">
         <header className="results-header">
-          <span>{copy.eyebrow}</span>
-          <h1 id="results-title">{copy.title}</h1>
-          <p>{resultSummary(result)}</p>
+          <span>{t('result.eyebrow')}</span>
+          <h1 id="results-title">{t(RESULT_TITLE_KEY[result.outcome])}</h1>
+          <p>{resultSummary(t, result)}</p>
         </header>
 
         <ScoreLedger result={result} banked={banked} />
 
         <div className={actionClass}>
           <button className="results-restart" type="button" onClick={onRestart}>
-            TRY ANOTHER DAY
+            {t('results.tryAnother')}
           </button>
           {onSkillTree && (
             <button
@@ -225,11 +223,11 @@ function ResultsCard({
               type="button"
               onClick={onSkillTree}
             >
-              SKILL TREE
+              {t('common.skillTree')}
             </button>
           )}
           <button className="results-tutorial" type="button" onClick={onTutorial}>
-            PLAY TUTORIAL
+            {t('results.playTutorial')}
           </button>
         </div>
       </div>

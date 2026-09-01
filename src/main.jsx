@@ -22,7 +22,7 @@ import './results/resultsCleanup.css'
 import './results/runSnapshot.css'
 import './modes/mandala/mandala.css'
 import './cafeBeat.css'
-import './world/audioSettings.css'
+import './settings/settingsMenu.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import DialogueBox from '../dialogue/DialogueBox.jsx'
 import '../dialogue/rehearsalDialogue.css'
 import { scoredPromptCount } from './techniqueEngine.js'
+import { useT } from '../i18n/i18n.js'
 
 // The rehearsal dialogue pauses the day (the parent sets activeTechnique with
 // pausesDay) but leaves minigames interactive. It uses the same dialogue box as
@@ -19,6 +20,7 @@ export default function RehearsalTechnique({
   distortion = 0,
   onComplete,
 }) {
+  const t = useT()
   const [index, setIndex] = useState(0)
   const [remaining, setRemaining] = useState(timeLimitSeconds)
   const wrongRef = useRef(0)
@@ -62,9 +64,9 @@ export default function RehearsalTechnique({
 
   const timeRatio = Math.max(0, Math.min(1, remaining / timeLimitSeconds))
   const dialogue = {
-    speaker: 'Rehearse',
-    line: prompt.line,
-    options: prompt.options,
+    speaker: t('speaker.Rehearse'),
+    line: t(`rehearse.p.${index}.line`),
+    options: prompt.options.map((_, optionIndex) => t(`rehearse.p.${index}.opt.${optionIndex}`)),
   }
 
   return (
@@ -74,13 +76,13 @@ export default function RehearsalTechnique({
       distortion={distortion}
       onAnswer={answer}
       className="rehearsal-dialogue"
-      ariaLabel="Rehearse the conversation"
+      ariaLabel={t('rehearse.aria')}
       beforeOptions={(
-        <div className="rehearsal-dialogue-clock" aria-label={`${remaining.toFixed(1)} seconds remaining`}>
+        <div className="rehearsal-dialogue-clock" aria-label={t('technique.timeRemaining', { seconds: remaining.toFixed(1) })}>
           <div className="rehearsal-dialogue-meter" aria-hidden="true">
             <i style={{ transform: `scaleX(${timeRatio})` }} />
           </div>
-          <strong>{remaining.toFixed(1)}s</strong>
+          <strong>{t('technique.secondsValue', { seconds: remaining.toFixed(1) })}</strong>
         </div>
       )}
       afterOptions={(

@@ -1,0 +1,177 @@
+.settings-menu {
+  z-index: 1200;
+  width: 46px;
+  font-family: inherit;
+}
+
+/* Fixed top-corner placement used on the results / end screens. */
+.settings-menu-fixed {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+}
+
+/* Embedded inside the intro overlay card. */
+.status-intro .overlay-card {
+  position: relative;
+}
+
+.settings-menu-embedded {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+}
+
+/* On the skill tree the top-left holds the bank and the top-right holds the
+   close button, so the gear tucks in just to the left of the close button and
+   its panel drops down aligned to that edge. */
+.settings-menu-skill-tree {
+  position: fixed;
+  top: 18px;
+  right: 84px;
+}
+
+.settings-menu-gear {
+  width: 46px;
+  height: 46px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  background: rgba(26, 22, 34, 0.88);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.settings-menu-embedded {
+  width: 32px;
+}
+
+.settings-menu-embedded .settings-menu-gear {
+  width: 32px;
+  height: 32px;
+  border-width: 1px;
+  border-radius: 9px;
+  font-size: 19px;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24);
+}
+
+.settings-menu-gear:hover,
+.settings-menu-gear:focus-visible {
+  transform: translateY(-1px);
+  background: rgba(45, 37, 58, 0.96);
+}
+
+/* The panel is taken out of flow so opening it never shifts the gear (which
+   would otherwise happen under RTL, where the flex container grows leftward).
+   It drops below the gear, anchored to the same corner as the menu. */
+.settings-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  min-width: 220px;
+  display: grid;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  background: rgba(26, 22, 34, 0.94);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  text-align: start;
+}
+
+/* Right-anchored menus (skill tree) drop their panel from the right edge so it
+   stays on screen. */
+.settings-menu-skill-tree .settings-menu-panel {
+  left: auto;
+  right: 0;
+}
+
+.settings-menu-group {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-menu-group label,
+.settings-menu-group output,
+.settings-menu-language-label {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.settings-menu-group input[type='range'] {
+  width: 100%;
+  accent-color: #f4cf72;
+}
+
+.settings-menu-language {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.settings-menu-language-options {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-menu-language-option {
+  flex: 1;
+  padding: 8px 10px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-menu-language-option:hover,
+.settings-menu-language-option:focus-visible {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.settings-menu-language-option.is-selected {
+  border-color: #f4cf72;
+  background: rgba(244, 207, 114, 0.22);
+  color: #fff4d8;
+}
+
+@media (max-width: 620px) {
+  .settings-menu-fixed {
+    top: 10px;
+    left: 10px;
+  }
+
+  .settings-menu-embedded {
+    top: 8px;
+    left: 8px;
+  }
+
+  .settings-menu-skill-tree {
+    top: 10px;
+    right: 63px;
+  }
+
+  .settings-menu-gear {
+    width: 42px;
+    height: 42px;
+  }
+
+  .settings-menu-embedded .settings-menu-gear {
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+  }
+
+  .settings-menu-panel {
+    min-width: 190px;
+  }
+}

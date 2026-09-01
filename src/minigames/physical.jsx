@@ -7,8 +7,10 @@ import {
   useMicrogameKeys,
   useOnceResolve,
 } from './shared.jsx'
+import { useT } from '../i18n/i18n.js'
 
 export function BalanceGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const markerRef = useRef(50)
   const velocityRef = useRef(0)
@@ -64,7 +66,7 @@ export function BalanceGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame balance-game">
-      <small>KEEP IT CENTERED.</small>
+      <small>{t('mg.keepCentered')}</small>
       <div className="balance-track">
         <i className="balance-zone" />
         <b style={{ left: `${marker}%` }} />
@@ -79,6 +81,7 @@ export function BalanceGame({ onResolve }) {
 }
 
 export function TremorGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const pointerRef = useRef({ x: -1, y: -1 })
   const targetRef = useRef({ x: 50, y: 50 })
@@ -113,7 +116,7 @@ export function TremorGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame tremor-game">
-      <small>FOLLOW THE CALM SPOT</small>
+      <small>{t('mg.followCalm')}</small>
       <div className="tremor-field" onPointerMove={move}>
         <i className="tremor-target" style={{ left: `${target.x}%`, top: `${target.y}%` }} />
         {pointer.x >= 0 && <b style={{ left: `${pointer.x}%`, top: `${pointer.y}%` }} />}
@@ -124,6 +127,7 @@ export function TremorGame({ onResolve }) {
 }
 
 export function JointSlipGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const positionRef = useRef({ x: 24, y: 56 })
   const draggingRef = useRef(false)
@@ -174,7 +178,7 @@ export function JointSlipGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame joint-game">
-      <small>DRAG TO THE CIRCLE</small>
+      <small>{t('mg.dragToCircle')}</small>
       <div className="joint-field">
         <i className={socketed ? 'joint-socket filled' : 'joint-socket'} />
         <button
@@ -186,7 +190,7 @@ export function JointSlipGame({ onResolve }) {
           onPointerUp={stop}
           onPointerCancel={stop}
           disabled={socketed}
-          aria-label="Drag the loose circle into the dotted circle"
+          aria-label={t('mg.dragAria')}
         />
       </div>
       <Progress value={(settled / 700) * 100} />
@@ -195,6 +199,7 @@ export function JointSlipGame({ onResolve }) {
 }
 
 export function MuscleLockGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const lastRef = useRef(null)
   const [steps, setSteps] = useState(0)
@@ -214,7 +219,7 @@ export function MuscleLockGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'ALTERNATE A / D',
+    hint: t('mg.hint.alternateAD'),
     onKeyDown: (event) => {
       const direction = keyDirection(event.code)
       if (!direction || event.repeat) return false
@@ -225,7 +230,7 @@ export function MuscleLockGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame muscle-game">
-      <small>ALTERNATE PRESSES</small>
+      <small>{t('mg.alternatePresses')}</small>
       <div className="muscle-coil" style={{ '--release': steps / 10 }}>
         {Array.from({ length: 5 }).map((_, index) => <i key={index} />)}
       </div>
@@ -239,6 +244,7 @@ export function MuscleLockGame({ onResolve }) {
 }
 
 export function WeakGripGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const holdingRef = useRef(false)
   const lastTapRef = useRef(0)
@@ -255,7 +261,7 @@ export function WeakGripGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'HOLD MOUSE + TAP SPACE',
+    hint: t('mg.hint.holdMouseTapSpace'),
     onKeyDown: (event) => {
       if (event.code !== 'Space' || event.repeat) return false
       tap()
@@ -278,7 +284,7 @@ export function WeakGripGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame weak-grip-game">
-      <small>HOLD AND KEEP TAPPING SPACE</small>
+      <small>{t('mg.holdTapSpace')}</small>
       <button
         type="button"
         className={pulse ? 'grip-button pulsing' : 'grip-button'}
@@ -287,7 +293,7 @@ export function WeakGripGame({ onResolve }) {
         onPointerLeave={stop}
         onPointerCancel={stop}
       >
-        HOLD
+        {t('mg.hold')}
       </button>
       <Progress value={(progress / 1800) * 100} />
     </div>
@@ -295,6 +301,7 @@ export function WeakGripGame({ onResolve }) {
 }
 
 export function DizzinessGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const tiltRef = useRef(Math.random() > 0.5 ? 22 : -22)
   const heldRef = useRef(0)
@@ -336,7 +343,7 @@ export function DizzinessGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame dizziness-game">
-      <small>STEADY THE HORIZON</small>
+      <small>{t('mg.steadyHorizon')}</small>
       <div className="horizon" style={{ transform: `rotate(${tilt}deg)` }}><i /></div>
       <div className="mini-button-row">
         <button type="button" onClick={() => nudge(-4)}>A</button>
@@ -348,6 +355,7 @@ export function DizzinessGame({ onResolve }) {
 }
 
 export function PressurePointGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const pointerRef = useRef({ x: -100, y: -100 })
   const pointRef = useRef({ x: 50, y: 50 })
@@ -378,7 +386,7 @@ export function PressurePointGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame pressure-game">
-      <small>STAY ON THE SORE POINT</small>
+      <small>{t('mg.stayOnSore')}</small>
       <div className="pressure-field" onPointerMove={track} onPointerLeave={() => { pointerRef.current = { x: -100, y: -100 } }}>
         <i style={{ left: `${point.x}%`, top: `${point.y}%` }} />
       </div>
@@ -388,6 +396,7 @@ export function PressurePointGame({ onResolve }) {
 }
 
 export function SpiralGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const draggingRef = useRef(false)
   const positionRef = useRef({ x: 50, y: 50 })
@@ -420,7 +429,7 @@ export function SpiralGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame spiral-game">
-      <small>PULL TO THE EDGE.</small>
+      <small>{t('mg.pullToEdge')}</small>
       <div className="spiral-field">
         <i className="spiral-rings" />
         <button

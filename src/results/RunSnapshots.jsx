@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '../i18n/i18n.js'
 
 // The "run snapshot" strip shown on the end screens: a lane of polaroids taken
 // during the run — a few at random moments before the first conversation, then
@@ -21,6 +22,7 @@ function tossFor(index) {
 }
 
 function Polaroid({ snapshot, index, onOpen }) {
+  const t = useT()
   const { rotate, lift } = tossFor(index)
   return (
     <button
@@ -32,7 +34,7 @@ function Polaroid({ snapshot, index, onOpen }) {
         '--snap-index': index,
       }}
       onClick={() => onOpen(index)}
-      aria-label={snapshot.caption ? `Snapshot: ${snapshot.caption}` : `Run snapshot ${index + 1}`}
+      aria-label={snapshot.caption ? t('snapshot.captionAria', { caption: snapshot.caption }) : t('snapshot.indexAria', { index: index + 1 })}
     >
       <span className="run-snapshot-frame">
         <img src={snapshot.src} alt="" draggable="false" />
@@ -43,6 +45,7 @@ function Polaroid({ snapshot, index, onOpen }) {
 }
 
 function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
+  const t = useT()
   const snapshot = snapshots[index]
 
   useEffect(() => {
@@ -65,14 +68,14 @@ function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
       className="snapshot-lightbox"
       role="dialog"
       aria-modal="true"
-      aria-label="Run snapshot viewer"
+      aria-label={t('snapshot.viewerAria')}
       onClick={onClose}
     >
       {hasMultiple && (
         <button
           type="button"
           className="snapshot-nav snapshot-nav-prev"
-          aria-label="Previous snapshot"
+          aria-label={t('snapshot.prev')}
           onClick={(event) => {
             event.stopPropagation()
             onShift(-1)
@@ -84,7 +87,7 @@ function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
 
       <figure className="snapshot-stage" onClick={(event) => event.stopPropagation()}>
         <div className="snapshot-stage-frame">
-          <img src={snapshot.src} alt={snapshot.caption || 'Run snapshot'} draggable="false" />
+          <img src={snapshot.src} alt={snapshot.caption || t('snapshot.alt')} draggable="false" />
         </div>
         {snapshot.caption && <figcaption>{snapshot.caption}</figcaption>}
         {hasMultiple && (
@@ -93,7 +96,7 @@ function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
         <button
           type="button"
           className="snapshot-close"
-          aria-label="Close snapshot viewer"
+          aria-label={t('snapshot.close')}
           onClick={(event) => {
             event.stopPropagation()
             onClose()
@@ -107,7 +110,7 @@ function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
         <button
           type="button"
           className="snapshot-nav snapshot-nav-next"
-          aria-label="Next snapshot"
+          aria-label={t('snapshot.next')}
           onClick={(event) => {
             event.stopPropagation()
             onShift(1)
@@ -122,6 +125,7 @@ function SnapshotLightbox({ snapshots, index, onClose, onShift }) {
 }
 
 export default function RunSnapshotLane({ snapshots }) {
+  const t = useT()
   const [activeIndex, setActiveIndex] = useState(null)
 
   const open = useCallback((index) => setActiveIndex(index), [])
@@ -140,8 +144,8 @@ export default function RunSnapshotLane({ snapshots }) {
   if (!snapshots || snapshots.length === 0) return null
 
   return (
-    <section className="run-snapshot-lane" aria-label="Run snapshots">
-      <span className="run-snapshot-lane-label">RUN SNAPSHOT</span>
+    <section className="run-snapshot-lane" aria-label={t('snapshot.sectionAria')}>
+      <span className="run-snapshot-lane-label">{t('snapshot.laneLabel')}</span>
       <div className="run-snapshot-track">
         {snapshots.map((snapshot, index) => (
           <Polaroid key={snapshot.id} snapshot={snapshot} index={index} onOpen={open} />

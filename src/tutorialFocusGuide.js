@@ -1,36 +1,15 @@
-const FOCUS_COPY = {
-  first: {
-    eyebrow: 'FOCUS ON THE MINIGAME',
-    title: 'Click Here.',
-    body: 'Click to FOCUS.',
-  },
-  second: {
-    eyebrow: 'FOCUS FIRST',
-    title: 'Click Here.',
-    body: 'Click to FOCUS.',
-  },
-}
+import { translate } from './i18n/i18n.js'
 
-const PLAY_COPY = {
-  first: {
-    eyebrow: 'FIRST MINIGAME',
-    title: 'Hold to Clear.',
-    body: 'Hold the button or Space.',
-  },
-  second: {
-    eyebrow: 'A DIFFERENT MINIGAME',
-    title: 'Use WSAD or Arrow Keys.',
-    body: 'Reach the exit with the Circle.',
-  },
-}
-
-function writeCopy(callout, copy) {
+// Copy is keyed here and translated at write time (the language is fixed before
+// gameplay, so the current value is correct when a callout appears).
+function writeCopy(callout, stage, kind) {
   const eyebrow = callout.querySelector(':scope > span')
   const title = callout.querySelector(':scope > strong')
   const body = callout.querySelector(':scope > p')
-  if (eyebrow) eyebrow.textContent = copy.eyebrow
-  if (title) title.textContent = copy.title
-  if (body) body.textContent = copy.body
+  const prefix = `focusGuide.${stage}.${kind}`
+  if (eyebrow) eyebrow.textContent = translate(`${prefix}.eyebrow`)
+  if (title) title.textContent = translate(`${prefix}.title`)
+  if (body) body.textContent = translate(`${prefix}.body`)
 }
 
 function cursorMarkup() {
@@ -63,7 +42,7 @@ function prepareLayer(layer) {
   layer.dataset.focusGuideReady = 'true'
   layer.dataset.focusGuideStage = 'focus'
   target.classList.add('tutorial-focus-pending')
-  writeCopy(callout, FOCUS_COPY[kind])
+  writeCopy(callout, 'focus', kind)
 
   const cursor = cursorMarkup()
   target.append(cursor)
@@ -73,7 +52,7 @@ function prepareLayer(layer) {
     layer.dataset.focusGuideStage = 'play'
     target.classList.remove('tutorial-focus-pending')
     cursor.remove()
-    writeCopy(callout, PLAY_COPY[kind])
+    writeCopy(callout, 'play', kind)
   }
 
   target.addEventListener('pointerdown', focusFrame, { capture: true, once: true })

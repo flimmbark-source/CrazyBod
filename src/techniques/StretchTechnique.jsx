@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import './stretchTechnique.css'
+import { useT } from '../i18n/i18n.js'
 
 // Stretch Every Joint pauses the day (the parent sets activeTechnique with
 // pausesDay). The player holds each joint until its meter fills; joints can be
@@ -12,6 +13,7 @@ export default function StretchTechnique({
   holdSeconds = 0.8,
   onComplete,
 }) {
+  const t = useT()
   const [, forceRender] = useState(0)
   const [remaining, setRemaining] = useState(timeLimitSeconds)
   const filledRef = useRef({})
@@ -79,22 +81,22 @@ export default function StretchTechnique({
     <section
       className="dialogue-box rehearsal-dialogue stretch-dialogue"
       role="dialog"
-      aria-label="Stretch every joint"
+      aria-label={t('stretch.aria')}
       aria-live="polite"
     >
       <div className="speaker-row">
-        <span className="portrait">S</span>
+        <span className="portrait">{t('speaker.Stretch').slice(0, 1)}</span>
         <div>
-          <strong>Stretch</strong>
-          <p>Loosen every joint before you go. Hold each one.</p>
+          <strong>{t('speaker.Stretch')}</strong>
+          <p>{t('stretch.line')}</p>
         </div>
       </div>
 
-      <div className="rehearsal-dialogue-clock" aria-label={`${remaining.toFixed(1)} seconds remaining`}>
+      <div className="rehearsal-dialogue-clock" aria-label={t('technique.timeRemaining', { seconds: remaining.toFixed(1) })}>
         <div className="rehearsal-dialogue-meter" aria-hidden="true">
           <i style={{ transform: `scaleX(${timeRatio})` }} />
         </div>
-        <strong>{remaining.toFixed(1)}s</strong>
+        <strong>{t('technique.secondsValue', { seconds: remaining.toFixed(1) })}</strong>
       </div>
 
       <div className="dialogue-options stretch-joints">
@@ -130,13 +132,13 @@ export default function StretchTechnique({
               }}
             >
               <span className="stretch-joint-fill" style={{ transform: `scaleX(${ratio})` }} aria-hidden="true" />
-              <span className="stretch-joint-label">{joint.label}</span>
+              <span className="stretch-joint-label">{t(`stretch.joint.${joint.key}`)}</span>
             </button>
           )
         })}
       </div>
 
-      <div className="rehearsal-dialogue-progress" aria-label={`${loosened} of ${joints.length} loosened`}>
+      <div className="rehearsal-dialogue-progress" aria-label={t('stretch.progressAria', { loosened, total: joints.length })}>
         {joints.map((joint) => (
           <i key={joint.key} className={doneKeysRef.current.has(joint.key) ? 'done' : ''} />
         ))}

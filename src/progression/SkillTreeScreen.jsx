@@ -11,6 +11,26 @@ import {
   isPurchased,
   isRevealed,
 } from './progressionStore.js'
+import SettingsMenu from '../settings/SettingsMenu.jsx'
+import { useT } from '../i18n/i18n.js'
+
+// Translate a skill node's authored fields by its stable id. Descriptions are
+// blank for most nodes, so keep them blank rather than echoing a missing key.
+function nodeName(t, node) {
+  return t(`skill.${node.id}.name`)
+}
+
+function nodeDescription(t, node) {
+  return node.description ? t(`skill.${node.id}.description`) : ''
+}
+
+function nodeDetail(t, node) {
+  return node.detail ? t(`skill.${node.id}.detail`) : ''
+}
+
+function nodeTagline(t, node) {
+  return t(`tagline.${node.tagline}`)
+}
 
 const RELEASE_HIDDEN_NODE_IDS = new Set(['swordCursor', 'mandalaDive'])
 
@@ -72,19 +92,22 @@ function isOwnedState(state) {
   return state === 'enabled' || state === 'disabled'
 }
 
-function popupHint(node, state, bank) {
-  if (state === 'enabled') return 'Enabled.'
-  if (state === 'disabled') return 'Disabled.'
-  if (state === 'available') return `Buy for ${node.cost}.`
-  if (state === 'unaffordable') return `You need ${Math.max(0, node.cost - bank)} to Buy.`
+function popupHint(t, node, state, bank) {
+  if (state === 'enabled') return t('skillTree.enabled')
+  if (state === 'disabled') return t('skillTree.disabled')
+  if (state === 'available') return t('skillTree.buyFor', { cost: node.cost })
+  if (state === 'unaffordable') return t('skillTree.need', { amount: Math.max(0, node.cost - bank) })
   return ''
 }
 
 function NodePopup({ node, state, bank }) {
+  const t = useT()
   if (!node) return null
 
   const owned = isOwnedState(state)
   const horizontalClass = node.x >= 66 ? 'popup-left' : 'popup-right'
+  const description = nodeDescription(t, node)
+  const detail = nodeDetail(t, node)
 
   return (
     <aside
@@ -96,24 +119,25 @@ function NodePopup({ node, state, bank }) {
       }}
       aria-live="polite"
     >
-      <span className="skill-popup-tagline">{node.tagline}</span>
-      <h2>{node.name}</h2>
-      <p>{node.description}</p>
-      {node.detail && <small>{node.detail}</small>}
+      <span className="skill-popup-tagline">{nodeTagline(t, node)}</span>
+      <h2>{nodeName(t, node)}</h2>
+      <p>{description}</p>
+      {detail && <small>{detail}</small>}
 
       {!owned && (
         <div className="skill-popup-cost">
-          <span>Cost</span>
+          <span>{t('skillTree.cost')}</span>
           <strong>{node.cost}</strong>
         </div>
       )}
 
-      <div className="skill-popup-hint">{popupHint(node, state, bank)}</div>
+      <div className="skill-popup-hint">{popupHint(t, node, state, bank)}</div>
     </aside>
   )
 }
 
 function ConfirmButton({ className, label, confirmLabel, onConfirm }) {
+  const t = useT()
   const [confirming, setConfirming] = useState(false)
 
   if (!confirming) {
@@ -137,7 +161,7 @@ function ConfirmButton({ className, label, confirmLabel, onConfirm }) {
         {confirmLabel}
       </button>
       <button type="button" className="reset-confirm-no" onClick={() => setConfirming(false)}>
-        CANCEL
+        {t('common.cancel')}
       </button>
     </span>
   )
@@ -153,6 +177,7 @@ export default function SkillTreeScreen({
   onResetTree,
   onResetFull,
 }) {
+  const t = useT()
   const [activeId, setActiveId] = useState(null)
   const [deniedId, setDeniedId] = useState(null)
   const visibleNodes = SKILL_TREE_NODES.filter((node) => !RELEASE_HIDDEN_NODE_IDS.has(node.id))
@@ -189,20 +214,21 @@ export default function SkillTreeScreen({
 
   return (
     <div className="skill-tree-screen">
-      <h1 className="skill-tree-title">SKILL TREE</h1>
+      <SettingsMenu variant="skill-tree" />
+      <h1 className="skill-tree-title">{t('common.skillTree')}</h1>
 
       <div className="skill-tree-bank" aria-live="polite">
         <span className="bank-gem" aria-hidden="true" />
         <strong>{progression.bank}</strong>
-        {firstUnlock && <em className="bank-unlocked">UNLOCKED</em>}
+        {firstUnlock && <em className="bank-unlocked">{t('skillTree.unlocked')}</em>}
       </div>
 
-      <button type="button" className="skill-tree-close" onClick={onExit} aria-label="Back to title">
+      <button type="button" className="skill-tree-close" onClick={onExit} aria-label={t('skillTree.backToTitle')}>
         ×
       </button>
 
       <div className="skill-tree-board">
-        <div className="skill-tree-map" role="group" aria-label="Skill tree">
+        <div className="skill-tree-map" role="group" aria-label={t('skillTree.mapLabel')}>
           <svg className="skill-tree-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {visibleEdges.map((edge) => {
               const from = SKILL_TREE_NODES_BY_ID[edge.from]
@@ -243,19 +269,19 @@ export default function SkillTreeScreen({
                 disabled={state === 'hidden'}
                 aria-label={
                   state === 'hidden'
-                    ? 'Locked skill'
-                    : `${node.name}. ${node.description} ${
+                    ? t('skillTree.lockedSkill')
+                    : `${nodeName(t, node)}. ${nodeDescription(t, node)} ${
                         state === 'enabled'
-                          ? 'Owned and enabled.'
+                          ? t('skillTree.node.enabledDesc')
                           : state === 'disabled'
-                            ? 'Owned and disabled.'
-                            : `Costs ${node.cost}.`
+                            ? t('skillTree.node.disabledDesc')
+                            : t('skillTree.node.costs', { cost: node.cost })
                       }`
                 }
                 aria-pressed={state === 'enabled' ? true : state === 'disabled' ? false : undefined}
               >
                 {state === 'hidden' ? <span className="tree-node-lock">?</span> : <NodeIcon icon={node.icon} />}
-                {owned && <span className="tree-node-owned">Owned</span>}
+                {owned && <span className="tree-node-owned">{t('skillTree.owned')}</span>}
               </button>
             )
           })}
@@ -267,20 +293,20 @@ export default function SkillTreeScreen({
       <div className="skill-tree-resets">
         <ConfirmButton
           className="skill-tree-reset"
-          label="RESET TREE"
-          confirmLabel="RESET TREE?"
+          label={t('skillTree.resetTree')}
+          confirmLabel={t('skillTree.resetTreeConfirm')}
           onConfirm={onResetTree}
         />
         <ConfirmButton
           className="skill-tree-reset danger"
-          label="RESET SAVE"
-          confirmLabel="ERASE ALL?"
+          label={t('skillTree.resetSave')}
+          confirmLabel={t('skillTree.resetSaveConfirm')}
           onConfirm={onResetFull}
         />
       </div>
 
       <button type="button" className="skill-tree-start" onClick={onStartDay}>
-        START THE DAY
+        {t('common.startDay')}
       </button>
     </div>
   )

@@ -1,6 +1,14 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { memo, useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
+import { useT } from '../i18n/i18n.js'
+
+// English signage strings mapped to translation keys. Translating inside Label
+// keeps the 3D scene's memoized parents from needing to thread the language.
+const WORLD_LABEL_KEYS = {
+  'CAFÉ': 'world.cafe',
+  'ORDER HERE': 'world.orderHere',
+}
 
 const PLAYER_PATH = [
   // Waking up: begin beside the bed and walk straight to the bathroom.
@@ -110,6 +118,8 @@ function Cylinder({ position, args, color, rotation = [0, 0, 0], castShadow = tr
 }
 
 function Label({ text, position, size = [4, 1.2], rotation = [0, 0, 0], foreground = '#fff4d8', background = '#6f514c' }) {
+  const t = useT()
+  const label = WORLD_LABEL_KEYS[text] ? t(WORLD_LABEL_KEYS[text]) : text
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
     canvas.width = 512
@@ -124,11 +134,11 @@ function Label({ text, position, size = [4, 1.2], rotation = [0, 0, 0], foregrou
     context.font = '900 78px system-ui, sans-serif'
     context.textAlign = 'center'
     context.textBaseline = 'middle'
-    context.fillText(text, canvas.width / 2, canvas.height / 2 + 2)
+    context.fillText(label, canvas.width / 2, canvas.height / 2 + 2)
     const next = new THREE.CanvasTexture(canvas)
     next.colorSpace = THREE.SRGBColorSpace
     return next
-  }, [background, foreground, text])
+  }, [background, foreground, label])
 
   return (
     <mesh position={position} rotation={rotation}>

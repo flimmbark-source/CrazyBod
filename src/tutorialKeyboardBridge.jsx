@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 
+import { translate } from './i18n/i18n.js'
+
 const SCORE_CALLOUT_CLASS = 'tutorial-score-callout'
 const SCORE_TARGET_CLASS = 'tutorial-score-target'
 
@@ -30,16 +32,19 @@ function positionScoreCallout(callout, scorePanel) {
 }
 
 function syncTutorialUi() {
+  const pressEsc = translate('kb.pressEsc')
+  const pressEscHome = translate('kb.pressEscHome')
+
   const goHomeButton = document.querySelector('.go-home')
   const goHomeHint = goHomeButton?.querySelector('small')
-  if (goHomeHint && goHomeHint.textContent !== 'Press ESC') {
-    goHomeHint.textContent = 'Press ESC'
+  if (goHomeHint && goHomeHint.textContent !== pressEsc) {
+    goHomeHint.textContent = pressEsc
   }
 
   const homeLayer = document.querySelector('.tutorial-layer-home')
   const homeTitle = homeLayer?.querySelector('.tutorial-callout-home strong')
-  if (homeTitle && homeTitle.textContent !== 'Press ESC to go home if you feel overwhelmed.') {
-    homeTitle.textContent = 'Press ESC to go home if you feel overwhelmed.'
+  if (homeTitle && homeTitle.textContent !== pressEscHome) {
+    homeTitle.textContent = pressEscHome
   }
 
   const scorePanel = document.querySelector('.score-panel')
@@ -59,8 +64,8 @@ function syncTutorialUi() {
     scoreCallout.setAttribute('role', 'note')
     scoreCallout.innerHTML = `
       <i class="tutorial-pointer" aria-hidden="true"></i>
-      <span>IF YOU BECOME OVERWHELMED</span>
-      <strong>If you bust, you will lose some of your score.</strong>
+      <span>${translate('kb.overwhelmedEyebrow')}</span>
+      <strong>${translate('kb.bustWarning')}</strong>
     `
     homeLayer.append(scoreCallout)
   }

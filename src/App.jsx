@@ -7,7 +7,7 @@ import { useMandalaRun } from './modes/mandala/useMandalaRun.js'
 import MandalaScene from './modes/mandala/MandalaScene.jsx'
 import MandalaEnemyLayer from './modes/mandala/MandalaEnemyLayer.jsx'
 import SwordCursor from './modes/sword/SwordCursor.jsx'
-import { MICROGAME_NAMES as EXPANDED_MICROGAME_NAMES, NewMicrogameContent } from './minigames/catalog.jsx'
+import { NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
   createPacingDirector,
@@ -37,13 +37,14 @@ import {
   DAY_LENGTH,
   OVERLOAD_SCORE_MULTIPLIER,
   phaseFor,
-  phaseLabel,
   scoreForElapsed,
 } from './config/gameConfig.js'
 import ResultsScreen from './results/ResultsScreen.jsx'
 import { useProgression } from './progression/useProgression.js'
 import { computeCapacity } from './progression/progressionStore.js'
 import SkillTreeScreen from './progression/SkillTreeScreen.jsx'
+import SettingsMenu from './settings/SettingsMenu.jsx'
+import { useT } from './i18n/i18n.js'
 import DialogueBox from './dialogue/DialogueBox.jsx'
 import CafeNarrativeBeatScene from './narrative/CafeNarrativeBeatScene.jsx'
 import {
@@ -51,7 +52,6 @@ import {
   CAFE_BEAT_START_AT,
   CAFE_BEAT_TIMINGS,
   CAFE_DIALOGUE,
-  CAFE_RUPTURE_DIALOGUE,
   advanceCafeConversation,
   isCafeBeatFrozen,
 } from './narrative/cafeBeat.js'
@@ -80,8 +80,6 @@ function buildAmbientSnapshotTimes() {
   return times
 }
 
-const MICROGAME_NAMES = EXPANDED_MICROGAME_NAMES
-
 const COMPLETION_SHARDS = [
   { dx: '-118px', dy: '-78px', start: '-12deg', end: '-185deg', width: '34px', height: '20px' },
   { dx: '-52px', dy: '-116px', start: '8deg', end: '215deg', width: '24px', height: '38px' },
@@ -93,28 +91,39 @@ const COMPLETION_SHARDS = [
   { dx: '-126px', dy: '54px', start: '11deg', end: '175deg', width: '28px', height: '32px' },
 ]
 
-const MARA_DIALOGUE = {
-  speaker: 'Mara',
-  line: 'Hey! You made it. Do you still want to sit by the window?',
-  options: [
-    'Yeah, the window is good.',
-    'Sorry, could you say that again?',
-    'Anywhere is fine. I just need to sit.',
-  ],
+// Build the translated one-off conversations from the current translate fn.
+function buildMaraDialogue(t) {
+  return {
+    speaker: t('speaker.Mara'),
+    line: t('mara.line'),
+    options: [t('mara.opt.0'), t('mara.opt.1'), t('mara.opt.2')],
+  }
 }
 
-const ORDER_DIALOGUE = {
-  speaker: 'Barista',
-  line: 'Hi. What can I get started for you?',
-  options: [
-    'A small coffee, please.',
-    'Could I have tea instead?',
-    'Just water for now, thanks.',
-  ],
+function buildOrderDialogue(t) {
+  return {
+    speaker: t('speaker.Barista'),
+    line: t('order.line'),
+    options: [t('order.opt.0'), t('order.opt.1'), t('order.opt.2')],
+  }
 }
 
-function getPhase(elapsed) {
-  return phaseLabel(elapsed)
+// Translate the café finale conversation while keeping its shape aligned with
+// the authored (English) source that the tests assert against.
+function buildCafeDialogue(t) {
+  return CAFE_DIALOGUE.map((exchange, index) => ({
+    speaker: t('speaker.Mara'),
+    line: t(`cafe.${index}.line`),
+    options: exchange.options.map((_, optionIndex) => t(`cafe.${index}.opt.${optionIndex}`)),
+  }))
+}
+
+function buildCafeRuptureDialogue(t) {
+  return {
+    speaker: t('speaker.Mara'),
+    line: t('cafe.rupture.line'),
+    options: [],
+  }
 }
 
 // Caption for a choice snapshot: the line the player picked, in quotes.
@@ -241,6 +250,7 @@ function edgeOffsetFor(position) {
 }
 
 function App() {
+  const t = useT()
   const [status, setStatus] = useState('intro')
   // Three clocks, split from the single `elapsed` value:
   //  - dayElapsed  : scored day time. Drives score, phase, world, completion.
@@ -356,6 +366,14 @@ function App() {
       return next.length > MAX_RUN_SNAPSHOTS ? next.slice(next.length - MAX_RUN_SNAPSHOTS) : next
     })
   }, [])
+
+  // Translated, per-render conversation data and phase label. Built from the
+  // authored English source so the rendered UI follows the selected language.
+  const maraDialogue = buildMaraDialogue(t)
+  const orderDialogue = buildOrderDialogue(t)
+  const cafeDialogue = buildCafeDialogue(t)
+  const cafeRuptureDialogue = buildCafeRuptureDialogue(t)
+  const phaseName = (elapsed) => t(`phase.${phaseFor(elapsed).id}`)
 
   const score = scoreForElapsed(dayElapsed)
   const remainingTime = Math.max(0, Math.ceil(DAY_LENGTH - dayElapsed))
@@ -689,7 +707,7 @@ function App() {
       pending.shift()
       fired = true
     }
-    if (fired) takeSnapshot(getPhase(dayElapsed), 'ambient')
+    if (fired) takeSnapshot(phaseName(dayElapsed), 'ambient')
   }, [dayElapsed, status, takeSnapshot])
 
   // One authoritative end-of-run transaction. Builds the result from real run
@@ -1099,19 +1117,19 @@ function App() {
 
   const answerDialogue = (index) => {
     // Snapshot the scene as it looks at the click, before the box closes.
-    takeSnapshot(quoteChoice(MARA_DIALOGUE, index), 'choice')
+    takeSnapshot(quoteChoice(maraDialogue, index), 'choice')
     setDialogueAnswered(true)
     setDialogueOpen(false)
   }
 
   const answerOrderDialogue = (index) => {
-    takeSnapshot(quoteChoice(ORDER_DIALOGUE, index), 'choice')
+    takeSnapshot(quoteChoice(orderDialogue, index), 'choice')
     setOrderDialogueAnswered(true)
     setOrderDialogueOpen(false)
   }
 
   const answerCafeDialogue = (index) => {
-    takeSnapshot(quoteChoice(CAFE_DIALOGUE[cafeDialogueIndex], index), 'choice')
+    takeSnapshot(quoteChoice(cafeDialogue[cafeDialogueIndex], index), 'choice')
     const next = advanceCafeConversation(cafeDialogueIndex)
     setCafeDialogueIndex(next.dialogueIndex)
     setCafeBeatPhase(next.phase)
@@ -1205,22 +1223,20 @@ function App() {
               <span className="mandala-section">
                 {mandala.sample.sectionName}
                 {mandala.sample.waveCount > 0 && (
-                  <em> · WAVE {mandala.sample.waveIndex + 1}/{mandala.sample.waveCount}</em>
+                  <em> · {t('mandala.wave', { index: mandala.sample.waveIndex + 1, count: mandala.sample.waveCount })}</em>
                 )}
               </span>
             )}
-            <span className="mandala-depth">DEPTH {Math.round(mandala.sample.depth)}</span>
+            <span className="mandala-depth">{t('mandala.depth', { depth: Math.round(mandala.sample.depth) })}</span>
             <span className={`mandala-load${mandala.sample.activeCount >= capacity - 1 ? ' near-capacity' : ''}`}>
-              LOAD {mandala.sample.activeCount}/{capacity}
+              {t('mandala.load', { load: mandala.sample.activeCount, capacity })}
             </span>
           </div>
           <div className="mandala-hint">
-            {progressionEffects.diveEnabled
-              ? 'Slash foes as they arrive. Hold W / ↑ to Dive.'
-              : 'Slash foes as they arrive.'}
+            {progressionEffects.diveEnabled ? t('mandala.hintDive') : t('mandala.hint')}
           </div>
           <button type="button" className="mandala-exit" onClick={exitMandala}>
-            LEAVE
+            {t('mandala.leave')}
           </button>
         </>
       )}
@@ -1231,7 +1247,7 @@ function App() {
           aria-live="assertive"
           aria-atomic="true"
         >
-          <strong key={startCue}>{startCue === 'ready' ? 'Ready?' : 'START!'}</strong>
+          <strong key={startCue}>{startCue === 'ready' ? t('cue.ready') : t('cue.start')}</strong>
         </section>
       )}
 
@@ -1239,19 +1255,19 @@ function App() {
         <>
           <header className="hud">
             <div className="hud-panel">
-              <span className="hud-label">TIME</span>
-              <strong>{remainingTime}s</strong>
+              <span className="hud-label">{t('hud.time')}</span>
+              <strong>{t('hud.timeValue', { n: remainingTime })}</strong>
             </div>
-            <div className="phase-label">{getPhase(dayElapsed)}</div>
+            <div className="phase-label">{phaseName(dayElapsed)}</div>
             <div className="hud-panel score-panel">
-              <span className="hud-label">SCORE</span>
+              <span className="hud-label">{t('hud.score')}</span>
               <strong>{score}</strong>
             </div>
           </header>
 
           <div
             className="load-meter"
-            aria-label={`Overload ${load} of ${capacity}`}
+            aria-label={t('overload.aria', { load, capacity })}
             style={{
               '--overload': overloadRatio,
               '--overload-scale': 1 + overloadRatio * 0.16,
@@ -1262,7 +1278,7 @@ function App() {
               '--overload-shake-neg': `${-overloadShake}px`,
             }}
           >
-            <span>OVERLOAD</span>
+            <span>{t('overload.label')}</span>
             <div className="load-pips">
               {Array.from({ length: capacity }).map((_, index) => (
                 <i key={index} className={index >= capacity - load ? 'filled' : ''} />
@@ -1305,7 +1321,7 @@ function App() {
 
           {dialogueOpen && (
             <DialogueBox
-              dialogue={MARA_DIALOGUE}
+              dialogue={maraDialogue}
               load={load}
               distortion={distortion}
               onAnswer={answerDialogue}
@@ -1314,7 +1330,7 @@ function App() {
 
           {orderDialogueOpen && (
             <DialogueBox
-              dialogue={ORDER_DIALOGUE}
+              dialogue={orderDialogue}
               load={load}
               distortion={distortion}
               onAnswer={answerOrderDialogue}
@@ -1323,29 +1339,29 @@ function App() {
 
           {cafeBeatPhase === CAFE_BEAT_PHASES.CONVERSATION && (
             <DialogueBox
-              dialogue={CAFE_DIALOGUE[cafeDialogueIndex]}
+              dialogue={cafeDialogue[cafeDialogueIndex]}
               load={load}
               distortion={distortion}
               onAnswer={answerCafeDialogue}
               className="cafe-conversation-dialogue"
-              ariaLabel={`Conversation with Mara, part ${cafeDialogueIndex + 1} of ${CAFE_DIALOGUE.length}`}
+              ariaLabel={t('cafe.conversationAria', { part: cafeDialogueIndex + 1, total: cafeDialogue.length })}
             />
           )}
 
           {cafeBeatPhase === CAFE_BEAT_PHASES.RUPTURE && (
             <DialogueBox
-              dialogue={CAFE_RUPTURE_DIALOGUE}
+              dialogue={cafeRuptureDialogue}
               load={load}
               distortion={0}
               onAnswer={() => {}}
               className="cafe-rupture-dialogue"
-              ariaLabel="Mara is shouting"
+              ariaLabel={t('cafe.ruptureAria')}
             />
           )}
 
           {cafeBeatPhase === CAFE_BEAT_PHASES.CELEBRATION && (
             <section className="cafe-celebration" role="status" aria-live="assertive">
-              <strong>YOU DID IT!</strong>
+              <strong>{t('celebration.title')}</strong>
             </section>
           )}
 
@@ -1393,30 +1409,29 @@ function App() {
               '--home-shake-neg': `${-homeShake}px`,
             }}
           >
-            <span>GO HOME</span>
-            <small>cash out {score}</small>
+            <span>{t('goHome.title')}</span>
+            <small>{t('goHome.cashOut', { score })}</small>
           </button>
         </>
       )}
 
       {status === 'intro' && (
-        <OverlayCard eyebrow="" title="All you have to do is get to the cafe">
-          <p>
-            It's just a quick walk to see your friend at the cafe. Complete the Minigames that pop up, too many on the screen and you'll bust!
-          </p>
+        <OverlayCard eyebrow="" title={t('intro.title')}>
+          <SettingsMenu variant="embedded" />
+          <p>{t('intro.body')}</p>
           <button
             className="tutorial-toggle"
             type="button"
             aria-pressed={tutorialEnabled}
             onClick={toggleTutorial}
           >
-            <span>TUTORIAL</span>
-            <strong>{tutorialEnabled ? 'ON' : 'OFF'}</strong>
+            <span>{t('intro.tutorial')}</span>
+            <strong>{tutorialEnabled ? t('common.on') : t('common.off')}</strong>
           </button>
-          <button type="button" onClick={startGame}>START THE DAY</button>
+          <button type="button" onClick={startGame}>{t('common.startDay')}</button>
           {progression.treeUnlocked && (
             <button type="button" className="title-skill-tree" onClick={() => openSkillTree(false)}>
-              SKILL TREE
+              {t('common.skillTree')}
             </button>
           )}
         </OverlayCard>
@@ -1455,6 +1470,7 @@ function App() {
 }
 
 function TutorialCallout({ step, target, onProceed }) {
+  const t = useT()
   const calloutRef = useRef(null)
   const [calloutPosition, setCalloutPosition] = useState({ left: 12, top: 92, direction: 'right' })
   const targetId = target?.id ?? null
@@ -1543,12 +1559,10 @@ function TutorialCallout({ step, target, onProceed }) {
     return (
       <section className="tutorial-layer tutorial-layer-summary" role="dialog" aria-modal="true">
         <div className="tutorial-callout tutorial-callout-summary">
-          <span>HOW THE DAY WORKS</span>
-          <strong>Keep the screen clear.</strong>
-          <p>
-            More minigames will appear as the day continues.
-          </p>
-          <button type="button" onClick={onProceed}>PROCEED</button>
+          <span>{t('tutorial.summary.eyebrow')}</span>
+          <strong>{t('tutorial.summary.title')}</strong>
+          <p>{t('tutorial.summary.body')}</p>
+          <button type="button" onClick={onProceed}>{t('tutorial.proceed')}</button>
         </div>
       </section>
     )
@@ -1556,19 +1570,19 @@ function TutorialCallout({ step, target, onProceed }) {
 
   const copy = step === 'first'
     ? {
-        eyebrow: 'FIRST MINIGAME',
-        title: 'Hold to clear it.',
-        body: 'Hold the button or Space until it clears. Release when it tells you to.',
+        eyebrow: t('tutorial.first.eyebrow'),
+        title: t('tutorial.first.title'),
+        body: t('tutorial.first.body'),
       }
     : step === 'second'
       ? {
-          eyebrow: 'A DIFFERENT MINIGAME',
-          title: 'This one uses movement.',
-          body: 'Click the box, then use the arrow keys or WASD to reach the exit.',
+          eyebrow: t('tutorial.second.eyebrow'),
+          title: t('tutorial.second.title'),
+          body: t('tutorial.second.body'),
         }
       : {
           eyebrow: '',
-          title: 'Go Home if you feel overwhelmed.',
+          title: t('tutorial.home.title'),
           body: '',
         }
 
@@ -1584,7 +1598,7 @@ function TutorialCallout({ step, target, onProceed }) {
         <strong>{copy.title}</strong>
         {copy.body && <p>{copy.body}</p>}
         {step === 'home' && (
-          <button className="tutorial-next" type="button" onClick={onProceed}>GOT IT</button>
+          <button className="tutorial-next" type="button" onClick={onProceed}>{t('common.gotIt')}</button>
         )}
       </aside>
     </section>
@@ -1630,6 +1644,7 @@ function CompletionBurst({ effect }) {
 }
 
 const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutorialTarget, onResolve, frozen = false }) {
+  const t = useT()
   const resolve = useCallback(() => {
     if (!frozen) onResolve(game.id)
   }, [frozen, game.id, onResolve])
@@ -1652,7 +1667,7 @@ const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutor
       }}
     >
       <div className="microgame-header">
-        <span>{MICROGAME_NAMES[game.kind]}</span>
+        <span>{t(`microgame.${game.kind}`)}</span>
         <i />
       </div>
       <div className="microgame-body">
@@ -1667,6 +1682,7 @@ const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutor
 })
 
 function DiscomfortGame({ onResolve }) {
+  const t = useT()
   const [presses, setPresses] = useState(0)
   const needed = 6
   const shift = () => {
@@ -1683,7 +1699,7 @@ function DiscomfortGame({ onResolve }) {
         ))}
       </div>
       <button type="button" onClick={shift} style={{ transform: `translateX(${(presses % 3 - 1) * 16}px)` }}>
-        ADJUST
+        {t('mg.adjust')}
       </button>
       <div className="tiny-progress"><i style={{ width: `${(presses / needed) * 100}%` }} /></div>
     </div>
@@ -1756,6 +1772,7 @@ function BrainFogGame({ onResolve }) {
 }
 
 function FatigueGame({ onResolve, paused = false }) {
+  const t = useT()
   const [held, setHeld] = useState(0)
   const holdingRef = useRef(false)
   const lastRef = useRef(0)
@@ -1796,7 +1813,7 @@ function FatigueGame({ onResolve, paused = false }) {
         onPointerLeave={stopHolding}
         onPointerCancel={stopHolding}
       >
-        HOLD
+        {t('mg.hold')}
       </button>
       <div className="tiny-progress"><i style={{ width: `${(held / needed) * 100}%` }} /></div>
     </div>

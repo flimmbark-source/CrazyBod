@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import DialogueBox from '../dialogue/DialogueBox.jsx'
 import '../dialogue/rehearsalDialogue.css'
+import { useT } from '../i18n/i18n.js'
 
 // Run Through the Plan pauses the day while spawning and minigames remain active.
 // The player restores the morning steps in order. Wrong picks mark the technique
@@ -13,6 +14,7 @@ export default function PlanTechnique({
   distortion = 0,
   onComplete,
 }) {
+  const t = useT()
   const [placed, setPlaced] = useState(0)
   const [remaining, setRemaining] = useState(timeLimitSeconds)
   const [wrongChoice, setWrongChoice] = useState(null)
@@ -72,8 +74,8 @@ export default function PlanTechnique({
 
   const timeRatio = Math.max(0, Math.min(1, remaining / timeLimitSeconds))
   const dialogue = {
-    speaker: 'Did you remember?',
-    line: 'Tap everything in the right order.',
+    speaker: t('plan.speaker'),
+    line: t('plan.line'),
     options: shuffled,
   }
 
@@ -84,13 +86,13 @@ export default function PlanTechnique({
       distortion={distortion}
       onAnswer={pick}
       className="plan-dialogue"
-      ariaLabel="Run through the plan"
+      ariaLabel={t('plan.aria')}
       beforeOptions={(
-        <div className="rehearsal-dialogue-clock" aria-label={`${remaining.toFixed(1)} seconds remaining`}>
+        <div className="rehearsal-dialogue-clock" aria-label={t('technique.timeRemaining', { seconds: remaining.toFixed(1) })}>
           <div className="rehearsal-dialogue-meter" aria-hidden="true">
             <i style={{ transform: `scaleX(${timeRatio})` }} />
           </div>
-          <strong>{remaining.toFixed(1)}s</strong>
+          <strong>{t('technique.secondsValue', { seconds: remaining.toFixed(1) })}</strong>
         </div>
       )}
       getOptionProps={(step) => {
@@ -109,7 +111,7 @@ export default function PlanTechnique({
         return (
           <>
             <em>{isPlaced ? step.order + 1 : '·'}</em>
-            <span>{step.label}</span>
+            <span>{t(`plan.step.${step.label.toLowerCase()}`)}</span>
           </>
         )
       }}

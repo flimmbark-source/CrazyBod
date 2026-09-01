@@ -8,10 +8,12 @@ import {
   useMicrogameKeys,
   useOnceResolve,
 } from './shared.jsx'
+import { useT } from '../i18n/i18n.js'
 
 const THOUGHT_ICONS = ['●', '▲', '◆', '✚', '■', '☾']
 
 export function InterruptedThoughtGame({ onResolve }) {
+  const t = useT()
   const sequence = useMemo(() => shuffled(THOUGHT_ICONS).slice(0, 3), [])
   const [phase, setPhase] = useState('study')
   const [index, setIndex] = useState(0)
@@ -45,7 +47,7 @@ export function InterruptedThoughtGame({ onResolve }) {
     <div className={wrong ? 'new-minigame interrupted-game wrong' : 'new-minigame interrupted-game'}>
       {showingAnswer && (
         <>
-          <small>{phase === 'review' ? 'HERE IT WAS' : 'KEEP THIS THOUGHT'}</small>
+          <small>{phase === 'review' ? t('mg.hereItWas') : t('mg.keepThought')}</small>
           <div className="thought-sequence">
             {sequence.map((icon) => <b key={icon}>{icon}</b>)}
           </div>
@@ -54,14 +56,14 @@ export function InterruptedThoughtGame({ onResolve }) {
 
       {phase === 'interrupt' && (
         <div className="thought-popup">
-          <strong>WAIT—DID YOU LOCK THE DOOR?</strong>
-          <button type="button" onClick={() => setPhase('recall')}>CLOSE</button>
+          <strong>{t('mg.lockDoor')}</strong>
+          <button type="button" onClick={() => setPhase('recall')}>{t('mg.close')}</button>
         </div>
       )}
 
       {phase === 'recall' && (
         <>
-          <small>CONTINUE THE THOUGHT</small>
+          <small>{t('mg.continueThought')}</small>
           <div className="thought-options">
             {THOUGHT_ICONS.map((icon) => (
               <button key={icon} type="button" onClick={() => recall(icon)}>{icon}</button>
@@ -75,6 +77,7 @@ export function InterruptedThoughtGame({ onResolve }) {
 }
 
 export function PinsNeedlesGame({ onResolve }) {
+  const t = useT()
   const targets = useMemo(
     () => shuffled(Array.from({ length: 9 }, (_, index) => index)).slice(0, 3),
     [],
@@ -108,7 +111,7 @@ export function PinsNeedlesGame({ onResolve }) {
 
   return (
     <div className="new-minigame pins-game">
-      <small>{showing ? 'WATCH THE FLASHES' : 'CLICK WHAT FLASHED'}</small>
+      <small>{showing ? t('mg.watchFlashes') : t('mg.clickFlashed')}</small>
       <div className="pins-grid">
         {Array.from({ length: 9 }, (_, index) => (
           <button
@@ -125,6 +128,7 @@ export function PinsNeedlesGame({ onResolve }) {
 }
 
 export function DizzinessGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const tiltRef = useRef(Math.random() > 0.5 ? 22 : -22)
   const heldRef = useRef(0)
@@ -166,7 +170,7 @@ export function DizzinessGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className="new-minigame dizziness-game">
-      <small>LEVEL THE HORIZON</small>
+      <small>{t('mg.levelHorizon')}</small>
       <div className="horizon" style={{ transform: `rotate(${tilt}deg)` }}><i /></div>
       <div className="mini-button-row">
         <button type="button" onClick={() => nudge(-4)}>A</button>
@@ -178,6 +182,7 @@ export function DizzinessGame({ onResolve }) {
 }
 
 export function RacingHeartGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const phaseRef = useRef(0)
   const [phase, setPhase] = useState(0)
@@ -207,7 +212,7 @@ export function RacingHeartGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'TAP SPACE ON THE BEAT',
+    hint: t('mg.tapSpaceBeat'),
     onKeyDown: (event) => {
       if (event.code !== 'Space' || event.repeat) return false
       tap()
@@ -219,7 +224,7 @@ export function RacingHeartGame({ onResolve }) {
 
   return (
     <div ref={rootRef} className={miss ? 'new-minigame heart-game miss' : 'new-minigame heart-game'}>
-      <small>TAP WITH THE BEAT</small>
+      <small>{t('mg.tapWithBeat')}</small>
       <button type="button" className="heart" style={{ transform: `scale(${pulse})` }} onClick={tap}>♥</button>
       <div className="beat-pips">
         {Array.from({ length: 4 }).map((_, index) => <i key={index} className={index < hits ? 'hit' : ''} />)}

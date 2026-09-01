@@ -1,3 +1,5 @@
+import { translate } from './i18n/i18n.js'
+
 const VARIANTS = {
   discomfort: ['steady', 'alternating', 'chase'],
   anxiety: ['scatter', 'ring', 'zigzag', 'corners', 'spiral'],
@@ -95,14 +97,14 @@ function setupDiscomfort(windowElement, variant) {
       const slot = chaseSlots[step % chaseSlots.length]
       windowElement.dataset.side = slot
       const labels = { left: '←', center: '↓', right: '→' }
-      button.textContent = `${labels[slot]}  ADJUST`
+      button.textContent = `${labels[slot]}  ${translate('mg.adjust')}`
       setHint(windowElement, '←  ↓  →')
       return
     }
 
     windowElement.dataset.side = 'center'
-    button.textContent = 'SPACE'
-    setHint(windowElement, 'SPACE')
+    button.textContent = translate('mg.space')
+    setHint(windowElement, translate('mg.space'))
   }
 
   button.addEventListener('click', () => {
@@ -136,7 +138,7 @@ function setupDiscomfort(windowElement, variant) {
 }
 
 function setupAnxiety(windowElement) {
-  setHint(windowElement, 'MOUSE')
+  setHint(windowElement, translate('mg.hint.mouse'))
 }
 
 const BRAIN_FOG_LABELS = {
@@ -153,7 +155,7 @@ function setupBrainFog(windowElement, variant) {
   controls.forEach((button, index) => {
     button.textContent = labels[index]
   })
-  setHint(windowElement, 'ARROWS / WASD')
+  setHint(windowElement, translate('mg.hint.arrowsWasd'))
 
   const visualKeyToArrow = {
     ArrowUp: '↑', KeyW: '↑',
@@ -192,14 +194,14 @@ function setupFatigue(windowElement, variant) {
   let waitingForRelease = false
 
   const showHoldLabel = () => {
-    button.textContent = checkpointIndex > 0 ? 'HOLD AGAIN' : 'SPACE'
+    button.textContent = translate(checkpointIndex > 0 ? 'mg.holdAgain' : 'mg.space')
   }
 
   const releaseForCheckpoint = () => {
     if (waitingForRelease) return
     waitingForRelease = true
     windowElement.dataset.resting = 'true'
-    button.textContent = 'RELEASE'
+    button.textContent = translate('mg.release')
     syntheticPointerRelease = true
     dispatchPointer(button, 'pointerup')
     syntheticPointerRelease = false
@@ -229,7 +231,7 @@ function setupFatigue(windowElement, variant) {
     if (event.buttons === 0) clearCheckpoint()
   })
 
-  setHint(windowElement, 'HOLD SPACE')
+  setHint(windowElement, translate('mg.hint.holdSpace'))
   showHoldLabel()
 
   windowElement.__crazyBodKeyDown = (event) => {

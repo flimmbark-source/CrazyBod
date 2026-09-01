@@ -7,8 +7,10 @@ import {
   useMicrogameKeys,
   useOnceResolve,
 } from './shared.jsx'
+import { useT } from '../i18n/i18n.js'
 
 export function HeavyEyesGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const lastRef = useRef(null)
   const [steps, setSteps] = useState(0)
@@ -28,7 +30,7 @@ export function HeavyEyesGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'ALTERNATE A / D',
+    hint: t('mg.hint.alternateAD'),
     onKeyDown: (event) => {
       if (event.repeat) return false
       if (event.code === 'KeyA' || event.code === 'ArrowLeft') {
@@ -46,7 +48,7 @@ export function HeavyEyesGame({ onResolve }) {
   const lid = clamp(38 - steps * 3.1, 4, 38)
   return (
     <div ref={rootRef} className="new-minigame heavy-eyes-game">
-      <small>KEEP BOTH EYES OPEN</small>
+      <small>{t('mg.keepEyesOpen')}</small>
       <div className="two-eyes">
         {['left', 'right'].map((side) => (
           <button key={side} type="button" onClick={() => open(side)}>
@@ -62,6 +64,7 @@ export function HeavyEyesGame({ onResolve }) {
 }
 
 export function MicroRestGame({ onResolve }) {
+  const t = useT()
   const rootRef = useRef(null)
   const stillRef = useRef(0)
   const [still, setStill] = useState(0)
@@ -78,7 +81,7 @@ export function MicroRestGame({ onResolve }) {
   }
 
   useMicrogameKeys(rootRef, {
-    hint: 'STOP MOVING',
+    hint: t('mg.stopMoving'),
     onKeyDown: () => {
       disturb()
       return false
@@ -99,9 +102,9 @@ export function MicroRestGame({ onResolve }) {
       className={disturbed ? 'new-minigame micro-rest-game disturbed' : 'new-minigame micro-rest-game'}
       onPointerMove={disturb}
     >
-      <small>STOP. DO NOTHING.</small>
+      <small>{t('mg.stopDoNothing')}</small>
       <div className="rest-orb" style={{ transform: `scale(${0.65 + (still / 1700) * 0.35})` }}><i /></div>
-      <strong>{still > 150 ? 'STAY STILL' : 'CLICK, THEN STOP MOVING'}</strong>
+      <strong>{still > 150 ? t('mg.stayStill') : t('mg.clickThenStop')}</strong>
       <Progress value={(still / 1700) * 100} />
     </div>
   )
@@ -110,6 +113,7 @@ export function MicroRestGame({ onResolve }) {
 const LIGHT_SYMBOLS = ['☾', '✦', '●', '▲']
 
 export function LightSensitivityGame({ onResolve }) {
+  const t = useT()
   const symbol = useMemo(() => LIGHT_SYMBOLS[Math.floor(Math.random() * LIGHT_SYMBOLS.length)], [])
   const [brightness, setBrightness] = useState(100)
   const resolve = useOnceResolve(onResolve)
@@ -117,22 +121,23 @@ export function LightSensitivityGame({ onResolve }) {
 
   return (
     <div className="new-minigame light-game" style={{ '--brightness': brightness / 100 }}>
-      <small>TURN THE LIGHT DOWN</small>
+      <small>{t('mg.turnLightDown')}</small>
       <button type="button" className={visible ? 'light-symbol visible' : 'light-symbol'} onClick={visible ? resolve : undefined}>{symbol}</button>
       <input
-        aria-label="Brightness"
+        aria-label={t('mg.brightness')}
         type="range"
         min="0"
         max="100"
         value={brightness}
         onChange={(event) => setBrightness(Number(event.target.value))}
       />
-      <span>{visible ? 'CLICK THE SYMBOL' : 'TOO BRIGHT'}</span>
+      <span>{visible ? t('mg.clickSymbol') : t('mg.tooBright')}</span>
     </div>
   )
 }
 
 export function PinsNeedlesGame({ onResolve }) {
+  const t = useT()
   const targets = useMemo(() => shuffled(Array.from({ length: 9 }, (_, index) => index)).slice(0, 3), [])
   const [showing, setShowing] = useState(true)
   const [selected, setSelected] = useState([])
@@ -159,7 +164,7 @@ export function PinsNeedlesGame({ onResolve }) {
 
   return (
     <div className="new-minigame pins-game">
-      <small>{showing ? 'WATCH THE FLASHES' : 'CLICK WHAT FLASHED'}</small>
+      <small>{showing ? t('mg.watchFlashes') : t('mg.clickFlashed')}</small>
       <div className="pins-grid">
         {Array.from({ length: 9 }, (_, index) => (
           <button
@@ -178,6 +183,7 @@ export function PinsNeedlesGame({ onResolve }) {
 const AFTERIMAGE_OPTIONS = ['✦', '◆', '●', '▲']
 
 export function AfterimageGame({ onResolve }) {
+  const t = useT()
   const symbol = useMemo(() => AFTERIMAGE_OPTIONS[Math.floor(Math.random() * AFTERIMAGE_OPTIONS.length)], [])
   const [showing, setShowing] = useState(true)
   const [wrong, setWrong] = useState(null)
@@ -201,7 +207,7 @@ export function AfterimageGame({ onResolve }) {
 
   return (
     <div className="new-minigame afterimage-game">
-      <small>{showing ? 'LOOK' : 'WHAT DID YOU SEE?'}</small>
+      <small>{showing ? t('mg.look') : t('mg.whatSee')}</small>
       {showing ? (
         <div className="afterimage-flash"><b>{symbol}</b></div>
       ) : (
