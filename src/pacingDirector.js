@@ -2,7 +2,9 @@ import {
   OPENING_INTERVAL,
   PAIR_CHANCE_PENALTY_PER_UPGRADE,
   SPAWN_DELAY_BONUS_PER_UPGRADE,
+  WALKING_RAMP,
   pacingPhaseById,
+  rampProgressFor,
 } from './pacingConfig.js'
 
 function mulberry32(seed) {
@@ -80,8 +82,25 @@ export function initializePacingDirector(director, spawnElapsed = 0) {
   director.nextSpawnAt = spawnElapsed + randomBetween(director.random, OPENING_INTERVAL)
 }
 
-function nextDelay(director, phase, purchasedUpgrades) {
-  return randomBetween(director.random, phase.interval)
+function lerp(from, to, amount) {
+  return from + (to - from) * amount
+}
+
+// A ramped phase (today: the long walk) tightens as it runs. `ramp` is 0..1
+// through the phase, or null when the phase does not ramp.
+function intervalFor(phase, ramp) {
+  if (ramp === null) return phase.interval
+  const scale = lerp(WALKING_RAMP.intervalScaleStart, WALKING_RAMP.intervalScaleEnd, ramp)
+  return [phase.interval[0] * scale, phase.interval[1] * scale]
+}
+
+function basePairChanceFor(phase, ramp) {
+  if (ramp === null) return phase.pairChance
+  return lerp(phase.pairChance, WALKING_RAMP.pairChanceEnd, ramp)
+}
+
+function nextDelay(director, phase, purchasedUpgrades, ramp) {
+  return randomBetween(director.random, intervalFor(phase, ramp))
     + purchasedUpgrades * SPAWN_DELAY_BONUS_PER_UPGRADE
 }
 
@@ -89,8 +108,14 @@ function nextDelay(director, phase, purchasedUpgrades) {
 // `phaseId` is the day phase (derived from dayElapsed) and selects the weights,
 // interval and pair chance. Keeping the two inputs separate is what lets
 // unscored technique time change pacing without changing the day.
-export function takeSpawnBatch(director, { spawnElapsed, phaseId, purchasedUpgrades = 0 }) {
+export function takeSpawnBatch(director, {
+  spawnElapsed,
+  phaseId,
+  purchasedUpgrades = 0,
+  dayElapsed = null,
+}) {
   const phase = pacingPhaseById(phaseId)
+  const ramp = dayElapsed === null ? null : rampProgressFor(phase.id, dayElapsed)
 
   const firstKind = drawKind(director, phase)
   const kinds = [{ kind: firstKind, slot: 'first' }]
@@ -98,7 +123,7 @@ export function takeSpawnBatch(director, { spawnElapsed, phaseId, purchasedUpgra
   // Every owned upgrade globally reduces the chance of a paired spawn.
   const pairChance = Math.max(
     0,
-    phase.pairChance - purchasedUpgrades * PAIR_CHANCE_PENALTY_PER_UPGRADE,
+    basePairChanceFor(phase, ramp) - purchasedUpgrades * PAIR_CHANCE_PENALTY_PER_UPGRADE,
   )
   const pairSpawned = director.random() < pairChance
 
@@ -106,7 +131,7 @@ export function takeSpawnBatch(director, { spawnElapsed, phaseId, purchasedUpgra
     kinds.push({ kind: drawKind(director, phase, [firstKind]), slot: 'pair' })
   }
 
-  director.nextSpawnAt = spawnElapsed + nextDelay(director, phase, purchasedUpgrades)
+  director.nextSpawnAt = spawnElapsed + nextDelay(director, phase, purchasedUpgrades, ramp)
 
   return {
     kinds,

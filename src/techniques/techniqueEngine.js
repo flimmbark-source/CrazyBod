@@ -26,29 +26,31 @@ export const REHEARSAL_SEQUENCE = {
   ],
 }
 
-// Run Through the Plan: put the morning's steps back in order. `order` is the
-// intended chronological position; the component presents them shuffled.
+// Run Through the Plan: pick the morning's things up in order. `order` is the
+// intended position in the sequence; `x`/`y` place the thing on the room
+// picture (a 0-100 grid) so it is grabbed where it actually sits.
 export const PLAN_SEQUENCE = {
   steps: [
-    { label: 'Keys', order: 0 },
-    { label: 'Wallet', order: 1 },
-    { label: 'Phone', order: 2 },
-    { label: 'Door', order: 3 },
+    { key: 'keys', label: 'Keys', order: 0, x: 44, y: 54 },
+    { key: 'wallet', label: 'Wallet', order: 1, x: 61, y: 54 },
+    { key: 'phone', label: 'Phone', order: 2, x: 21, y: 34 },
+    { key: 'door', label: 'Door', order: 3, x: 82, y: 50 },
   ],
 }
 
-// Stretch Every Joint: a pre-departure ritual. The player holds each joint in
-// turn to loosen it. There is nothing to get "wrong" — you either finished
-// warming up before you had to leave, or you ran out of time and didn't.
+// Stretch Every Joint: a pre-departure ritual. The player taps each joint where
+// it sits on the body picture (a 0-100 grid) to loosen it. There is nothing to
+// get "wrong" — you either finished warming up before you had to leave, or you
+// ran out of time and didn't.
 export const STRETCH_SEQUENCE = {
   joints: [
-    { key: 'neck', label: 'Neck' },
-    { key: 'shoulders', label: 'Shoulders' },
-    { key: 'wrists', label: 'Wrists' },
-    { key: 'back', label: 'Back' },
-    { key: 'hips', label: 'Hips' },
-    { key: 'knees', label: 'Knees' },
-    { key: 'ankles', label: 'Ankles' },
+    { key: 'neck', label: 'Neck', x: 50, y: 20 },
+    { key: 'shoulders', label: 'Shoulders', x: 32, y: 27 },
+    { key: 'wrists', label: 'Wrists', x: 22, y: 55 },
+    { key: 'back', label: 'Back', x: 62, y: 38 },
+    { key: 'hips', label: 'Hips', x: 50, y: 49 },
+    { key: 'knees', label: 'Knees', x: 61, y: 66 },
+    { key: 'ankles', label: 'Ankles', x: 64, y: 82 },
   ],
 }
 

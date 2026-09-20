@@ -16,8 +16,10 @@ import carnivalUrl from './OutsideSounds/freesound_community-street-carnival-2-6
 import cityUrl from './OutsideSounds/km007-city-ambience-9272.mp3'
 import motorcycleUrl from './OutsideSounds/universfield-fast-motorcycle-pass-by-559409.mp3'
 
-const STEPS_OUTSIDE_AT = 15
-const ENTERS_CAFE_AT = 29
+// The scored day now begins on the doorstep, so the gravel starts almost at
+// once and the cafe interior takes over once the player is through its door.
+const STEPS_OUTSIDE_AT = 1.2
+const ENTERS_CAFE_AT = 34
 const ALARM_MS = 2000
 const CELEBRATION_TRUMPET_STAGGER_MS = 300
 const CARNIVAL_CAFE_VOLUME_MULTIPLIER = 0.25
@@ -91,7 +93,7 @@ function readJourneyState() {
   // results-screen skill-tree tip is also a `.tutorial-layer`, but it appears
   // after the run over the results music — it must not pause the overload/home
   // jingle, so it is excluded here.
-  const tutorialPaused = Boolean(
+  const tutorialPaused = status === 'playing' && Boolean(
     document.querySelector('.tutorial-layer:not(.tutorial-layer-results-skill-tree)'),
   )
   const load = document.querySelectorAll('.load-pips i.filled').length

@@ -10,7 +10,13 @@ function readJourneyState() {
     ? Array.from(shell.classList).find((name) => name.startsWith('status-'))
     : null
   const status = statusClass?.slice('status-'.length) ?? 'intro'
-  const tutorialPaused = Boolean(document.querySelector('.tutorial-layer'))
+  // Only in-run tutorial callouts duck the audio. The results screen's
+  // skill-tree tip is also a `.tutorial-layer`, but it appears after the run
+  // over the results music — ducking there silenced the overload/home jingle
+  // the moment the tip opened. Gate on the playing status so no coaching layer
+  // outside a run can stop the music.
+  const tutorialPaused = status === 'playing'
+    && Boolean(document.querySelector('.tutorial-layer:not(.tutorial-layer-results-skill-tree)'))
   const load = document.querySelectorAll('.load-pips i.filled').length
 
   return { status, tutorialPaused, load }

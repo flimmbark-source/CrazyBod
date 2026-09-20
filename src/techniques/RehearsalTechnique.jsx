@@ -18,6 +18,7 @@ export default function RehearsalTechnique({
   timeLimitSeconds,
   load = 0,
   distortion = 0,
+  onAnswered,
   onComplete,
 }) {
   const t = useT()
@@ -55,6 +56,9 @@ export default function RehearsalTechnique({
     if (prompt.correctOption !== null && optionIndex !== prompt.correctOption) {
       wrongRef.current += 1
     }
+    // Every line you practise in the mirror is one more thing already running
+    // when you step outside. The caller decides what that costs.
+    onAnswered?.(index, optionIndex)
     if (index + 1 < prompts.length) {
       setIndex(index + 1)
     } else {

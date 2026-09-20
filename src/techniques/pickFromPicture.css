@@ -1,0 +1,159 @@
+/* The list-and-picture technique screen shared by the plan and the stretch. */
+
+.pick-picture {
+  position: absolute;
+  z-index: 60;
+  top: 50%;
+  left: 50%;
+  width: min(560px, calc(100% - 32px));
+  padding: 14px 16px 12px;
+  transform: translate(-50%, -50%);
+  border: 3px solid #282331;
+  border-radius: 13px;
+  color: #282331;
+  background: #f4ebdf;
+  box-shadow: 8px 9px 0 rgba(40, 35, 49, 0.72);
+}
+
+.pick-picture-head strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+}
+.pick-picture-head p { margin: 4px 0 10px; font-size: 13.5px; line-height: 1.35; }
+
+.pick-picture-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(128px, 0.65fr);
+  gap: 12px;
+  align-items: start;
+}
+
+/* The picture. Forced LTR so the scene is the same scene in every language —
+   the drawing is a space, not a sentence. */
+.pick-scene {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 2px solid #282331;
+  border-radius: 9px;
+  background: #e7dbc9;
+  overflow: hidden;
+}
+.pick-scene-svg { display: block; width: 100%; height: 100%; color: #8a7b6b; }
+
+.pick-target {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: none;
+  color: #282331;
+  font: inherit;
+  cursor: pointer;
+}
+.pick-target-dot {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #282331;
+  border-radius: 50%;
+  background: #ffd166;
+  box-shadow: 0 0 0 4px rgba(255, 209, 102, 0.3);
+  transition: transform 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+.pick-target:hover .pick-target-dot,
+.pick-target:focus-visible .pick-target-dot { transform: scale(1.18); }
+.pick-target-name {
+  padding: 1px 5px 2px;
+  border-radius: 5px;
+  background: rgba(40, 35, 49, 0.82);
+  color: #f7f0e8;
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.pick-target.is-taken { cursor: default; opacity: 0.5; }
+.pick-target.is-taken .pick-target-dot {
+  background: #8fd46a;
+  box-shadow: none;
+}
+.pick-target.is-wrong .pick-target-dot {
+  background: #e0524d;
+  animation: pick-wrong 160ms steps(2) 2;
+}
+@keyframes pick-wrong {
+  from { transform: translateX(-3px); }
+  to { transform: translateX(3px); }
+}
+
+.pick-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pick-list li {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 5px 8px;
+  border: 2px solid rgba(40, 35, 49, 0.35);
+  border-radius: 7px;
+  background: rgba(255, 246, 230, 0.6);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+.pick-list li i {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 2px solid rgba(40, 35, 49, 0.45);
+  border-radius: 50%;
+  font-size: 11px;
+  font-style: normal;
+}
+.pick-list li.is-next {
+  border-color: #282331;
+  background: #ffd166;
+}
+.pick-list li.is-taken { opacity: 0.55; text-decoration: line-through; }
+.pick-list li.is-taken i { background: #8fd46a; border-color: #23301f; }
+
+.pick-picture-clock {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin-top: 11px;
+}
+.pick-picture-meter {
+  flex: 1;
+  height: 9px;
+  overflow: hidden;
+  border: 2px solid #282331;
+  border-radius: 5px;
+  background: rgba(255, 246, 230, 0.7);
+}
+.pick-picture-meter i {
+  display: block;
+  height: 100%;
+  background: #e0524d;
+  transform-origin: left center;
+  transition: transform 100ms linear;
+}
+.pick-picture-clock strong { font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .pick-picture-body { grid-template-columns: minmax(0, 1fr); }
+  .pick-scene { aspect-ratio: 4 / 3; }
+  .pick-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pick-target.is-wrong .pick-target-dot { animation: none; }
+}

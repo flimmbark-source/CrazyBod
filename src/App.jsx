@@ -2,12 +2,12 @@ import { Canvas } from '@react-three/fiber'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AuthoredJourneyScene } from './world/JourneyScene.jsx'
 import SnapshotCaptureBridge from './world/SnapshotCaptureBridge.jsx'
+import { MicrogameContent } from './minigames/core.jsx'
 import { deriveProgressionEffects } from './progression/deriveProgressionEffects.js'
 import { useMandalaRun } from './modes/mandala/useMandalaRun.js'
 import MandalaScene from './modes/mandala/MandalaScene.jsx'
 import MandalaEnemyLayer from './modes/mandala/MandalaEnemyLayer.jsx'
 import SwordCursor from './modes/sword/SwordCursor.jsx'
-import { NewMicrogameContent } from './minigames/catalog.jsx'
 import { TUTORIAL_SEQUENCE } from './pacingConfig.js'
 import {
   createPacingDirector,
@@ -15,14 +15,10 @@ import {
   takeSpawnBatch,
   drawSpawnKinds,
 } from './pacingDirector.js'
-import RehearsalTechnique from './techniques/RehearsalTechnique.jsx'
-import PlanTechnique from './techniques/PlanTechnique.jsx'
-import StretchTechnique from './techniques/StretchTechnique.jsx'
 import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
+import MorningHouse from './morning/MorningHouse.jsx'
+import { MORNING_ELAPSED } from './world/JourneyScene.jsx'
 import {
-  REHEARSAL_SEQUENCE,
-  PLAN_SEQUENCE,
-  STRETCH_SEQUENCE,
   PHYSICAL_SYMPTOM_KINDS,
   rehearsalSucceeded,
   scheduledSucceeded,
@@ -36,6 +32,7 @@ import { setAutoTargetEnabled } from './microgameEnhancements.js'
 import {
   DAY_LENGTH,
   OVERLOAD_SCORE_MULTIPLIER,
+  PHASES,
   phaseFor,
   scoreForElapsed,
 } from './config/gameConfig.js'
@@ -57,6 +54,14 @@ import {
 } from './narrative/cafeBeat.js'
 
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
+// How many times this save has watched the overload meter reach one-from-full.
+// The Go Home lesson fires on the second one, which is the moment the player
+// first needs the escape hatch and does not yet know it is there.
+const NEAR_OVERLOAD_STORAGE_KEY = 'crazybod:near-overload-count'
+const GO_HOME_LESSON_ON_NEAR_MISS = 2
+// Day times the two street conversations open at, matched to the camera path.
+const MARA_GREETING_AT = 30
+const ORDER_DIALOGUE_AT = 40
 const READY_CUE_MS = 1150
 const START_CUE_MS = 650
 
@@ -64,9 +69,9 @@ const START_CUE_MS = 650
 // then one at every dialogue choice. Kept in memory for the run only.
 const MAX_RUN_SNAPSHOTS = 14
 const AMBIENT_SNAPSHOT_COUNT = 3
-// The first conversation (Mara) opens at day 25s; keep the candid shots before
-// it, spaced out across the early walk.
-const AMBIENT_SNAPSHOT_WINDOW = [4, 23]
+// The first conversation (Mara) opens at day 30s; keep the candid shots before
+// it, spaced across the long walk.
+const AMBIENT_SNAPSHOT_WINDOW = [3, 28]
 
 // Pick a few ascending, well-spaced random day-times for the candid snapshots.
 function buildAmbientSnapshotTimes() {
@@ -126,6 +131,26 @@ function buildCafeRuptureDialogue(t) {
   }
 }
 
+// The Go Home lesson is contextual, not scripted: it waits until the second
+// time this save has watched the meter reach its last free slot. The first time
+// is the shock; the second is when the player needs to be told there is a way
+// out that keeps the points.
+function readNearOverloadCount() {
+  try {
+    return Number.parseInt(window.localStorage.getItem(NEAR_OVERLOAD_STORAGE_KEY) ?? '0', 10) || 0
+  } catch {
+    return 0
+  }
+}
+
+function writeNearOverloadCount(count) {
+  try {
+    window.localStorage.setItem(NEAR_OVERLOAD_STORAGE_KEY, String(count))
+  } catch {
+    // The lesson may simply repeat next session if storage is unavailable.
+  }
+}
+
 // Caption for a choice snapshot: the line the player picked, in quotes.
 function quoteChoice(dialogue, index) {
   const option = dialogue?.options?.[index]
@@ -164,7 +189,10 @@ function positionFor(seed, index, existingGames) {
     minimumLeft,
     ((viewportWidth - width - 10) / viewportWidth) * 100,
   )
-  const minimumTop = compact ? 18 : 15
+  // Keep windows clear of the top bar: the overload meter now lives up there
+  // with the phase label under it, and a window landing on either hid the one
+  // reading the player most needs.
+  const minimumTop = compact ? 22 : 21
   const maximumTop = Math.max(
     minimumTop,
     ((viewportHeight - height - 14) / viewportHeight) * 100,
@@ -304,6 +332,16 @@ function App() {
   // imperatively so key events never need a React re-render.
   const mandalaInputsRef = useRef({ diveEnabled: false, forwardHeld: false, capacity: 5 })
   const mandalaRunIdRef = useRef(null)
+  // What the Morning handed over: capacity won at the mirror, benefits from the
+  // plan and the stretch, and any minigames already running when the door opens.
+  const morningOutcomesRef = useRef({
+    capacityBonus: 0,
+    planStaggerPairs: 0,
+    stretchSeconds: 0,
+    techniques: {},
+  })
+  const morningSpawnQueueRef = useRef([])
+  const morningReleasedRef = useRef(false)
   const [firstUnlockPending, setFirstUnlockPending] = useState(false)
   const [treeFirstView, setTreeFirstView] = useState(false)
   const [runCapacityBonus, setRunCapacityBonus] = useState(0)
@@ -312,11 +350,12 @@ function App() {
   const suppressUsedRef = useRef(false)
   const prevUnlockedRef = useRef(progression.treeUnlocked)
   const capacityRef = useRef(0)
-  const rehearsalFiredRef = useRef(false)
-  const planFiredRef = useRef(false)
   const adrenalineFiredRef = useRef(false)
+  // True while the board is sitting on its last free slot, so one visit to the
+  // edge is counted once however many times the effect re-runs.
+  const atEdgeRef = useRef(false)
+  const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
-  const stretchFiredRef = useRef(false)
   // While the day clock is below this value, a completed stretch thins the
   // physical-symptom spawns. 0 means the benefit is inactive.
   const stretchThinUntilRef = useRef(0)
@@ -381,13 +420,20 @@ function App() {
   // The 3D scene only animates during the countdown, an active run, or a mandala
   // descent. Every other screen shows a still backdrop, so the render loop can
   // idle (see the Canvas `frameloop` prop below).
-  const sceneAnimating = status === 'countdown' || status === 'playing' || status === 'mandala'
+  const sceneAnimating = status === 'countdown'
+    || status === 'playing'
+    || status === 'morning'
+    || status === 'mandala'
   // Capacity is derived from the enabled skill nodes plus any per-run bonus
   // (e.g. a successful rehearsal). First run with nothing enabled is 5.
   const capacity = computeCapacity(progression.enabledNodeIds, runCapacityBonus)
   capacityRef.current = capacity
   const load = microgames.length
   const overloadRatio = Math.min(1, load / capacity)
+  // Three plainly separated states so the climb toward a bust is legible:
+  // room left, rising (two slots or fewer), and edge (one slot left).
+  const slotsLeft = Math.max(0, capacity - load)
+  const overloadBand = slotsLeft <= 1 ? 'edge' : slotsLeft <= 2 ? 'rising' : 'calm'
   const overloadShake = Math.max(0, load - 2) * 0.8
   const homeShake = Math.max(0, load - 1) * 0.85
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
@@ -432,15 +478,13 @@ function App() {
     resolvedGamesRef.current = new Set()
     tutorialFirstSeenRef.current = false
     tutorialSecondSeenRef.current = false
-    rehearsalFiredRef.current = false
-    planFiredRef.current = false
     adrenalineFiredRef.current = false
-    planStaggerRemainingRef.current = 0
-    stretchFiredRef.current = false
-    stretchThinUntilRef.current = 0
+    planStaggerRemainingRef.current = morningOutcomesRef.current.planStaggerPairs
+    stretchThinUntilRef.current = morningOutcomesRef.current.stretchSeconds
+    morningReleasedRef.current = false
     pendingSpawnsRef.current = []
     suppressUsedRef.current = false
-    techniqueOutcomesRef.current = {}
+    techniqueOutcomesRef.current = { ...morningOutcomesRef.current.techniques }
     lastTickRef.current = 0
     dayElapsedRef.current = 0
     spawnElapsedRef.current = 0
@@ -456,7 +500,7 @@ function App() {
     setDayElapsed(0)
     setSpawnElapsed(0)
     setActiveTechnique(null)
-    setRunCapacityBonus(0)
+    setRunCapacityBonus(morningOutcomesRef.current.capacityBonus)
     setSpawnPaused(false)
     setSuppressing(false)
     setMicrogames([])
@@ -475,9 +519,68 @@ function App() {
     setStatus('countdown')
   }, [])
 
+  // Every day now opens in the untimed house. `beginGame` is only reached when
+  // the player opens the front door, so the clock starts with them on the step.
   const startGame = useCallback(() => {
+    morningOutcomesRef.current = {
+      capacityBonus: 0,
+      planStaggerPairs: 0,
+      stretchSeconds: 0,
+      techniques: {},
+    }
+    morningSpawnQueueRef.current = []
+    setStatus('morning')
+  }, [])
+
+  const leaveTheHouse = useCallback(() => {
     beginGame(tutorialEnabled)
   }, [beginGame, tutorialEnabled])
+
+  // The Morning's techniques are the same ones the day used to interrupt itself
+  // with; their results are banked here and seeded into the run by beginGame.
+  const completeMorningTechnique = useCallback((id, outcome) => {
+    const outcomes = morningOutcomesRef.current
+    if (id === 'rehearse') {
+      const node = getNode('rehearse')
+      const success = rehearsalSucceeded(outcome)
+      outcomes.techniques.rehearsal = success ? 'success' : 'failure'
+      if (success) {
+        outcomes.capacityBonus += node.effect.runCapacityBonus ?? 1
+      } else {
+        const extra = node.effect.failureSpawnCount ?? 1
+        for (let index = 0; index < extra; index += 1) {
+          const [kind] = drawSpawnKinds(directorRef.current, {
+            phaseId: PHASES[0].id,
+            count: 1,
+          })
+          if (kind) morningSpawnQueueRef.current.push(kind)
+        }
+      }
+      return
+    }
+    if (id === 'plan') {
+      const node = getNode('plan')
+      const success = scheduledSucceeded(outcome)
+      outcomes.techniques.plan = success ? 'success' : 'failure'
+      if (success) outcomes.planStaggerPairs = node.effect.staggerPairs ?? 2
+      return
+    }
+    if (id === 'stretch') {
+      const node = getNode('stretch')
+      const success = stretchSucceeded(outcome)
+      outcomes.techniques.stretch = success ? 'success' : 'failure'
+      if (success) outcomes.stretchSeconds = node.effect.windowSeconds ?? 12
+    }
+  }, [])
+
+  const queueMorningSpawn = useCallback((kind) => {
+    if (kind) morningSpawnQueueRef.current.push(kind)
+  }, [])
+
+  const drawMorningSpawnKind = useCallback(() => {
+    const [kind] = drawSpawnKinds(directorRef.current, { phaseId: PHASES[0].id, count: 1 })
+    return kind ?? null
+  }, [])
 
   const startTutorialGame = useCallback(() => {
     setTutorialEnabled(true)
@@ -656,6 +759,7 @@ function App() {
       spawnElapsed,
       phaseId: currentPhaseId,
       purchasedUpgrades: progression.purchasedNodeIds.length,
+      dayElapsed: dayElapsedRef.current,
     })
     requestSpawns(batch.kinds)
   }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns, progression.purchasedNodeIds.length])
@@ -681,12 +785,12 @@ function App() {
 
   useEffect(() => {
     if (status !== 'playing') return
-    if (dayElapsed >= 25 && !dialogueAnswered) setDialogueOpen(true)
+    if (dayElapsed >= MARA_GREETING_AT && !dialogueAnswered) setDialogueOpen(true)
   }, [dayElapsed, status, dialogueAnswered])
 
   useEffect(() => {
     if (status !== 'playing') return
-    if (dayElapsed >= 35 && dialogueAnswered && !orderDialogueAnswered) {
+    if (dayElapsed >= ORDER_DIALOGUE_AT && dialogueAnswered && !orderDialogueAnswered) {
       setOrderDialogueOpen(true)
     }
   }, [dialogueAnswered, dayElapsed, orderDialogueAnswered, status])
@@ -695,6 +799,17 @@ function App() {
     if (status !== 'playing') return
     peakLoadRef.current = Math.max(peakLoadRef.current, load)
   }, [load, status])
+
+  // Whatever the Morning left running — a mirror answer, a rehearsal that went
+  // badly — is already on your hands when the door opens. Held until the
+  // director is live so it cannot collide with the scripted tutorial windows.
+  useEffect(() => {
+    if (status !== 'playing' || !directorReady || morningReleasedRef.current) return
+    const queued = morningSpawnQueueRef.current
+    morningReleasedRef.current = true
+    morningSpawnQueueRef.current = []
+    queued.forEach((kind) => spawnMicrogame(kind))
+  }, [status, directorReady, spawnMicrogame])
 
   // Candid run snapshots: fire the pending random shots as the day crosses each
   // scheduled time (all before the first conversation).
@@ -871,70 +986,10 @@ function App() {
     setTutorialEnabled(true)
   }, [resetFull])
 
-  // Fire the rehearsal once per run, at its configured day-time trigger, but
-  // only when the node is enabled and nothing else is active.
-  useEffect(() => {
-    if (status !== 'playing' || cafeBeatActive || activeTechnique || rehearsalFiredRef.current) return
-    if (!progression.enabledNodeIds.includes('rehearse')) return
-    if (dayElapsed < getNode('rehearse').effect.triggerDay) return
-    rehearsalFiredRef.current = true
-    setActiveTechnique({ id: 'rehearsal', pausesDay: true, pausesSpawns: false })
-  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
-
-  const completeRehearsal = useCallback((outcome) => {
-    const node = getNode('rehearse')
-    const success = rehearsalSucceeded(outcome)
-    techniqueOutcomesRef.current.rehearsal = success ? 'success' : 'failure'
-    if (success) {
-      setRunCapacityBonus((bonus) => bonus + (node.effect.runCapacityBonus ?? 1))
-    } else {
-      const phaseId = phaseFor(dayElapsedRef.current).id
-      drawSpawnKinds(directorRef.current, {
-        phaseId,
-        count: node.effect.failureSpawnCount ?? 2,
-      }).forEach((kind) => spawnMicrogame(kind))
-    }
-    setActiveTechnique(null)
-  }, [spawnMicrogame])
-
-  // Stretch Every Joint: a pre-departure warm-up. Fires once per run at its
-  // trigger, before you leave for the walk, while nothing else is active.
-  useEffect(() => {
-    if (status !== 'playing' || cafeBeatActive || activeTechnique || stretchFiredRef.current) return
-    if (!progression.enabledNodeIds.includes('stretch')) return
-    if (dayElapsed < getNode('stretch').effect.triggerDay) return
-    stretchFiredRef.current = true
-    setActiveTechnique({ id: 'stretch', pausesDay: true, pausesSpawns: false })
-  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
-
-  const completeStretch = useCallback((outcome) => {
-    const node = getNode('stretch')
-    const success = stretchSucceeded(outcome)
-    techniqueOutcomesRef.current.stretch = success ? 'success' : 'failure'
-    if (success) {
-      // Thin the physical symptoms for a stretch of the early walk. Gentle
-      // failure: nothing happens, you just carry the stiffness with you.
-      stretchThinUntilRef.current = dayElapsedRef.current + (node.effect.windowSeconds ?? 12)
-    }
-    setActiveTechnique(null)
-  }, [])
-
-  // Run Through the Plan: scheduled technique that staggers the next pairs.
-  useEffect(() => {
-    if (status !== 'playing' || cafeBeatActive || activeTechnique || planFiredRef.current) return
-    if (!progression.enabledNodeIds.includes('plan')) return
-    if (dayElapsed < getNode('plan').effect.triggerDay) return
-    planFiredRef.current = true
-    setActiveTechnique({ id: 'plan', pausesDay: true, pausesSpawns: false })
-  }, [status, cafeBeatActive, activeTechnique, dayElapsed, progression.enabledNodeIds])
-
-  const completePlan = useCallback((outcome) => {
-    const node = getNode('plan')
-    const success = scheduledSucceeded(outcome)
-    techniqueOutcomesRef.current.plan = success ? 'success' : 'failure'
-    if (success) planStaggerRemainingRef.current = node.effect.staggerPairs ?? 2
-    setActiveTechnique(null)
-  }, [])
+  // The rehearsal, the stretch and the plan used to interrupt the timed day at
+  // fixed second marks. They now happen in the untimed Morning, at the mirror,
+  // the mat and the checklist, and hand their results to beginGame. Nothing
+  // schedules them here any more.
 
   // Auto Target: while enabled during a run, clearing the focused
   // minigame moves keyboard focus to the next one on screen.
@@ -989,6 +1044,34 @@ function App() {
     techniqueOutcomesRef.current.suppress = 'used'
     setSuppressing(false)
   }, [])
+
+  // Watch the approach to the edge. Each fresh arrival at the last free slot is
+  // counted once; the second one across this save pauses the day and points at
+  // Go Home.
+  useEffect(() => {
+    if (status !== 'playing') {
+      atEdgeRef.current = false
+      return
+    }
+    if (slotsLeft > 1 || load === 0) {
+      atEdgeRef.current = false
+      return
+    }
+    if (atEdgeRef.current || load >= capacity) return
+    atEdgeRef.current = true
+
+    const count = readNearOverloadCount() + 1
+    writeNearOverloadCount(count)
+    if (
+      count >= GO_HOME_LESSON_ON_NEAR_MISS
+      && !goHomeLessonShownRef.current
+      && tutorialStep === 'none'
+      && !cafeBeatActive
+    ) {
+      goHomeLessonShownRef.current = true
+      setTutorialStep('homeReminder')
+    }
+  }, [slotsLeft, load, capacity, status, cafeBeatActive, tutorialStep])
 
   useEffect(() => {
     if (status !== 'playing' || dayElapsed >= DAY_LENGTH || cafeBeatActive || load < capacity || suppressing) return
@@ -1107,7 +1190,7 @@ function App() {
       setTutorialStep('none')
     }
     if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
-      setTutorialStep('summary')
+      setTutorialStep('meter')
     }
   }, [tutorialRun, tutorialStep])
 
@@ -1147,12 +1230,22 @@ function App() {
   }
 
   const advanceTutorial = () => {
-  if (tutorialStep === 'summary') {
-    setTutorialStep('home')
-    return
+    // The contextual Go Home reminder is not part of the scripted run, so
+    // dismissing it must not mark the tutorial complete.
+    if (tutorialStep === 'homeReminder') {
+      setTutorialStep('none')
+      return
+    }
+    if (tutorialStep === 'meter') {
+      setTutorialStep('summary')
+      return
+    }
+    if (tutorialStep === 'summary') {
+      setTutorialStep('home')
+      return
+    }
+    finishTutorial()
   }
-  finishTutorial()
-}
 
   const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
     ? microgames.find((game) => game.tutorialRole === tutorialStep)
@@ -1197,7 +1290,7 @@ function App() {
           ) : (
             <>
               <AuthoredJourneyScene
-                elapsed={dayElapsed}
+                elapsed={status === 'morning' ? MORNING_ELAPSED : dayElapsed}
                 active={dayAdvancing}
                 cameraEnabled={!cafeBeatActive}
                 dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
@@ -1258,33 +1351,62 @@ function App() {
               <span className="hud-label">{t('hud.time')}</span>
               <strong>{t('hud.timeValue', { n: remainingTime })}</strong>
             </div>
-            <div className="phase-label">{phaseName(dayElapsed)}</div>
+
+            {/* The overload meter is the thing the whole day is really about,
+                so it sits at the top of the screen between the two numbers
+                rather than tucked down the side where it was easy to miss. */}
+            <div
+              className={[
+                'load-meter',
+                `load-band-${overloadBand}`,
+                tutorialStep === 'meter' ? 'tutorial-target tutorial-meter-target' : '',
+              ].filter(Boolean).join(' ')}
+              dir="ltr"
+              aria-label={t('overload.aria', { load, capacity })}
+              style={{
+                '--overload': overloadRatio,
+                '--overload-scale': 1 + overloadRatio * 0.16,
+                '--overload-saturation': 1 + overloadRatio * 0.8,
+                '--overload-contrast': 1 + overloadRatio * 0.14,
+                '--overload-alpha': overloadRatio * 0.72,
+                '--overload-shake': `${overloadShake}px`,
+                '--overload-shake-neg': `${-overloadShake}px`,
+              }}
+            >
+              <span className="load-meter-title">
+                {t('overload.label')}
+                <b className="load-meter-count">{load}/{capacity}</b>
+              </span>
+              <div className="load-pips">
+                {Array.from({ length: capacity }).map((_, index) => (
+                  <i
+                    key={index}
+                    className={[
+                      index < load ? 'filled' : '',
+                      index === capacity - 1 ? 'last-slot' : '',
+                    ].filter(Boolean).join(' ')}
+                  />
+                ))}
+              </div>
+              {/* Two plain-language steps before the bust, so the climb is
+                  something you can watch coming instead of something that
+                  happens to you. */}
+              <strong className="load-meter-status" aria-live="polite">
+                {overloadBand === 'edge'
+                  ? t('overload.edge')
+                  : overloadBand === 'rising'
+                    ? t('overload.rising', { left: capacity - load })
+                    : t('overload.room', { left: capacity - load })}
+              </strong>
+            </div>
+
             <div className="hud-panel score-panel">
               <span className="hud-label">{t('hud.score')}</span>
               <strong>{score}</strong>
             </div>
           </header>
 
-          <div
-            className="load-meter"
-            aria-label={t('overload.aria', { load, capacity })}
-            style={{
-              '--overload': overloadRatio,
-              '--overload-scale': 1 + overloadRatio * 0.16,
-              '--overload-saturation': 1 + overloadRatio * 0.8,
-              '--overload-contrast': 1 + overloadRatio * 0.14,
-              '--overload-alpha': overloadRatio * 0.72,
-              '--overload-shake': `${overloadShake}px`,
-              '--overload-shake-neg': `${-overloadShake}px`,
-            }}
-          >
-            <span>{t('overload.label')}</span>
-            <div className="load-pips">
-              {Array.from({ length: capacity }).map((_, index) => (
-                <i key={index} className={index >= capacity - load ? 'filled' : ''} />
-              ))}
-            </div>
-          </div>
+          <div className="phase-label">{phaseName(dayElapsed)}</div>
 
           <section
             className="microgame-layer"
@@ -1365,31 +1487,6 @@ function App() {
             </section>
           )}
 
-          {activeTechnique?.id === 'rehearsal' && (
-            <RehearsalTechnique
-              prompts={REHEARSAL_SEQUENCE.prompts}
-              timeLimitSeconds={getNode('rehearse').effect.addedSeconds}
-              onComplete={completeRehearsal}
-            />
-          )}
-
-          {activeTechnique?.id === 'plan' && (
-            <PlanTechnique
-              steps={PLAN_SEQUENCE.steps}
-              timeLimitSeconds={getNode('plan').effect.addedSeconds}
-              onComplete={completePlan}
-            />
-          )}
-
-          {activeTechnique?.id === 'stretch' && (
-            <StretchTechnique
-              joints={STRETCH_SEQUENCE.joints}
-              timeLimitSeconds={getNode('stretch').effect.addedSeconds}
-              holdSeconds={getNode('stretch').effect.holdSeconds}
-              onComplete={completeStretch}
-            />
-          )}
-
           {suppressing && (
             <SuppressionTechnique
               requiredPresses={getNode('suppress').effect.requiredPresses}
@@ -1397,6 +1494,9 @@ function App() {
             />
           )}
 
+          {/* Shaped like the house it takes you back to: the silhouette reads
+              as "home" before the words do, which matters most at the moment
+              the screen is full and there is no time left to read. */}
           <button
             className={`go-home${tutorialStep === 'home' ? ' tutorial-target tutorial-home-target' : ''}`}
             type="button"
@@ -1409,10 +1509,25 @@ function App() {
               '--home-shake-neg': `${-homeShake}px`,
             }}
           >
-            <span>{t('goHome.title')}</span>
-            <small>{t('goHome.cashOut', { score })}</small>
+            <span className="go-home-roof" aria-hidden="true">
+              <i className="go-home-roof-window" />
+            </span>
+            <span className="go-home-face">
+              <span className="go-home-title">{t('goHome.title')}</span>
+              <small>{t('goHome.cashOut', { score })}</small>
+            </span>
           </button>
         </>
+      )}
+
+      {status === 'morning' && (
+        <MorningHouse
+          enabledNodeIds={progression.enabledNodeIds}
+          onTechniqueComplete={completeMorningTechnique}
+          onQueueSpawn={queueMorningSpawn}
+          drawSpawnKind={drawMorningSpawnKind}
+          onLeave={leaveTheHouse}
+        />
       )}
 
       {status === 'intro' && (
@@ -1480,11 +1595,13 @@ function TutorialCallout({ step, target, onProceed }) {
 
     const positionCallout = () => {
       const callout = calloutRef.current
-      const targetElement = step === 'home'
+      const targetElement = step === 'home' || step === 'homeReminder'
         ? document.querySelector('.go-home')
-        : targetId
-          ? document.querySelector(`[data-game-id="${targetId}"]`)
-          : null
+        : step === 'meter'
+          ? document.querySelector('.load-meter')
+          : targetId
+            ? document.querySelector(`[data-game-id="${targetId}"]`)
+            : null
       if (!callout || !targetElement) return
 
       const targetRect = targetElement.getBoundingClientRect()
@@ -1514,7 +1631,7 @@ function TutorialCallout({ step, target, onProceed }) {
       // The Go Home lesson fires while play is paused and the board is crowded
       // with idle minigames; ignore them as blockers so the callout stays pinned
       // to the Go Home button instead of fleeing to a far corner.
-      const blockedRects = step === 'home'
+      const blockedRects = step === 'home' || step === 'homeReminder' || step === 'meter'
         ? [targetRect]
         : [
             ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
@@ -1580,11 +1697,23 @@ function TutorialCallout({ step, target, onProceed }) {
           title: t('tutorial.second.title'),
           body: t('tutorial.second.body'),
         }
-      : {
-          eyebrow: '',
-          title: t('tutorial.home.title'),
-          body: '',
-        }
+      : step === 'meter'
+        ? {
+            eyebrow: t('tutorial.meter.eyebrow'),
+            title: t('tutorial.meter.title'),
+            body: t('tutorial.meter.body'),
+          }
+        : step === 'homeReminder'
+          ? {
+              eyebrow: t('tutorial.homeReminder.eyebrow'),
+              title: t('tutorial.homeReminder.title'),
+              body: t('tutorial.homeReminder.body'),
+            }
+          : {
+              eyebrow: '',
+              title: t('tutorial.home.title'),
+              body: '',
+            }
 
   return (
     <section className={`tutorial-layer tutorial-layer-${step}`} aria-live="polite">
@@ -1597,8 +1726,10 @@ function TutorialCallout({ step, target, onProceed }) {
         <span>{copy.eyebrow}</span>
         <strong>{copy.title}</strong>
         {copy.body && <p>{copy.body}</p>}
-        {step === 'home' && (
-          <button className="tutorial-next" type="button" onClick={onProceed}>{t('common.gotIt')}</button>
+        {(step === 'home' || step === 'meter' || step === 'homeReminder') && (
+          <button className="tutorial-next" type="button" onClick={onProceed}>
+            {step === 'meter' ? t('tutorial.proceed') : t('common.gotIt')}
+          </button>
         )}
       </aside>
     </section>
@@ -1671,153 +1802,10 @@ const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutor
         <i />
       </div>
       <div className="microgame-body">
-        {game.kind === 'discomfort' && <DiscomfortGame onResolve={resolve} />}
-        {game.kind === 'anxiety' && <AnxietyGame onResolve={resolve} />}
-        {game.kind === 'brainFog' && <BrainFogGame onResolve={resolve} />}
-        {game.kind === 'fatigue' && <FatigueGame onResolve={resolve} paused={frozen} />}
-        <NewMicrogameContent kind={game.kind} onResolve={resolve} />
+        <MicrogameContent kind={game.kind} onResolve={resolve} paused={frozen} />
       </div>
     </article>
   )
 })
-
-function DiscomfortGame({ onResolve }) {
-  const t = useT()
-  const [presses, setPresses] = useState(0)
-  const needed = 6
-  const shift = () => {
-    const next = presses + 1
-    setPresses(next)
-    if (next >= needed) onResolve()
-  }
-
-  return (
-    <div className="discomfort-game">
-      <div className="body-shape">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <span key={index} style={{ opacity: (presses + index) % 4 === 0 ? 1 : 0.35 }} />
-        ))}
-      </div>
-      <button type="button" onClick={shift} style={{ transform: `translateX(${(presses % 3 - 1) * 16}px)` }}>
-        {t('mg.adjust')}
-      </button>
-      <div className="tiny-progress"><i style={{ width: `${(presses / needed) * 100}%` }} /></div>
-    </div>
-  )
-}
-
-function AnxietyGame({ onResolve }) {
-  const [hits, setHits] = useState(0)
-  const targets = useMemo(
-    () => [[18, 22], [72, 18], [43, 48], [78, 72], [24, 76]],
-    [],
-  )
-
-  const hit = () => {
-    const next = hits + 1
-    setHits(next)
-    if (next >= targets.length) onResolve()
-  }
-
-  return (
-    <div className="anxiety-game">
-      <div className="pulse-ring" />
-      {targets.map(([left, top], index) => (
-        <button
-          key={`${left}-${top}`}
-          type="button"
-          className={index === hits ? 'active-target' : index < hits ? 'hit-target' : ''}
-          style={{ left: `${left}%`, top: `${top}%` }}
-          onClick={index === hits ? hit : undefined}
-          aria-label={index === hits ? 'Catch pulse' : undefined}
-        />
-      ))}
-    </div>
-  )
-}
-
-function BrainFogGame({ onResolve }) {
-  const [position, setPosition] = useState(0)
-  const path = [1, 4, 5, 8]
-
-  const move = (direction) => {
-    const next = position + direction
-    if (next < 0 || next > 8) return
-    const currentRow = Math.floor(position / 3)
-    const nextRow = Math.floor(next / 3)
-    if (Math.abs(direction) === 1 && currentRow !== nextRow) return
-    if (!path.includes(next) && next !== 0) {
-      setPosition(0)
-      return
-    }
-    setPosition(next)
-    if (next === 8) onResolve()
-  }
-
-  return (
-    <div className="fog-game">
-      <div className="fog-grid">
-        {Array.from({ length: 9 }).map((_, index) => (
-          <span key={index} className={`${path.includes(index) || index === 0 ? 'path' : ''} ${position === index ? 'you' : ''} ${index === 8 ? 'exit' : ''}`} />
-        ))}
-      </div>
-      <div className="fog-controls">
-        <button type="button" onClick={() => move(-3)}>↑</button>
-        <button type="button" onClick={() => move(-1)}>←</button>
-        <button type="button" onClick={() => move(1)}>→</button>
-        <button type="button" onClick={() => move(3)}>↓</button>
-      </div>
-    </div>
-  )
-}
-
-function FatigueGame({ onResolve, paused = false }) {
-  const t = useT()
-  const [held, setHeld] = useState(0)
-  const holdingRef = useRef(false)
-  const lastRef = useRef(0)
-  const needed = 2400
-
-  useEffect(() => {
-    let frame
-    const tick = (now) => {
-      if (!lastRef.current) lastRef.current = now
-      const delta = now - lastRef.current
-      lastRef.current = now
-      if (holdingRef.current && !paused) {
-        setHeld((current) => {
-          const next = Math.min(current + delta, needed)
-          if (next >= needed) queueMicrotask(onResolve)
-          return next
-        })
-      }
-      frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [onResolve, paused])
-
-  const stopHolding = () => {
-    holdingRef.current = false
-  }
-
-  return (
-    <div className="fatigue-game">
-      <div className="fatigue-eye">
-        <div className="heavy-lid" style={{ transform: `translateY(${44 - (held / needed) * 44}px)` }} />
-      </div>
-      <button
-        type="button"
-        onPointerDown={() => { holdingRef.current = true }}
-        onPointerUp={stopHolding}
-        onPointerLeave={stopHolding}
-        onPointerCancel={stopHolding}
-      >
-        {t('mg.hold')}
-      </button>
-      <div className="tiny-progress"><i style={{ width: `${(held / needed) * 100}%` }} /></div>
-    </div>
-  )
-}
 
 export default App

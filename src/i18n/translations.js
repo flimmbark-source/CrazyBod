@@ -20,12 +20,39 @@ export const en = {
   'common.skillTree': 'SKILL TREE',
   'common.startDay': 'START THE DAY',
 
+  'common.continue': 'CONTINUE',
+
+  // --- The Morning (untimed house) --------------------------------------
+  'morning.aria': 'Your house, before the day starts',
+  'morning.title': 'YOUR MORNING',
+  'morning.body': 'Click anything in the room. Nothing here is scored, and you can stop halfway.',
+  'morning.noTimer': 'No timer yet. The day starts when you open the front door.',
+  'morning.practiceTag': 'PRACTICE — nothing counts here',
+  'morning.get': 'GET!',
+  'morning.done': 'DONE',
+  'morning.leaveIt': 'LEAVE IT',
+  'morning.openDoor': 'OPEN THE FRONT DOOR',
+  'morning.openDoorHint': 'This starts the timer',
+  'morning.spot.coffee': 'Have a coffee',
+  'morning.spot.water': 'Drink a glass of water',
+  'morning.spot.clothes': 'Get dressed',
+  'morning.spot.window': 'Look out the window',
+  'morning.spot.keys': 'Find your keys',
+  'morning.spot.rehearse': 'The mirror',
+  'morning.spot.stretch': 'The stretching mat',
+  'morning.spot.plan': 'The checklist',
+
   // --- HUD / play --------------------------------------------------------
   'hud.time': 'TIME',
   'hud.score': 'SCORE',
   'hud.timeValue': '{n}s',
   'overload.label': 'OVERLOAD',
   'overload.aria': 'Overload {load} of {capacity}',
+  'overload.room': '{left} slots left',
+  'overload.rising': 'Filling up — {left} left',
+  'overload.edge': 'ONE MORE AND YOU BUST',
+  'phase.headingOut': 'LEAVING THE HOUSE',
+  'phase.meeting': 'MEETING MARA',
   'cue.ready': 'Ready?',
   'cue.start': 'START!',
   'goHome.title': 'GO HOME',
@@ -41,22 +68,31 @@ export const en = {
 
   // --- Intro -------------------------------------------------------------
   'intro.title': 'All you have to do is get to the cafe',
-  'intro.body': "It's just a quick walk to see your friend at the cafe. Complete the Minigames that pop up, too many on the screen and you'll bust!",
+  'intro.body': "It is a short walk to meet your friend Mara. Little windows keep popping up on the way. Finish a window and it goes away. If too many are open at once, the day ends badly.",
   'intro.tutorial': 'TUTORIAL',
 
   // --- Tutorial callouts -------------------------------------------------
   'tutorial.summary.eyebrow': 'HOW THE DAY WORKS',
   'tutorial.summary.title': 'Keep the screen clear.',
-  'tutorial.summary.body': 'More minigames will appear as the day continues.',
+  'tutorial.summary.body': 'More windows open as the day goes on. Clearing them is the whole job.',
   'tutorial.proceed': 'PROCEED',
   'tutorial.first.eyebrow': 'FIRST MINIGAME',
   'tutorial.first.title': 'Hold to clear it.',
-  'tutorial.first.body': 'Hold the button or Space until it clears. Release when it tells you to.',
+  'tutorial.first.body': 'Press and hold the button, or hold the Space key, until the bar fills.',
   'tutorial.second.eyebrow': 'A DIFFERENT MINIGAME',
   'tutorial.second.title': 'This one uses movement.',
-  'tutorial.second.body': 'Click the box, then use the arrow keys or WASD to reach the exit.',
-  'tutorial.home.title': 'Go Home if you feel overwhelmed.',
+  'tutorial.second.body': 'Click the window first. Then use the arrow keys to move to the exit.',
+  'tutorial.home.title': 'Too much? Go home. You keep your points.',
 
+  'tutorial.meter.eyebrow': 'THIS IS THE OVERLOAD METER',
+  'tutorial.meter.title': 'Watch this bar.',
+  'tutorial.meter.body': 'One block fills for every window on screen. Fill them all and the day ends badly.',
+  'tutorial.homeReminder.eyebrow': 'YOU ARE ONE AWAY',
+  'tutorial.homeReminder.title': 'This button ends the day safely.',
+  'tutorial.homeReminder.body': 'Go home now and you keep every point. Bust instead and you keep a quarter.',
+  'treeTip.eyebrow': 'THE SKILL TREE',
+  'treeTip.title': 'Buy what you want, then start the day.',
+  'treeTip.body': 'Click a circle to buy it. When you are done, press START THE DAY down here.',
   // --- Tutorial focus guide (DOM-driven, overrides the callout copy) -----
   'focusGuide.focus.first.eyebrow': 'FOCUS ON THE MINIGAME',
   'focusGuide.focus.first.title': 'Click Here.',
@@ -73,9 +109,9 @@ export const en = {
 
   // --- Tutorial keyboard bridge (DOM-driven) -----------------------------
   'kb.pressEsc': 'Press ESC',
-  'kb.pressEscHome': 'Press ESC to go home if you feel overwhelmed.',
+  'kb.pressEscHome': 'Too much? Press ESC to go home and keep your points.',
   'kb.overwhelmedEyebrow': 'IF YOU BECOME OVERWHELMED',
-  'kb.bustWarning': 'If you bust, you will lose some of your score.',
+  'kb.bustWarning': 'If the meter fills up you keep only a quarter of your points.',
 
   // --- 3D world signage --------------------------------------------------
   'world.cafe': 'CAFÉ',
@@ -147,7 +183,7 @@ export const en = {
   'home.aria': 'Went home with {active} of {capacity} capacity occupied',
   'skillTip.eyebrow': 'NEW: SKILL TREE',
   'skillTip.title': 'Spend your points.',
-  'skillTip.body': 'Open the skill tree to upgrade your character.',
+  'skillTip.body': 'The points you just banked buy upgrades. Open the skill tree to spend them.',
   'results.tryAnother': 'TRY ANOTHER DAY',
   'results.playTutorial': 'PLAY TUTORIAL',
 
@@ -200,6 +236,13 @@ export const en = {
   'skill.suppress.name': 'Prevent Overload once, mash Space to destroy minigames.',
   'skill.suppress.detail': 'Ignore the feelings your body is telling you to just get it done.',
 
+  'skill.pace.name': 'Room for one more thing',
+  'skill.pace.detail': 'You take it slower, so one more thing fits before you bust.',
+  'skill.boundaries.name': 'Room for one more thing',
+  'skill.boundaries.detail': 'You said no to one thing today. That is one slot back.',
+  'skill.restStop.name': 'Room for two more things',
+  'skill.restStop.detail': 'You stop and sit down halfway. Two more slots before you bust.',
+  'tagline.In the house': 'In the house',
   // --- Microgame names ---------------------------------------------------
   'microgame.discomfort': 'DISCOMFORT',
   'microgame.anxiety': 'ANXIETY',
@@ -307,7 +350,7 @@ export const en = {
 
   // Plan
   'plan.speaker': 'Did you remember?',
-  'plan.line': 'Tap everything in the right order.',
+  'plan.line': 'Grab each thing from the room, in the order on the list.',
   'plan.aria': 'Run through the plan',
   'plan.step.keys': 'Keys',
   'plan.step.wallet': 'Wallet',
@@ -316,7 +359,7 @@ export const en = {
 
   // Stretch
   'stretch.aria': 'Stretch every joint',
-  'stretch.line': 'Loosen every joint before you go. Hold each one.',
+  'stretch.line': 'Tap each joint on the picture. The list shows what is left.',
   'stretch.progressAria': '{loosened} of {total} loosened',
   'stretch.joint.neck': 'Neck',
   'stretch.joint.shoulders': 'Shoulders',
@@ -360,12 +403,39 @@ export const he = {
   'common.skillTree': 'עץ כישורים',
   'common.startDay': 'להתחיל את היום',
 
+  'common.continue': 'להמשיך',
+
+  // --- The Morning (untimed house) --------------------------------------
+  'morning.aria': 'הבית שלך, לפני שהיום מתחיל',
+  'morning.title': 'הבוקר שלך',
+  'morning.body': 'לחצו על כל דבר בחדר. שום דבר כאן לא נספר, ואפשר להפסיק באמצע.',
+  'morning.noTimer': 'עדיין אין שעון. היום מתחיל כשפותחים את דלת הכניסה.',
+  'morning.practiceTag': 'תרגול — שום דבר כאן לא נספר',
+  'morning.get': 'יש!',
+  'morning.done': 'סיימתי',
+  'morning.leaveIt': 'להשאיר',
+  'morning.openDoor': 'לפתוח את דלת הכניסה',
+  'morning.openDoorHint': 'זה מפעיל את השעון',
+  'morning.spot.coffee': 'לשתות קפה',
+  'morning.spot.water': 'לשתות כוס מים',
+  'morning.spot.clothes': 'להתלבש',
+  'morning.spot.window': 'להביט מהחלון',
+  'morning.spot.keys': 'למצוא את המפתחות',
+  'morning.spot.rehearse': 'המראה',
+  'morning.spot.stretch': 'מזרן המתיחות',
+  'morning.spot.plan': 'רשימת המשימות',
+
   // --- HUD / play --------------------------------------------------------
   'hud.time': 'זמן',
   'hud.score': 'ניקוד',
   'hud.timeValue': '{n} שנ׳',
   'overload.label': 'עומס יתר',
   'overload.aria': 'עומס יתר {load} מתוך {capacity}',
+  'overload.room': 'נשארו {left} משבצות',
+  'overload.rising': 'מתמלא — נשארו {left}',
+  'overload.edge': 'עוד אחד ואתם קורסים',
+  'phase.headingOut': 'יוצאים מהבית',
+  'phase.meeting': 'נפגשים עם מארה',
   'cue.ready': 'מוכנים?',
   'cue.start': 'צאו לדרך!',
   'goHome.title': 'לחזור הביתה',
@@ -381,22 +451,31 @@ export const he = {
 
   // --- Intro -------------------------------------------------------------
   'intro.title': 'כל מה שעליך לעשות הוא להגיע לבית הקפה',
-  'intro.body': 'זו רק הליכה קצרה כדי לפגוש חבר בבית הקפה. השלימו את המשחקונים שקופצים — יותר מדי על המסך ותקרסו!',
+  'intro.body': 'זו הליכה קצרה לפגישה עם מארה. בדרך קופצים חלונות קטנים. כשמסיימים חלון הוא נעלם. אם נפתחים יותר מדי בבת אחת, היום נגמר רע.',
   'intro.tutorial': 'מדריך',
 
   // --- Tutorial callouts -------------------------------------------------
   'tutorial.summary.eyebrow': 'איך היום עובד',
   'tutorial.summary.title': 'שמרו על מסך נקי.',
-  'tutorial.summary.body': 'עוד משחקונים יופיעו ככל שהיום מתקדם.',
+  'tutorial.summary.body': 'ככל שהיום מתקדם נפתחים עוד חלונות. לסגור אותם — זו כל העבודה.',
   'tutorial.proceed': 'להמשיך',
   'tutorial.first.eyebrow': 'המשחקון הראשון',
   'tutorial.first.title': 'החזיקו כדי לפתור.',
-  'tutorial.first.body': 'החזיקו את הכפתור או רווח עד שזה נפתר. שחררו כשמבקשים.',
+  'tutorial.first.body': 'לחצו והחזיקו את הכפתור, או החזיקו את מקש הרווח, עד שהפס מתמלא.',
   'tutorial.second.eyebrow': 'משחקון אחר',
   'tutorial.second.title': 'זה משתמש בתנועה.',
-  'tutorial.second.body': 'לחצו על התיבה, ואז השתמשו במקשי החיצים או WASD כדי להגיע ליציאה.',
-  'tutorial.home.title': 'חזרו הביתה אם אתם מוצפים.',
+  'tutorial.second.body': 'קודם לחצו על החלון. אחר כך זוזו עם מקשי החיצים עד היציאה.',
+  'tutorial.home.title': 'יותר מדי? לכו הביתה. הנקודות נשארות אצלכם.',
 
+  'tutorial.meter.eyebrow': 'זהו מד עומס היתר',
+  'tutorial.meter.title': 'שימו לב לפס הזה.',
+  'tutorial.meter.body': 'כל חלון על המסך ממלא משבצת אחת. אם כולן מתמלאות, היום נגמר רע.',
+  'tutorial.homeReminder.eyebrow': 'נשארה משבצת אחת',
+  'tutorial.homeReminder.title': 'הכפתור הזה מסיים את היום בבטחה.',
+  'tutorial.homeReminder.body': 'אם תחזרו הביתה עכשיו תשמרו על כל הנקודות. אם תקרסו, יישאר רבע.',
+  'treeTip.eyebrow': 'עץ הכישורים',
+  'treeTip.title': 'קנו מה שבא לכם, ואז התחילו את היום.',
+  'treeTip.body': 'לחצו על עיגול כדי לקנות אותו. כשסיימתם, לחצו כאן למטה על «להתחיל את היום».',
   // --- Tutorial focus guide (DOM-driven, overrides the callout copy) -----
   'focusGuide.focus.first.eyebrow': 'התמקדו במשחקון',
   'focusGuide.focus.first.title': 'לחצו כאן.',
@@ -413,9 +492,9 @@ export const he = {
 
   // --- Tutorial keyboard bridge (DOM-driven) -----------------------------
   'kb.pressEsc': 'לחצו ESC',
-  'kb.pressEscHome': 'לחצו ESC כדי לחזור הביתה אם אתם מוצפים.',
+  'kb.pressEscHome': 'יותר מדי? לחצו ESC כדי לחזור הביתה ולשמור על הנקודות.',
   'kb.overwhelmedEyebrow': 'אם אתם מוצפים',
-  'kb.bustWarning': 'אם תקרסו, תאבדו חלק מהניקוד.',
+  'kb.bustWarning': 'אם המד מתמלא, יישאר לכם רק רבע מהנקודות.',
 
   // --- 3D world signage --------------------------------------------------
   'world.cafe': 'בית קפה',
@@ -487,7 +566,7 @@ export const he = {
   'home.aria': 'חזרת הביתה עם {active} מתוך {capacity} קיבולת תפוסה',
   'skillTip.eyebrow': 'חדש: עץ כישורים',
   'skillTip.title': 'השקיעו את הנקודות.',
-  'skillTip.body': 'פתחו את עץ הכישורים כדי לשדרג את הדמות.',
+  'skillTip.body': 'הנקודות שצברתם קונות שדרוגים. פתחו את עץ הכישורים כדי להוציא אותן.',
   'results.tryAnother': 'לנסות יום נוסף',
   'results.playTutorial': 'לשחק במדריך',
 
@@ -540,6 +619,13 @@ export const he = {
   'skill.suppress.name': 'מנעו עומס יתר פעם אחת, הקישו רווח בזעם כדי להשמיד משחקונים.',
   'skill.suppress.detail': 'התעלמו מהתחושות שהגוף משדר ופשוט תסיימו את זה.',
 
+  'skill.pace.name': 'מקום לעוד דבר אחד',
+  'skill.pace.detail': 'אתם לוקחים את זה לאט יותר, ולכן נכנס עוד דבר אחד לפני קריסה.',
+  'skill.boundaries.name': 'מקום לעוד דבר אחד',
+  'skill.boundaries.detail': 'אמרתם לא לדבר אחד היום. זו משבצת אחת שחוזרת אליכם.',
+  'skill.restStop.name': 'מקום לעוד שני דברים',
+  'skill.restStop.detail': 'אתם עוצרים ומתיישבים באמצע הדרך. עוד שתי משבצות לפני קריסה.',
+  'tagline.In the house': 'בבית',
   // --- Microgame names ---------------------------------------------------
   'microgame.discomfort': 'אי נוחות',
   'microgame.anxiety': 'חרדה',
@@ -647,7 +733,7 @@ export const he = {
 
   // Plan
   'plan.speaker': 'זכרת?',
-  'plan.line': 'הקישו על הכול בסדר הנכון.',
+  'plan.line': 'אספו כל דבר מהחדר, לפי הסדר שברשימה.',
   'plan.aria': 'עברו על התוכנית',
   'plan.step.keys': 'מפתחות',
   'plan.step.wallet': 'ארנק',
@@ -656,7 +742,7 @@ export const he = {
 
   // Stretch
   'stretch.aria': 'מתחו כל מפרק',
-  'stretch.line': 'שחררו כל מפרק לפני שיוצאים. החזיקו כל אחד.',
+  'stretch.line': 'הקישו על כל מפרק בתמונה. הרשימה מראה מה נשאר.',
   'stretch.progressAria': '{loosened} מתוך {total} שוחררו',
   'stretch.joint.neck': 'צוואר',
   'stretch.joint.shoulders': 'כתפיים',

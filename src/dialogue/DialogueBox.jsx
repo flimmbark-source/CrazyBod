@@ -1,3 +1,5 @@
+import MorningIcon from '../morning/morningIcons.jsx'
+
 function scrambleText(text, intensity) {
   if (intensity <= 0) return text
   const words = text.split(' ')
@@ -35,10 +37,19 @@ export default function DialogueBox({
       aria-label={ariaLabel}
       aria-live="polite"
     >
+      {/* A face with sound coming out of it, so it is obvious at a glance that
+          someone is talking to you — the initial in the circle alone did not
+          say "speech" to anyone who had not already worked the game out. */}
       <div className="speaker-row">
-        <span className="portrait">{dialogue.speaker.slice(0, 1)}</span>
+        <span className="portrait">
+          <span className="portrait-initial" aria-hidden="true">{dialogue.speaker.slice(0, 1)}</span>
+          <span className="portrait-speaking" aria-hidden="true"><MorningIcon name="speaking" /></span>
+        </span>
         <div>
-          <strong>{dialogue.speaker}</strong>
+          <strong className="speaker-name">
+            <span className="speaker-speaking-dot" aria-hidden="true" />
+            {dialogue.speaker}
+          </strong>
           <p>{scrambleText(dialogue.line, distortion)}</p>
         </div>
       </div>

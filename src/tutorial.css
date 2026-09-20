@@ -274,3 +274,36 @@
 @media (prefers-reduced-motion: reduce) {
   .tutorial-target { animation: none; }
 }
+
+/* Proceed / Got it are the "carry on" buttons of every callout. Red read as a
+   warning or a way out; green is the colour of the thing that moves you
+   forward, and it now matches the front door in the Morning. */
+.tutorial-next,
+.tutorial-callout-summary button {
+  border-color: #23301f;
+  color: #1d2a19;
+  background: #8fd46a;
+  box-shadow: 0 5px 0 #23301f;
+}
+.tutorial-next { box-shadow: 0 4px 0 #23301f; }
+.tutorial-next:hover,
+.tutorial-callout-summary button:hover { background: #a3e07f; }
+.tutorial-next:active,
+.tutorial-callout-summary button:active { box-shadow: 0 1px 0 #23301f; }
+.tutorial-next:focus-visible,
+.tutorial-callout-summary button:focus-visible {
+  outline: 3px solid #1d2a19;
+  outline-offset: 2px;
+}
+
+/* The overload meter, when the tutorial is pointing at it. */
+.tutorial-meter-target {
+  position: relative;
+  z-index: 96 !important;
+  outline: 3px solid #ffd166;
+  outline-offset: 4px;
+  border-radius: 9px;
+}
+
+/* The first-time skill tree callout sits over the tree, above its nodes. */
+.tutorial-layer-tree-start { z-index: 96; }

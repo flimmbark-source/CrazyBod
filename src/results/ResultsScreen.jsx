@@ -80,7 +80,7 @@ function ScoreLedger({ result, banked }) {
   )
 }
 
-function OverloadBust({ capacity }) {
+function OverloadBust({ capacity, canContinue, onContinue }) {
   const t = useT()
   return (
     <section className="overload-bust-stage" role="alert" aria-live="assertive">
@@ -101,11 +101,16 @@ function OverloadBust({ capacity }) {
           <i key={index} />
         ))}
       </div>
+      {canContinue && (
+        <button type="button" className="end-stage-continue" onClick={onContinue}>
+          {t('common.continue')}
+        </button>
+      )}
     </section>
   )
 }
 
-function HomeReturn({ capacity, activeAtEnd }) {
+function HomeReturn({ capacity, activeAtEnd, canContinue, onContinue }) {
   const t = useT()
   return (
     <section className="home-return-stage" role="status" aria-live="polite">
@@ -126,6 +131,11 @@ function HomeReturn({ capacity, activeAtEnd }) {
           <i key={index} className={index < activeAtEnd ? 'filled' : ''} />
         ))}
       </div>
+      {canContinue && (
+        <button type="button" className="end-stage-continue" onClick={onContinue}>
+          {t('common.continue')}
+        </button>
+      )}
     </section>
   )
 }
@@ -260,15 +270,34 @@ export default function ResultsScreen({
     }
   }, [phase, onSkillTree])
 
+  // The overload stage used to be swept away after two seconds — the single
+  // loudest beat in the game, gone before it registered, and often before its
+  // sting had finished playing. It now holds long enough to land, offers a
+  // Continue as soon as the animation settles, and only falls through on its
+  // own well after that.
+  const [canContinue, setCanContinue] = useState(false)
+
   useEffect(() => {
-    if (phase !== 'bust' && phase !== 'home') return undefined
+    if (phase !== 'bust' && phase !== 'home') {
+      setCanContinue(false)
+      return undefined
+    }
 
     const reducedMotion = prefersReducedMotion()
-    const duration = phase === 'bust'
-      ? (reducedMotion ? 1850 : 2150)
-      : (reducedMotion ? 1500 : 2200)
-    const timer = window.setTimeout(() => setPhase('results'), duration)
-    return () => window.clearTimeout(timer)
+    const settleAt = phase === 'bust'
+      ? (reducedMotion ? 1600 : 2200)
+      : (reducedMotion ? 1200 : 1800)
+    const holdFor = phase === 'bust'
+      ? (reducedMotion ? 5200 : 7000)
+      : (reducedMotion ? 3200 : 4600)
+
+    setCanContinue(false)
+    const settleTimer = window.setTimeout(() => setCanContinue(true), settleAt)
+    const timer = window.setTimeout(() => setPhase('results'), holdFor)
+    return () => {
+      window.clearTimeout(settleTimer)
+      window.clearTimeout(timer)
+    }
   }, [phase])
 
   const rootClass = useMemo(() => {
@@ -280,9 +309,18 @@ export default function ResultsScreen({
   return (
     <div className={rootClass}>
       {phase === 'bust' ? (
-        <OverloadBust capacity={capacity} />
+        <OverloadBust
+          capacity={capacity}
+          canContinue={canContinue}
+          onContinue={() => setPhase('results')}
+        />
       ) : phase === 'home' ? (
-        <HomeReturn capacity={capacity} activeAtEnd={result.activeAtEnd} />
+        <HomeReturn
+          capacity={capacity}
+          activeAtEnd={result.activeAtEnd}
+          canContinue={canContinue}
+          onContinue={() => setPhase('results')}
+        />
       ) : (
         <>
           <ResultsCard
