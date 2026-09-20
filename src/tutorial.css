@@ -90,7 +90,10 @@
   border-left: 16px solid transparent;
 }
 
-.tutorial-callout-home {
+/* The layer is a pass-through sheet so the game underneath stays usable, but
+   the callout itself must take clicks: several steps end in a button, and one
+   of them (the overload meter step) was a dead end without this. */
+.tutorial-callout {
   pointer-events: auto;
 }
 

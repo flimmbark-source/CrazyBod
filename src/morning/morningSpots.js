@@ -52,3 +52,48 @@ export const ALL_SPOTS = [...PRACTICE_SPOTS, ...TECHNIQUE_SPOTS]
 export function spotById(id) {
   return ALL_SPOTS.find((spot) => spot.id === id) ?? null
 }
+
+// The tutorial happens at the bathroom mirror: you stand in front of yourself
+// and the first two feelings of the day arrive. The mirror is part of the room
+// whether or not its upgrade is owned, so the tutorial can send you to it on a
+// save that owns nothing.
+export const TUTORIAL_MIRROR_SPOT = {
+  id: 'rehearse',
+  model: 'mirror',
+  position: [2.62, 2.42, -1.75],
+  lift: 0.72,
+  standoff: 2.7,
+  // Look a little below the middle of the glass, so standing at the mirror
+  // frames the sink under it rather than craning up at the ceiling.
+  lookOffset: -0.42,
+}
+
+// Where the player stands when they walk over to something.
+//
+// Rather than authoring a camera pose per object (and re-authoring them every
+// time a thing moves), the standing position is derived: step back from the
+// object toward the middle of the room, stop at eye height, and look at it.
+const ROOM_STAND = [0.55, 3.1]
+const ROOM_BOUNDS = { minX: -3.3, maxX: 3.3, minZ: -6.6, maxZ: 4.4 }
+
+function clamp(value, minimum, maximum) {
+  return Math.min(maximum, Math.max(minimum, value))
+}
+
+export function approachPose(spot) {
+  const [objectX, objectY, objectZ] = spot.position
+  const toRoomX = ROOM_STAND[0] - objectX
+  const toRoomZ = ROOM_STAND[1] - objectZ
+  const length = Math.hypot(toRoomX, toRoomZ) || 1
+  const standoff = spot.standoff ?? 1.5
+
+  return {
+    position: [
+      clamp(objectX + (toRoomX / length) * standoff, ROOM_BOUNDS.minX, ROOM_BOUNDS.maxX),
+      1.65,
+      clamp(objectZ + (toRoomZ / length) * standoff, ROOM_BOUNDS.minZ, ROOM_BOUNDS.maxZ),
+    ],
+    look: [objectX, objectY + (spot.lookOffset ?? 0), objectZ],
+    fov: spot.fov ?? 62,
+  }
+}

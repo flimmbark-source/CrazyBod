@@ -316,16 +316,39 @@ function WalkingNpc({ start, end, duration, offset, color, accent, active, scale
   )
 }
 
-function CameraRig({ elapsed, active, enabled, dialogueStage }) {
+function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = null }) {
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
+  // The Morning is the one part of the game where the player moves themselves,
+  // so its position is smoothed as well as its aim: walking up to the mirror
+  // should feel like walking, not like a cut.
+  const smoothedPosition = useMemo(() => new THREE.Vector3(...MORNING_POSE.position), [])
   const gaitTimeRef = useRef(0)
   const cameraElapsedRef = useRef(0)
   const wasActiveRef = useRef(false)
 
   useFrame(({ camera }, delta) => {
     if (!enabled) return
+
+    // Morning: glide between standing in the room and whatever the player has
+    // walked over to.
+    if (elapsed < 0) {
+      const pose = morningFocus ?? MORNING_POSE
+      targetPosition.set(...pose.position)
+      targetLook.set(...pose.look)
+      const ease = 1 - Math.exp(-delta * 3.2)
+      smoothedPosition.lerp(targetPosition, ease)
+      smoothedLook.lerp(targetLook, ease)
+      camera.position.copy(smoothedPosition)
+      camera.lookAt(smoothedLook)
+      const morningFov = THREE.MathUtils.lerp(camera.fov, pose.fov ?? MORNING_POSE.fov, ease)
+      if (Math.abs(morningFov - camera.fov) > 0.01) {
+        camera.fov = morningFov
+        camera.updateProjectionMatrix()
+      }
+      return
+    }
     if (active) {
       if (!wasActiveRef.current) cameraElapsedRef.current = elapsed
       gaitTimeRef.current += delta
@@ -831,6 +854,7 @@ function World({ elapsed, active }) {
 }
 
 export function AuthoredJourneyScene({
+  morningFocus = null,
   elapsed,
   active,
   cameraEnabled = true,
@@ -860,6 +884,7 @@ export function AuthoredJourneyScene({
         active={active}
         enabled={cameraEnabled}
         dialogueStage={dialogueStage}
+        morningFocus={morningFocus}
       />
       <World elapsed={elapsed} active={active} />
     </>

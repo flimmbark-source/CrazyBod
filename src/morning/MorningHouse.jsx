@@ -19,9 +19,14 @@ import {
   markMorningUsed,
   morningProjections,
   openMorningSpot,
+  setMorningFocus,
   setMorningHover,
   useMorningState,
 } from './morningStore.js'
+
+// How long the walk to a thing takes before its window opens. Matched to the
+// camera glide in CameraRig so the player arrives before anything appears.
+const APPROACH_MS = 620
 
 // The Morning is the untimed half of the day: the player stands in their own
 // house and touches things until they are ready. Nothing here is scored, no
@@ -39,7 +44,7 @@ function SpotLabel({ spot, name, reward, done, active, disabled, registerRef, on
     <button
       ref={(element) => registerRef(spot.id, element)}
       type="button"
-      className={`morning-tag${done ? ' is-done' : ''}${active ? ' is-active' : ''}`}
+      className={`morning-tag morning-tag-${spot.id}${done ? ' is-done' : ''}${active ? ' is-active' : ''}`}
       disabled={disabled || done}
       onPointerEnter={() => setMorningHover(spot.id)}
       onPointerLeave={() => setMorningHover(null)}
@@ -48,7 +53,9 @@ function SpotLabel({ spot, name, reward, done, active, disabled, registerRef, on
       onClick={() => onOpen(spot.id)}
     >
       <span className="morning-tag-name">{name}</span>
-      <span className={`morning-tag-reward${reward.upgrade ? ' is-upgrade' : ''}`}>{reward.text}</span>
+      {reward.text && (
+        <span className={`morning-tag-reward${reward.upgrade ? ' is-upgrade' : ''}`}>{reward.text}</span>
+      )}
       {done && <span className="morning-tag-tick" aria-hidden="true">✓</span>}
     </button>
   )
@@ -103,6 +110,9 @@ function RewardBurst({ text, tone }) {
 }
 
 export default function MorningHouse({
+  spots = null,
+  tutorialStep = 'none',
+  onApproachMirror,
   enabledNodeIds = [],
   onTechniqueComplete,
   onQueueSpawn,
@@ -115,9 +125,20 @@ export default function MorningHouse({
   const [burst, setBurst] = useState(null)
   const burstTimerRef = useRef(null)
 
+  const approachTimerRef = useRef(null)
+  // During the scripted lesson App narrows the room to one object; otherwise
+  // the Morning shows everything it owns.
+  const visibleSpots = spots ?? [
+    ...PRACTICE_SPOTS,
+    ...TECHNIQUE_SPOTS.filter((spot) => enabledNodeIds.includes(spot.id)),
+  ]
+  const practiceSpots = useMemo(
+    () => visibleSpots.filter((spot) => PRACTICE_SPOTS.some((entry) => entry.id === spot.id)),
+    [visibleSpots],
+  )
   const techniqueSpots = useMemo(
-    () => TECHNIQUE_SPOTS.filter((spot) => enabledNodeIds.includes(spot.id)),
-    [enabledNodeIds],
+    () => visibleSpots.filter((spot) => TECHNIQUE_SPOTS.some((entry) => entry.id === spot.id)),
+    [visibleSpots],
   )
   const doneSet = useMemo(() => new Set(doneIds), [doneIds])
   const usedSet = useMemo(() => new Set(usedIds), [usedIds])
@@ -128,15 +149,33 @@ export default function MorningHouse({
   }, [])
   // Nearest objects first, so a distant label is the one pushed out of the way.
   const spotIds = useMemo(
-    () => [...PRACTICE_SPOTS, ...techniqueSpots]
+    () => visibleSpots
       .slice()
       .sort((a, b) => b.position[2] - a.position[2])
       .map((spot) => spot.id),
-    [techniqueSpots],
+    [visibleSpots],
   )
   useLabelPlacement(labelRefs, spotIds)
 
-  useEffect(() => () => window.clearTimeout(burstTimerRef.current), [])
+  useEffect(() => () => {
+    window.clearTimeout(burstTimerRef.current)
+    window.clearTimeout(approachTimerRef.current)
+  }, [])
+
+  // Clicking a thing walks you over to it first. The window only opens once
+  // you have arrived, so the room reads as somewhere you move through rather
+  // than a row of buttons over a photograph.
+  const approach = useCallback((id) => {
+    window.clearTimeout(approachTimerRef.current)
+    setMorningFocus(id)
+    // The mirror during the opening lesson is a place to stand, not a window
+    // to open: the tutorial takes over once the player gets there.
+    if (tutorialStep === 'approach') {
+      approachTimerRef.current = window.setTimeout(() => onApproachMirror?.(), APPROACH_MS)
+      return
+    }
+    approachTimerRef.current = window.setTimeout(() => openMorningSpot(id), APPROACH_MS)
+  }, [onApproachMirror, tutorialStep])
 
   const showBurst = useCallback((text, tone = 'gain') => {
     window.clearTimeout(burstTimerRef.current)
@@ -145,6 +184,7 @@ export default function MorningHouse({
   }, [])
 
   const close = useCallback(() => {
+    window.clearTimeout(approachTimerRef.current)
     closeMorningSpot()
     setCleared(false)
   }, [])
@@ -185,14 +225,14 @@ export default function MorningHouse({
     >
       <SettingsMenu variant="fixed" />
 
-      <header className="morning-banner">
+      <header className="morning-banner" hidden={tutorialStep !== 'none' && tutorialStep !== 'door'}>
         <strong>{t('morning.title')}</strong>
         <p>{t('morning.body')}</p>
         <em>{t('morning.noTimer')}</em>
       </header>
 
       <div className="morning-tags">
-        {PRACTICE_SPOTS.map((spot) => (
+        {practiceSpots.map((spot) => (
           <SpotLabel
             key={spot.id}
             spot={spot}
@@ -202,7 +242,7 @@ export default function MorningHouse({
             active={hoverId === spot.id}
             disabled={busy}
             registerRef={registerRef}
-            onOpen={openMorningSpot}
+            onOpen={approach}
           />
         ))}
         {techniqueSpots.map((spot) => (
@@ -210,19 +250,24 @@ export default function MorningHouse({
             key={spot.id}
             spot={spot}
             name={t(`morning.spot.${spot.id}`)}
-            reward={{ text: t(spot.reward), upgrade: true }}
+            reward={{ text: spot.reward ? t(spot.reward) : '', upgrade: Boolean(spot.reward) }}
             done={usedSet.has(spot.id)}
             active={hoverId === spot.id}
             disabled={busy}
             registerRef={registerRef}
-            onOpen={openMorningSpot}
+            onOpen={approach}
           />
         ))}
       </div>
 
       {burst && <RewardBurst key={burst.key} text={burst.text} tone={burst.tone} />}
 
-      <button type="button" className="morning-door" onClick={onLeave} hidden={busy}>
+      <button
+        type="button"
+        className={`morning-door${tutorialStep === 'door' ? ' tutorial-target' : ''}`}
+        onClick={onLeave}
+        hidden={busy || (tutorialStep !== 'none' && tutorialStep !== 'room' && tutorialStep !== 'door')}
+      >
         <strong>{t('morning.openDoor')}</strong>
         <small>{t('morning.openDoorHint')}</small>
       </button>

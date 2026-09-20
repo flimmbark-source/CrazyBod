@@ -10,6 +10,9 @@
 import { useSyncExternalStore } from 'react'
 
 let state = {
+  // What the camera is standing in front of. Set the moment a thing is
+  // clicked, so the player walks over before its window opens.
+  focusId: null,
   openId: null,
   doneIds: [],
   usedIds: [],
@@ -39,8 +42,14 @@ export function useMorningState() {
 }
 
 export function resetMorning() {
-  state = { openId: null, doneIds: [], usedIds: [], hoverId: null }
+  state = { focusId: null, openId: null, doneIds: [], usedIds: [], hoverId: null }
   morningProjections.clear()
+  emit()
+}
+
+export function setMorningFocus(id) {
+  if (state.focusId === id) return
+  state.focusId = id
   emit()
 }
 
@@ -51,8 +60,9 @@ export function openMorningSpot(id) {
 }
 
 export function closeMorningSpot() {
-  if (state.openId === null) return
+  if (state.openId === null && state.focusId === null) return
   state.openId = null
+  state.focusId = null
   emit()
 }
 

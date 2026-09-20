@@ -8,9 +8,13 @@ export const SPAWN_DELAY_BONUS_PER_UPGRADE = 0.1
 // applied globally across every phase.
 export const PAIR_CHANCE_PENALTY_PER_UPGRADE = 0.02
 
+// The two minigames the tutorial teaches with. They used to be scheduled into
+// the timed day at these second marks; they are now spawned at the bathroom
+// mirror during the Morning, one after the other, so the order is all that is
+// left of the schedule.
 export const TUTORIAL_SEQUENCE = [
-  { role: 'first', at: 2.5, kind: 'fatigue' },
-  { role: 'second', at: 6.5, kind: 'brainFog' },
+  { role: 'first', kind: 'fatigue' },
+  { role: 'second', kind: 'brainFog' },
 ]
 
 export const PACING_PHASES = [

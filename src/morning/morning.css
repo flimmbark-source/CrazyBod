@@ -254,3 +254,16 @@
     100% { opacity: 0; transform: translate(-50%, -50%); }
   }
 }
+
+/* The scripted lesson borrows the day's overload meter, but not its clock or
+   its score, so the bar sits alone at the top of the room. */
+.hud-lesson {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  pointer-events: none;
+}
+.hud-lesson > .load-meter { transform: scale(var(--overload-scale)); }
+
+/* While the lesson is running the room is not yet the player's to wander. */
+.morning-door[hidden],
+.morning-banner[hidden] { display: none; }

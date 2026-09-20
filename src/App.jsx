@@ -18,8 +18,14 @@ import {
 import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
 import MorningHouse from './morning/MorningHouse.jsx'
 import MorningProps from './morning/MorningProps.jsx'
-import { PRACTICE_SPOTS, TECHNIQUE_SPOTS } from './morning/morningSpots.js'
-import { resetMorning } from './morning/morningStore.js'
+import {
+  PRACTICE_SPOTS,
+  TECHNIQUE_SPOTS,
+  TUTORIAL_MIRROR_SPOT,
+  approachPose,
+  spotById,
+} from './morning/morningSpots.js'
+import { closeMorningSpot, resetMorning, useMorningState } from './morning/morningStore.js'
 import { MORNING_ELAPSED } from './world/JourneyScene.jsx'
 import {
   PHYSICAL_SYMPTOM_KINDS,
@@ -62,6 +68,10 @@ const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 // first needs the escape hatch and does not yet know it is there.
 const NEAR_OVERLOAD_STORAGE_KEY = 'crazybod:near-overload-count'
 const GO_HOME_LESSON_ON_NEAR_MISS = 2
+// How far into the day the tutorial's Go Home lesson waits. Firing it at zero
+// froze the frame on the apartment door mid-swing; a couple of seconds puts the
+// player out on the street, which is where "you can turn back" means something.
+const GO_HOME_LESSON_AT = 2.6
 // Day times the two street conversations open at, matched to the camera path.
 const MARA_GREETING_AT = 30
 const ORDER_DIALOGUE_AT = 40
@@ -317,6 +327,7 @@ function App() {
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
   const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
+  const { focusId: morningFocusId } = useMorningState()
   // Central capability derivation (Sword / Mandala / Dive) from enabled nodes.
   const progressionEffects = deriveProgressionEffects(progression.enabledNodeIds)
   // Mandala travel simulation. Owned by its own hook; App only coordinates.
@@ -357,6 +368,8 @@ function App() {
   // True while the board is sitting on its last free slot, so one visit to the
   // edge is counted once however many times the effect re-runs.
   const atEdgeRef = useRef(false)
+  // The Go Home lesson now fires as the door opens, once per tutorial run.
+  const morningHomeLessonRef = useRef(false)
   const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   // While the day clock is below this value, a completed stretch thins the
@@ -441,6 +454,11 @@ function App() {
   const homeShake = Math.max(0, load - 1) * 0.85
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
+  // The Morning shows real minigame windows and a real overload meter during
+  // the scripted lesson, so the tutorial teaches the thing it will actually be.
+  const morningLesson = status === 'morning'
+    && tutorialRun
+    && ['first', 'second', 'meter'].includes(tutorialStep)
   const orderingPaused = status === 'playing' && orderDialogueOpen
   const cafeBeatActive = status === 'playing' && cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE
   // Mara's walk-out (her outburst, then leaving) is when the day's final seconds
@@ -473,7 +491,7 @@ function App() {
     && !cafeBeatFrozen
     && !activeTechnique?.pausesSpawns
 
-  const beginGame = useCallback((withTutorial) => {
+  const beginGame = useCallback(() => {
     const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0
     directorRef.current = createPacingDirector(seed)
     spawnCounterRef.current = 0
@@ -515,16 +533,17 @@ function App() {
     setCafeBeatPhase(CAFE_BEAT_PHASES.INACTIVE)
     setCafeDialogueIndex(0)
     setResult(null)
-    setTutorialRun(withTutorial)
+    // The scripted lessons all happened in the Morning by this point. The run
+    // only owes the player the Go Home step, fired below once play begins.
     setTutorialStep('none')
-    setDirectorReady(!withTutorial)
+    setDirectorReady(true)
     setStartCue('ready')
     setStatus('countdown')
   }, [])
 
   // Every day now opens in the untimed house. `beginGame` is only reached when
   // the player opens the front door, so the clock starts with them on the step.
-  const startGame = useCallback(() => {
+  const openMorning = useCallback((withTutorial) => {
     morningOutcomesRef.current = {
       capacityBonus: 0,
       planStaggerPairs: 0,
@@ -532,13 +551,24 @@ function App() {
       techniques: {},
     }
     morningSpawnQueueRef.current = []
+    morningHomeLessonRef.current = false
     resetMorning()
+    setMicrogames([])
+    microgamesRef.current = []
+    resolvedGamesRef.current = new Set()
+    spawnCounterRef.current = 0
+    // A first-run Morning is the tutorial: the player is walked to the mirror,
+    // meets two minigames there, and is handed the room at PROCEED.
+    setTutorialRun(withTutorial)
+    setTutorialStep(withTutorial ? 'approach' : 'none')
     setStatus('morning')
   }, [])
 
+  const startGame = useCallback(() => openMorning(tutorialEnabled), [openMorning, tutorialEnabled])
+
   const leaveTheHouse = useCallback(() => {
-    beginGame(tutorialEnabled)
-  }, [beginGame, tutorialEnabled])
+    beginGame()
+  }, [beginGame])
 
   // The Morning's techniques are the same ones the day used to interrupt itself
   // with; their results are banked here and seeded into the run by beginGame.
@@ -597,8 +627,8 @@ function App() {
     } catch {
       // Local storage is optional; the current run can still use the tutorial.
     }
-    beginGame(true)
-  }, [beginGame])
+    openMorning(true)
+  }, [openMorning])
 
   const toggleTutorial = () => {
     setTutorialEnabled((current) => {
@@ -729,29 +759,29 @@ function App() {
     return () => window.clearInterval(timer)
   }, [status])
 
+  // The scripted lessons used to spawn themselves into the timed day at fixed
+  // second marks. They now happen at the bathroom mirror during the Morning:
+  // the player walks over, meets one minigame, then a second, then the meter.
   useEffect(() => {
-    if (status !== 'playing' || !tutorialRun || tutorialStep !== 'none') return
-
-    const first = TUTORIAL_SEQUENCE[0]
-    const second = TUTORIAL_SEQUENCE[1]
-
-    if (!tutorialFirstSeenRef.current && dayElapsed >= first.at) {
+    if (status !== 'morning' || !tutorialRun) return
+    if (tutorialStep === 'first' && !tutorialFirstSeenRef.current) {
       tutorialFirstSeenRef.current = true
-      spawnMicrogame(first.kind, first.role)
-      setTutorialStep(first.role)
-      return
+      spawnMicrogame(TUTORIAL_SEQUENCE[0].kind, TUTORIAL_SEQUENCE[0].role)
     }
-
-    if (
-      tutorialFirstSeenRef.current
-      && !tutorialSecondSeenRef.current
-      && dayElapsed >= second.at
-    ) {
+    if (tutorialStep === 'second' && !tutorialSecondSeenRef.current) {
       tutorialSecondSeenRef.current = true
-      spawnMicrogame(second.kind, second.role)
-      setTutorialStep(second.role)
+      spawnMicrogame(TUTORIAL_SEQUENCE[1].kind, TUTORIAL_SEQUENCE[1].role)
     }
-  }, [dayElapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
+  }, [status, tutorialRun, tutorialStep, spawnMicrogame])
+
+  // Leaving the house is the last lesson: the day starts, and the way out of it
+  // is pointed at before anything has had a chance to pile up.
+  useEffect(() => {
+    if (status !== 'playing' || !tutorialRun || morningHomeLessonRef.current) return
+    if (dayElapsed < GO_HOME_LESSON_AT) return
+    morningHomeLessonRef.current = true
+    setTutorialStep('home')
+  }, [status, tutorialRun, dayElapsed])
 
   useEffect(() => {
     if (!spawningEnabled) return
@@ -1195,7 +1225,7 @@ function App() {
     })
 
     if (tutorialRun && tutorialStep === 'first' && resolvedGame?.tutorialRole === 'first') {
-      setTutorialStep('none')
+      setTutorialStep('second')
     }
     if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
       setTutorialStep('meter')
@@ -1233,10 +1263,13 @@ function App() {
       // The tutorial still finishes for this session without storage.
     }
     setTutorialEnabled(false)
-    setDirectorReady(true)
+    setTutorialRun(false)
     setTutorialStep('none')
   }
 
+  // Morning: approach -> first -> second -> meter -> summary, and then the room
+  // is handed over. `room` and `door` are advice pinned to things, not gates:
+  // the player already has control by the time they appear.
   const advanceTutorial = () => {
     // The contextual Go Home reminder is not part of the scripted run, so
     // dismissing it must not mark the tutorial complete.
@@ -1249,15 +1282,52 @@ function App() {
       return
     }
     if (tutorialStep === 'summary') {
-      setTutorialStep('home')
+      // Handing the room over: step back from the mirror so the player can see
+      // what they have been given.
+      closeMorningSpot()
+      setTutorialStep('room')
+      return
+    }
+    if (tutorialStep === 'room') {
+      setTutorialStep('door')
+      return
+    }
+    if (tutorialStep === 'door') {
+      setTutorialStep('none')
       return
     }
     finishTutorial()
   }
 
+  // Walking up to the mirror is the first thing the tutorial asks for, and the
+  // only click it accepts until the player gets there.
+  const approachTutorialMirror = useCallback(() => {
+    setTutorialStep('first')
+  }, [])
+
   const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
     ? microgames.find((game) => game.tutorialRole === tutorialStep)
     : null
+
+  // Where the Morning camera stands. During the mirror lesson the player is
+  // held at the mirror until the room is handed over.
+  const morningFocusPose = useMemo(() => {
+    if (status !== 'morning') return null
+    if (morningLesson || tutorialStep === 'summary') return approachPose(TUTORIAL_MIRROR_SPOT)
+    const spot = morningFocusId ? spotById(morningFocusId) ?? TUTORIAL_MIRROR_SPOT : null
+    return spot ? approachPose(spot) : null
+  }, [status, morningLesson, tutorialStep, morningFocusId])
+
+  // Which objects the Morning offers. The tutorial narrows the room to the
+  // mirror until the player has been there.
+  const morningSpots = useMemo(() => {
+    if (tutorialStep === 'approach') return [TUTORIAL_MIRROR_SPOT]
+    if (morningLesson || tutorialStep === 'summary') return []
+    return [
+      ...PRACTICE_SPOTS,
+      ...TECHNIQUE_SPOTS.filter((spot) => progression.enabledNodeIds.includes(spot.id)),
+    ]
+  }, [tutorialStep, morningLesson, progression.enabledNodeIds])
 
   return (
     <main className={`game-shell status-${status} load-${Math.min(load, 5)} cafe-beat-${cafeBeatPhase}`}>
@@ -1298,20 +1368,14 @@ function App() {
           ) : (
             <>
               <AuthoredJourneyScene
+                morningFocus={morningFocusPose}
                 elapsed={status === 'morning' ? MORNING_ELAPSED : dayElapsed}
                 active={dayAdvancing}
                 cameraEnabled={!cafeBeatActive}
                 dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
               />
               <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
-              {status === 'morning' && (
-                <MorningProps
-                  spots={[
-                    ...PRACTICE_SPOTS,
-                    ...TECHNIQUE_SPOTS.filter((spot) => progression.enabledNodeIds.includes(spot.id)),
-                  ]}
-                />
-              )}
+              {status === 'morning' && <MorningProps spots={morningSpots} />}
             </>
           )}
           <SnapshotCaptureBridge registerCapture={registerSnapshotCapture} />
@@ -1368,53 +1432,15 @@ function App() {
               <strong>{t('hud.timeValue', { n: remainingTime })}</strong>
             </div>
 
-            {/* The overload meter is the thing the whole day is really about,
-                so it sits at the top of the screen between the two numbers
-                rather than tucked down the side where it was easy to miss. */}
-            <div
-              className={[
-                'load-meter',
-                `load-band-${overloadBand}`,
-                tutorialStep === 'meter' ? 'tutorial-target tutorial-meter-target' : '',
-              ].filter(Boolean).join(' ')}
-              dir="ltr"
-              aria-label={t('overload.aria', { load, capacity })}
-              style={{
-                '--overload': overloadRatio,
-                '--overload-scale': 1 + overloadRatio * 0.16,
-                '--overload-saturation': 1 + overloadRatio * 0.8,
-                '--overload-contrast': 1 + overloadRatio * 0.14,
-                '--overload-alpha': overloadRatio * 0.72,
-                '--overload-shake': `${overloadShake}px`,
-                '--overload-shake-neg': `${-overloadShake}px`,
-              }}
-            >
-              <span className="load-meter-title">
-                {t('overload.label')}
-                <b className="load-meter-count">{load}/{capacity}</b>
-              </span>
-              <div className="load-pips">
-                {Array.from({ length: capacity }).map((_, index) => (
-                  <i
-                    key={index}
-                    className={[
-                      index < load ? 'filled' : '',
-                      index === capacity - 1 ? 'last-slot' : '',
-                    ].filter(Boolean).join(' ')}
-                  />
-                ))}
-              </div>
-              {/* Two plain-language steps before the bust, so the climb is
-                  something you can watch coming instead of something that
-                  happens to you. */}
-              <strong className="load-meter-status" aria-live="polite">
-                {overloadBand === 'edge'
-                  ? t('overload.edge')
-                  : overloadBand === 'rising'
-                    ? t('overload.rising', { left: capacity - load })
-                    : t('overload.room', { left: capacity - load })}
-              </strong>
-            </div>
+            <OverloadMeter
+              t={t}
+              load={load}
+              capacity={capacity}
+              band={overloadBand}
+              ratio={overloadRatio}
+              shake={overloadShake}
+              highlighted={tutorialStep === 'meter'}
+            />
 
             <div className="hud-panel score-panel">
               <span className="hud-label">{t('hud.score')}</span>
@@ -1440,20 +1466,6 @@ function App() {
                 onResolve={resolveMicrogame}
                 frozen={cafeBeatFrozen}
               />
-            ))}
-          </section>
-
-          {tutorialStep !== 'none' && (
-            <TutorialCallout
-              step={tutorialStep}
-              target={tutorialTarget}
-              onProceed={advanceTutorial}
-            />
-          )}
-
-          <section className="completion-fx-layer" aria-hidden="true">
-            {completionEffects.map((effect) => (
-              <CompletionBurst key={effect.id} effect={effect} />
             ))}
           </section>
 
@@ -1536,8 +1548,56 @@ function App() {
         </>
       )}
 
+      {/* The scripted lesson borrows the day's own furniture: real minigame
+          windows and the real overload meter, in the room, before any clock. */}
+      {morningLesson && (
+        <>
+          <header className="hud hud-lesson">
+            <OverloadMeter
+              t={t}
+              load={load}
+              capacity={capacity}
+              band={overloadBand}
+              ratio={overloadRatio}
+              shake={overloadShake}
+              highlighted={tutorialStep === 'meter'}
+            />
+          </header>
+
+          <section className="microgame-layer" aria-live="polite">
+            {microgames.map((game, index) => (
+              <MicrogameWindow
+                key={game.id}
+                game={game}
+                index={index}
+                load={load}
+                tutorialTarget={tutorialTarget?.id === game.id}
+                onResolve={resolveMicrogame}
+              />
+            ))}
+          </section>
+        </>
+      )}
+
+      {tutorialStep !== 'none' && (
+        <TutorialCallout
+          step={tutorialStep}
+          target={tutorialTarget}
+          onProceed={advanceTutorial}
+        />
+      )}
+
+      <section className="completion-fx-layer" aria-hidden="true">
+        {completionEffects.map((effect) => (
+          <CompletionBurst key={effect.id} effect={effect} />
+        ))}
+      </section>
+
       {status === 'morning' && (
         <MorningHouse
+          spots={morningSpots}
+          tutorialStep={tutorialRun ? tutorialStep : 'none'}
+          onApproachMirror={approachTutorialMirror}
           enabledNodeIds={progression.enabledNodeIds}
           onTechniqueComplete={completeMorningTechnique}
           onQueueSpawn={queueMorningSpawn}
@@ -1600,6 +1660,71 @@ function App() {
   )
 }
 
+// The overload meter. Lives at the top of the screen during the day, and is
+// shown on its own during the Morning tutorial so the step that explains it has
+// something real to point at.
+// Steps that point at a fixed piece of chrome rather than at a spawned
+// minigame window.
+const TUTORIAL_TARGET_SELECTORS = {
+  home: '.go-home',
+  homeReminder: '.go-home',
+  meter: '.load-meter',
+  approach: '.morning-tag-rehearse',
+  room: '.morning-tag-coffee',
+  door: '.morning-door',
+}
+
+// Steps whose copy is a plain eyebrow/title/body triple keyed by step name.
+const TUTORIAL_COPY_STEPS = ['meter', 'homeReminder', 'approach', 'room', 'door']
+
+function OverloadMeter({ t, load, capacity, band, ratio, shake, highlighted = false }) {
+  return (
+    <div
+      className={[
+        'load-meter',
+        `load-band-${band}`,
+        highlighted ? 'tutorial-target tutorial-meter-target' : '',
+      ].filter(Boolean).join(' ')}
+      dir="ltr"
+      aria-label={t('overload.aria', { load, capacity })}
+      style={{
+        '--overload': ratio,
+        '--overload-scale': 1 + ratio * 0.16,
+        '--overload-saturation': 1 + ratio * 0.8,
+        '--overload-contrast': 1 + ratio * 0.14,
+        '--overload-alpha': ratio * 0.72,
+        '--overload-shake': `${shake}px`,
+        '--overload-shake-neg': `${-shake}px`,
+      }}
+    >
+      <span className="load-meter-title">
+        {t('overload.label')}
+        <b className="load-meter-count">{load}/{capacity}</b>
+      </span>
+      <div className="load-pips">
+        {Array.from({ length: capacity }).map((_, index) => (
+          <i
+            key={index}
+            className={[
+              index < load ? 'filled' : '',
+              index === capacity - 1 ? 'last-slot' : '',
+            ].filter(Boolean).join(' ')}
+          />
+        ))}
+      </div>
+      {/* Two plain-language steps before the bust, so the climb is something
+          you can watch coming instead of something that happens to you. */}
+      <strong className="load-meter-status" aria-live="polite">
+        {band === 'edge'
+          ? t('overload.edge')
+          : band === 'rising'
+            ? t('overload.rising', { left: capacity - load })
+            : t('overload.room', { left: capacity - load })}
+      </strong>
+    </div>
+  )
+}
+
 function TutorialCallout({ step, target, onProceed }) {
   const t = useT()
   const calloutRef = useRef(null)
@@ -1611,13 +1736,11 @@ function TutorialCallout({ step, target, onProceed }) {
 
     const positionCallout = () => {
       const callout = calloutRef.current
-      const targetElement = step === 'home' || step === 'homeReminder'
-        ? document.querySelector('.go-home')
-        : step === 'meter'
-          ? document.querySelector('.load-meter')
-          : targetId
-            ? document.querySelector(`[data-game-id="${targetId}"]`)
-            : null
+      const targetElement = TUTORIAL_TARGET_SELECTORS[step]
+        ? document.querySelector(TUTORIAL_TARGET_SELECTORS[step])
+        : targetId
+          ? document.querySelector(`[data-game-id="${targetId}"]`)
+          : null
       if (!callout || !targetElement) return
 
       const targetRect = targetElement.getBoundingClientRect()
@@ -1647,7 +1770,7 @@ function TutorialCallout({ step, target, onProceed }) {
       // The Go Home lesson fires while play is paused and the board is crowded
       // with idle minigames; ignore them as blockers so the callout stays pinned
       // to the Go Home button instead of fleeing to a far corner.
-      const blockedRects = step === 'home' || step === 'homeReminder' || step === 'meter'
+      const blockedRects = TUTORIAL_TARGET_SELECTORS[step]
         ? [targetRect]
         : [
             ...Array.from(document.querySelectorAll('.microgame'), (element) => element.getBoundingClientRect()),
@@ -1701,7 +1824,13 @@ function TutorialCallout({ step, target, onProceed }) {
     )
   }
 
-  const copy = step === 'first'
+  const copy = TUTORIAL_COPY_STEPS.includes(step)
+    ? {
+        eyebrow: t(`tutorial.${step}.eyebrow`),
+        title: t(`tutorial.${step}.title`),
+        body: t(`tutorial.${step}.body`),
+      }
+    : step === 'first'
     ? {
         eyebrow: t('tutorial.first.eyebrow'),
         title: t('tutorial.first.title'),
@@ -1742,7 +1871,7 @@ function TutorialCallout({ step, target, onProceed }) {
         <span>{copy.eyebrow}</span>
         <strong>{copy.title}</strong>
         {copy.body && <p>{copy.body}</p>}
-        {(step === 'home' || step === 'meter' || step === 'homeReminder') && (
+        {step !== 'first' && step !== 'second' && step !== 'approach' && (
           <button className="tutorial-next" type="button" onClick={onProceed}>
             {step === 'meter' ? t('tutorial.proceed') : t('common.gotIt')}
           </button>
