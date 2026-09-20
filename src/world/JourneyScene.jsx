@@ -101,7 +101,7 @@ function samplePlayerPath(elapsed) {
   }
 }
 
-function Box({ position, size, color, rotation = [0, 0, 0], castShadow, receiveShadow, opacity = 1 }) {
+export function Box({ position, size, color, rotation = [0, 0, 0], castShadow, receiveShadow, opacity = 1 }) {
   const shouldCastShadow = castShadow ?? (
     size[1] > 0.3 && size[0] < 9 && size[2] < 9
   )
@@ -128,7 +128,7 @@ function Box({ position, size, color, rotation = [0, 0, 0], castShadow, receiveS
   )
 }
 
-function Cylinder({ position, args, color, rotation = [0, 0, 0], castShadow = true }) {
+export function Cylinder({ position, args, color, rotation = [0, 0, 0], castShadow = true }) {
   return (
     <mesh position={position} rotation={rotation} castShadow={castShadow} receiveShadow>
       <cylinderGeometry args={args} />
@@ -438,6 +438,27 @@ const BedroomStatic = memo(function BedroomStatic() {
       </group>
 
       <Box position={[1.35, 0.04, 1.55]} size={[2.1, 0.08, 2.75]} color="#b57669" />
+
+      {/* A window on the left wall, and the low counter the morning's coffee
+          and water stand on. Both are part of the room proper: the Morning
+          only adds the loose things you pick up, never the furniture. */}
+      <group position={[-3.88, 0, -3.5]}>
+        <Box position={[0, 2.15, 0]} size={[0.1, 1.5, 2.1]} color="#6f6355" castShadow={false} />
+        <Box position={[0.05, 2.15, 0]} size={[0.06, 1.28, 1.88]} color="#cfe2ea" opacity={0.82} castShadow={false} />
+        <Box position={[0.08, 2.15, 0]} size={[0.05, 1.32, 0.09]} color="#6f6355" castShadow={false} />
+        <Box position={[0.08, 2.15, 0]} size={[0.05, 0.09, 1.92]} color="#6f6355" castShadow={false} />
+        <Box position={[0.12, 1.34, 0]} size={[0.26, 0.09, 2.25]} color="#8a7a68" castShadow={false} />
+      </group>
+
+      <group position={[2.62, 0, -0.35]}>
+        <Box position={[0, 0.42, 0]} size={[0.76, 0.84, 1.95]} color="#7e6f63" />
+        <Box position={[0, 0.875, 0]} size={[0.86, 0.07, 2.05]} color="#cbb9a4" />
+        <Box position={[-0.34, 0.48, 0]} size={[0.05, 0.56, 1.55]} color="#6a5d53" castShadow={false} />
+      </group>
+
+      {/* The sink side of the room sat in shadow: the only lamp is over the
+          bed, which left the mirror and the counter unreadable. */}
+      <pointLight position={[2.6, 3.1, -1.4]} intensity={0.85} color="#ffe8c4" distance={9} decay={2} />
 
 <group
   position={[3.1, 0, -1.75]}

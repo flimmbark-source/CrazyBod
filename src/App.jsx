@@ -17,6 +17,9 @@ import {
 } from './pacingDirector.js'
 import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
 import MorningHouse from './morning/MorningHouse.jsx'
+import MorningProps from './morning/MorningProps.jsx'
+import { PRACTICE_SPOTS, TECHNIQUE_SPOTS } from './morning/morningSpots.js'
+import { resetMorning } from './morning/morningStore.js'
 import { MORNING_ELAPSED } from './world/JourneyScene.jsx'
 import {
   PHYSICAL_SYMPTOM_KINDS,
@@ -529,6 +532,7 @@ function App() {
       techniques: {},
     }
     morningSpawnQueueRef.current = []
+    resetMorning()
     setStatus('morning')
   }, [])
 
@@ -546,7 +550,9 @@ function App() {
       outcomes.techniques.rehearsal = success ? 'success' : 'failure'
       if (success) {
         outcomes.capacityBonus += node.effect.runCapacityBonus ?? 1
-      } else {
+        return true
+      }
+      {
         const extra = node.effect.failureSpawnCount ?? 1
         for (let index = 0; index < extra; index += 1) {
           const [kind] = drawSpawnKinds(directorRef.current, {
@@ -556,21 +562,23 @@ function App() {
           if (kind) morningSpawnQueueRef.current.push(kind)
         }
       }
-      return
+      return false
     }
     if (id === 'plan') {
       const node = getNode('plan')
       const success = scheduledSucceeded(outcome)
       outcomes.techniques.plan = success ? 'success' : 'failure'
       if (success) outcomes.planStaggerPairs = node.effect.staggerPairs ?? 2
-      return
+      return success
     }
     if (id === 'stretch') {
       const node = getNode('stretch')
       const success = stretchSucceeded(outcome)
       outcomes.techniques.stretch = success ? 'success' : 'failure'
       if (success) outcomes.stretchSeconds = node.effect.windowSeconds ?? 12
+      return success
     }
+    return false
   }, [])
 
   const queueMorningSpawn = useCallback((kind) => {
@@ -1296,6 +1304,14 @@ function App() {
                 dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
               />
               <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
+              {status === 'morning' && (
+                <MorningProps
+                  spots={[
+                    ...PRACTICE_SPOTS,
+                    ...TECHNIQUE_SPOTS.filter((spot) => progression.enabledNodeIds.includes(spot.id)),
+                  ]}
+                />
+              )}
             </>
           )}
           <SnapshotCaptureBridge registerCapture={registerSnapshotCapture} />

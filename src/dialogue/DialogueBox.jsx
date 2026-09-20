@@ -1,4 +1,4 @@
-import MorningIcon from '../morning/morningIcons.jsx'
+import SpeakingIcon from '../ui/SpeakingIcon.jsx'
 
 function scrambleText(text, intensity) {
   if (intensity <= 0) return text
@@ -43,7 +43,7 @@ export default function DialogueBox({
       <div className="speaker-row">
         <span className="portrait">
           <span className="portrait-initial" aria-hidden="true">{dialogue.speaker.slice(0, 1)}</span>
-          <span className="portrait-speaking" aria-hidden="true"><MorningIcon name="speaking" /></span>
+          <span className="portrait-speaking" aria-hidden="true"><SpeakingIcon /></span>
         </span>
         <div>
           <strong className="speaker-name">

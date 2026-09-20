@@ -40,77 +40,112 @@
   opacity: 0.72;
 }
 
-.morning-spots { position: absolute; inset: 0; }
+/* The objects are drawn in the 3D room now, so this layer must let clicks
+   through to the Canvas underneath. Everything that is still a DOM control
+   turns pointer events back on for itself. */
+.morning-layer { pointer-events: none; }
+.morning-layer > .settings-menu,
+.morning-banner,
+.morning-tag,
+.morning-door,
+.morning-practice-backdrop,
+.pick-picture,
+.dialogue-box { pointer-events: auto; }
 
-.morning-spot {
-  position: absolute;
-  display: grid;
-  justify-items: center;
-  gap: 5px;
-  padding: 0;
-  transform: translate(-50%, -50%);
-  border: 0;
-  color: #fff6e6;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-}
-.morning-spot-ring {
+.morning-tags { position: absolute; inset: 0; }
+
+/* A name tag hanging off a real object, plus what taking it gives you. */
+.morning-tag {
   position: absolute;
   top: 0;
-  left: 50%;
-  width: 62px;
-  height: 62px;
-  transform: translate(-50%, -6px);
-  border: 2px solid rgba(255, 246, 230, 0.55);
-  border-radius: 50%;
-  animation: morning-breathe 2.6s ease-in-out infinite;
-  pointer-events: none;
-}
-.morning-spot-icon {
+  left: 0;
   display: grid;
-  place-items: center;
-  width: 50px;
-  height: 50px;
-  border: 2px solid #302b38;
-  border-radius: 50%;
-  color: #302b38;
-  background: #f7f0e8;
-  box-shadow: 3px 4px 0 rgba(40, 35, 49, 0.6);
-  transition: transform 140ms ease, background 140ms ease;
+  justify-items: center;
+  gap: 2px;
+  padding: 4px 9px 5px;
+  border: 2px solid rgba(40, 35, 49, 0.9);
+  border-radius: 7px;
+  background: rgba(247, 240, 232, 0.93);
+  color: #282331;
+  font: inherit;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  will-change: transform;
 }
-.morning-spot-icon svg { width: 27px; height: 27px; }
-.morning-spot:hover .morning-spot-icon,
-.morning-spot:focus-visible .morning-spot-icon { transform: translateY(-3px); background: #fff6e6; }
-.morning-spot-label {
-  padding: 2px 8px 3px;
-  border-radius: 6px;
-  background: rgba(40, 35, 49, 0.78);
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.morning-spot-tick {
+.morning-tag::after {
+  content: "";
   position: absolute;
-  top: -4px;
-  right: -4px;
+  bottom: -7px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-top: 7px solid rgba(40, 35, 49, 0.9);
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+}
+.morning-tag-name { font-size: 12px; font-weight: 900; white-space: nowrap; }
+.morning-tag-reward {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.6;
+}
+/* The ones that actually change your run say so before you touch them. */
+.morning-tag-reward.is-upgrade {
+  padding: 1px 6px 2px;
+  border-radius: 4px;
+  color: #1d2a19;
+  background: #8fd46a;
+  opacity: 1;
+}
+.morning-tag.is-active { background: #fff6e6; border-color: #1d2a19; }
+.morning-tag.is-done { opacity: 0.55; cursor: default; }
+.morning-tag-tick {
+  position: absolute;
+  top: -8px;
+  right: -8px;
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: 2px solid #23301f;
   border-radius: 50%;
   color: #23301f;
   background: #8fd46a;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 950;
 }
-.morning-spot.is-done .morning-spot-ring { animation: none; opacity: 0.25; }
-.morning-spot.is-done .morning-spot-icon { background: #d9e7cf; }
 
-@keyframes morning-breathe {
-  0%, 100% { transform: translate(-50%, -6px) scale(1); opacity: 0.55; }
-  50% { transform: translate(-50%, -6px) scale(1.16); opacity: 0.16; }
+/* Arcade upgrade text: what you just earned, thrown up over the room. */
+.morning-reward-burst {
+  position: absolute;
+  z-index: 8;
+  top: 34%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #8fd46a;
+  font-size: clamp(30px, 5.6vw, 58px);
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 3px 4px 0 rgba(20, 30, 18, 0.9), 0 0 22px rgba(143, 212, 106, 0.55);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: morning-reward 2.2s cubic-bezier(.16,.84,.36,1) forwards;
+}
+.morning-reward-burst.tone-miss {
+  color: #e6a26a;
+  text-shadow: 3px 4px 0 rgba(44, 26, 18, 0.9);
+}
+@keyframes morning-reward {
+  0% { transform: translate(-50%, -20%) scale(0.5); opacity: 0; }
+  14% { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
+  24% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  74% { transform: translate(-50%, -62%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -96%) scale(0.96); opacity: 0; }
 }
 
 /* The front door is the ready-up, so it is the only loud thing on screen. */
@@ -134,13 +169,12 @@
 }
 .morning-door:hover { background: #a3e07f; transform: translateY(-2px); }
 .morning-door:active { transform: translateY(3px); box-shadow: 3px 3px 0 rgba(31, 46, 26, 0.72); }
-.morning-door-icon svg { width: 30px; height: 30px; }
 .morning-door strong { font-size: 16px; font-weight: 950; letter-spacing: 0.05em; }
 .morning-door small { font-size: 12px; opacity: 0.78; }
 
 /* One practice window at a time, centred, closable at any point. */
 /* Nothing in the room is clickable while a window is open. */
-.morning-layer-busy .morning-spots { pointer-events: none; opacity: 0.45; }
+.morning-layer-busy .morning-tags { opacity: 0.3; }
 .morning-layer-busy .morning-banner { opacity: 0.5; }
 .morning-door[hidden] { display: none; }
 
@@ -207,14 +241,16 @@
   .morning-banner { top: 10px; padding: 9px 12px 10px; }
   .morning-banner strong { font-size: 15px; }
   .morning-banner p { font-size: 12.5px; }
-  .morning-spot-icon { width: 42px; height: 42px; }
-  .morning-spot-icon svg { width: 22px; height: 22px; }
-  .morning-spot-ring { width: 52px; height: 52px; }
-  .morning-spot-label { font-size: 11px; }
+  .morning-tag-name { font-size: 11px; }
+  .morning-tag-reward { font-size: 9px; }
   .morning-door { right: 10px; bottom: 10px; padding: 10px 15px 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .morning-spot-ring,
   .morning-practice-get { animation: none !important; }
+  .morning-reward-burst { animation: morning-reward-static 2.2s steps(1) forwards; }
+  @keyframes morning-reward-static {
+    0%, 92% { opacity: 1; transform: translate(-50%, -50%); }
+    100% { opacity: 0; transform: translate(-50%, -50%); }
+  }
 }
