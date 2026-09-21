@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { memo, useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useT } from '../i18n/i18n.js'
+import { WALK_SPEED } from '../morning/morningSpots.js'
 
 // English signage strings mapped to translation keys. Translating inside Label
 // keeps the 3D scene's memoized parents from needing to thread the language.
@@ -327,6 +328,8 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
   const gaitTimeRef = useRef(0)
   const cameraElapsedRef = useRef(0)
   const wasActiveRef = useRef(false)
+  const morningAimRef = useRef(null)
+  const morningStep = useMemo(() => new THREE.Vector3(), [])
 
   useFrame(({ camera }, delta) => {
     if (!enabled) return
@@ -336,12 +339,48 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
     if (elapsed < 0) {
       const pose = morningFocus ?? MORNING_POSE
       targetPosition.set(...pose.position)
-      targetLook.set(...pose.look)
-      const ease = 1 - Math.exp(-delta * 3.2)
-      smoothedPosition.lerp(targetPosition, ease)
-      smoothedLook.lerp(targetLook, ease)
-      camera.position.copy(smoothedPosition)
+      if (pose.look) {
+        targetLook.set(...pose.look)
+        morningAimRef.current = null
+      } else {
+        // A patch of floor has nothing to look at: walking somewhere should not
+        // spin the player round, so their current facing is carried to the new
+        // spot. Computed once per destination, or the aim would drift as the
+        // camera slides toward it.
+        if (morningAimRef.current?.key !== pose.key) {
+          const forward = targetLook.copy(smoothedLook).sub(camera.position)
+          forward.y = 0
+          if (forward.lengthSq() < 1e-6) forward.set(0, 0, -1)
+          forward.normalize()
+          morningAimRef.current = {
+            key: pose.key,
+            point: [
+              pose.position[0] + forward.x * 4,
+              1.5,
+              pose.position[2] + forward.z * 4,
+            ],
+          }
+        }
+        targetLook.set(...morningAimRef.current.point)
+      }
+      // Walk at a real speed rather than easing in: an exponential lerp crosses
+      // most of a long room in a couple of frames, which reads as a jump cut.
+      // The aim still eases, so turning stays smooth.
+      const toTarget = morningStep.copy(targetPosition).sub(smoothedPosition)
+      const distance = toTarget.length()
+      const walking = distance > 0.04
+      if (walking) {
+        smoothedPosition.addScaledVector(toTarget.divideScalar(distance), Math.min(distance, WALK_SPEED * delta))
+      } else {
+        smoothedPosition.copy(targetPosition)
+      }
+      smoothedLook.lerp(targetLook, 1 - Math.exp(-delta * 3.4))
+
+      gaitTimeRef.current += walking ? delta : 0
+      const step = walking ? Math.sin(gaitTimeRef.current * 9.2) * 0.026 : 0
+      camera.position.set(smoothedPosition.x, smoothedPosition.y + step, smoothedPosition.z)
       camera.lookAt(smoothedLook)
+      const ease = 1 - Math.exp(-delta * 3.4)
       const morningFov = THREE.MathUtils.lerp(camera.fov, pose.fov ?? MORNING_POSE.fov, ease)
       if (Math.abs(morningFov - camera.fov) > 0.01) {
         camera.fov = morningFov

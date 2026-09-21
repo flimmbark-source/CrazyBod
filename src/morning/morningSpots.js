@@ -97,3 +97,87 @@ export function approachPose(spot) {
     fov: spot.fov ?? 62,
   }
 }
+
+// --- Walking on the floor ------------------------------------------------
+//
+// Clicking a patch of floor walks the player to it. The room is a real room,
+// so a click has to be resolved against it: clamped inside the walls, and
+// pushed out of anything solid rather than dropping the camera inside the bed.
+
+// Footprints of the things you cannot stand in, as [minX, maxX, minZ, maxZ].
+// Taken from BedroomStatic's geometry, with a little clearance.
+const FURNITURE = [
+  [-3.35, -0.75, -0.35, 4.15],  // the bed
+  [-0.95, -0.01, 2.28, 3.22],   // the nightstand
+  [2.12, 3.12, -1.45, 0.75],    // the kitchen counter
+  [2.68, 3.52, -2.6, -0.9],     // the sink unit
+]
+
+// The walls. The hall beyond the bedroom narrows, so anything past its mouth
+// is squeezed to the hall's width.
+const FLOOR_BOUNDS = { minX: -3.4, maxX: 3.4, minZ: -6.2, maxZ: 4.2 }
+const HALL_MOUTH_Z = -5.4
+const HALL_HALF_WIDTH = 1.7
+
+// Push a point out of a footprint through whichever side it is nearest.
+function pushOut(x, z, [minX, maxX, minZ, maxZ]) {
+  const clearance = 0.32
+  const exits = [
+    { x: minX - clearance, z, distance: x - minX },
+    { x: maxX + clearance, z, distance: maxX - x },
+    { x, z: minZ - clearance, distance: z - minZ },
+    { x, z: maxZ + clearance, distance: maxZ - z },
+  ]
+  return exits.reduce((best, exit) => (exit.distance < best.distance ? exit : best))
+}
+
+export function resolveFloorTarget(rawX, rawZ) {
+  if (!Number.isFinite(rawX) || !Number.isFinite(rawZ)) return null
+
+  let x = clamp(rawX, FLOOR_BOUNDS.minX, FLOOR_BOUNDS.maxX)
+  let z = clamp(rawZ, FLOOR_BOUNDS.minZ, FLOOR_BOUNDS.maxZ)
+  if (z < HALL_MOUTH_Z) x = clamp(x, -HALL_HALF_WIDTH, HALL_HALF_WIDTH)
+
+  // One pass is enough: the footprints do not overlap.
+  for (const footprint of FURNITURE) {
+    const [minX, maxX, minZ, maxZ] = footprint
+    if (x > minX && x < maxX && z > minZ && z < maxZ) {
+      const exit = pushOut(x, z, footprint)
+      x = clamp(exit.x, FLOOR_BOUNDS.minX, FLOOR_BOUNDS.maxX)
+      z = clamp(exit.z, FLOOR_BOUNDS.minZ, FLOOR_BOUNDS.maxZ)
+      break
+    }
+  }
+
+  return { x, z }
+}
+
+// How fast the player walks, in metres per second. The camera and the code
+// that decides when you have arrived both read this, so they cannot disagree.
+export const WALK_SPEED = 2.4
+
+// Where the player stands when nothing is focused: the middle of the room.
+export const MORNING_STAND = [0.55, 3.1]
+
+// The floor position a focus puts the player at.
+export function standingPointFor(focus) {
+  if (!focus) return MORNING_STAND
+  if (focus.type === 'floor') return [focus.x, focus.z]
+  const spot = spotById(focus.id)
+  if (!spot) return MORNING_STAND
+  const pose = approachPose(spot)
+  return [pose.position[0], pose.position[2]]
+}
+
+// How long a walk between two floor points takes, with a moment on the end so
+// nothing opens the instant the last step lands.
+export function walkDurationMs([fromX, fromZ], [toX, toZ]) {
+  const distance = Math.hypot(toX - fromX, toZ - fromZ)
+  return Math.min(2800, Math.max(450, (distance / WALK_SPEED) * 1000 + 260))
+}
+
+// A floor pose has no look target: walking somewhere should not spin the
+// player round, so CameraRig carries their current facing to the new spot.
+export function floorPose(target) {
+  return { position: [target.x, 1.65, target.z], look: null, fov: 70 }
+}

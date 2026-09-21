@@ -23,9 +23,16 @@ import {
   TECHNIQUE_SPOTS,
   TUTORIAL_MIRROR_SPOT,
   approachPose,
+  floorPose,
   spotById,
 } from './morning/morningSpots.js'
-import { closeMorningSpot, resetMorning, useMorningState } from './morning/morningStore.js'
+import {
+  morningWalkDuration,
+  requestMorningSpot,
+  resetMorning,
+  resetMorningFocus,
+  useMorningState,
+} from './morning/morningStore.js'
 import { MORNING_ELAPSED } from './world/JourneyScene.jsx'
 import {
   PHYSICAL_SYMPTOM_KINDS,
@@ -327,7 +334,7 @@ function App() {
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
   const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
-  const { focusId: morningFocusId } = useMorningState()
+  const { focus: morningFocus } = useMorningState()
   // Central capability derivation (Sword / Mandala / Dive) from enabled nodes.
   const progressionEffects = deriveProgressionEffects(progression.enabledNodeIds)
   // Mandala travel simulation. Owned by its own hook; App only coordinates.
@@ -370,6 +377,7 @@ function App() {
   const atEdgeRef = useRef(false)
   // The Go Home lesson now fires as the door opens, once per tutorial run.
   const morningHomeLessonRef = useRef(false)
+  const morningWalkRef = useRef(1400)
   const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   // While the day clock is below this value, a completed stretch thins the
@@ -560,7 +568,13 @@ function App() {
     // A first-run Morning is the tutorial: the player is walked to the mirror,
     // meets two minigames there, and is handed the room at PROCEED.
     setTutorialRun(withTutorial)
-    setTutorialStep(withTutorial ? 'approach' : 'none')
+    setTutorialStep(withTutorial ? 'walking' : 'none')
+    // Walking to the mirror is the opening of the tutorial. How long it takes
+    // is how long the walk takes.
+    if (withTutorial) {
+      morningWalkRef.current = morningWalkDuration(TUTORIAL_MIRROR_SPOT.id)
+      requestMorningSpot(TUTORIAL_MIRROR_SPOT.id, () => {})
+    }
     setStatus('morning')
   }, [])
 
@@ -758,6 +772,15 @@ function App() {
 
     return () => window.clearInterval(timer)
   }, [status])
+
+  // The day opens on the player walking to the mirror. Nothing is asked of them
+  // for that first second and a half; the lesson starts once they are standing
+  // in front of it.
+  useEffect(() => {
+    if (status !== 'morning' || tutorialStep !== 'walking') return undefined
+    const timer = window.setTimeout(() => setTutorialStep('first'), morningWalkRef.current)
+    return () => window.clearTimeout(timer)
+  }, [status, tutorialStep])
 
   // The scripted lessons used to spawn themselves into the timed day at fixed
   // second marks. They now happen at the bathroom mirror during the Morning:
@@ -1267,7 +1290,7 @@ function App() {
     setTutorialStep('none')
   }
 
-  // Morning: approach -> first -> second -> meter -> summary, and then the room
+  // Morning: walking -> first -> second -> meter -> summary, and then the room
   // is handed over. `room` and `door` are advice pinned to things, not gates:
   // the player already has control by the time they appear.
   const advanceTutorial = () => {
@@ -1284,7 +1307,7 @@ function App() {
     if (tutorialStep === 'summary') {
       // Handing the room over: step back from the mirror so the player can see
       // what they have been given.
-      closeMorningSpot()
+      resetMorningFocus()
       setTutorialStep('room')
       return
     }
@@ -1299,12 +1322,6 @@ function App() {
     finishTutorial()
   }
 
-  // Walking up to the mirror is the first thing the tutorial asks for, and the
-  // only click it accepts until the player gets there.
-  const approachTutorialMirror = useCallback(() => {
-    setTutorialStep('first')
-  }, [])
-
   const tutorialTarget = tutorialStep === 'first' || tutorialStep === 'second'
     ? microgames.find((game) => game.tutorialRole === tutorialStep)
     : null
@@ -1313,16 +1330,22 @@ function App() {
   // held at the mirror until the room is handed over.
   const morningFocusPose = useMemo(() => {
     if (status !== 'morning') return null
-    if (morningLesson || tutorialStep === 'summary') return approachPose(TUTORIAL_MIRROR_SPOT)
-    const spot = morningFocusId ? spotById(morningFocusId) ?? TUTORIAL_MIRROR_SPOT : null
-    return spot ? approachPose(spot) : null
-  }, [status, morningLesson, tutorialStep, morningFocusId])
+    // The lesson holds the player at the mirror until the room is handed over.
+    if (morningLesson || tutorialStep === 'summary') {
+      return { ...approachPose(TUTORIAL_MIRROR_SPOT), key: 'mirror-lesson' }
+    }
+    if (!morningFocus) return null
+    if (morningFocus.type === 'floor') {
+      return { ...floorPose(morningFocus), key: `floor-${morningFocus.key}` }
+    }
+    const spot = spotById(morningFocus.id) ?? TUTORIAL_MIRROR_SPOT
+    return { ...approachPose(spot), key: `spot-${morningFocus.key}` }
+  }, [status, morningLesson, tutorialStep, morningFocus])
 
   // Which objects the Morning offers. The tutorial narrows the room to the
   // mirror until the player has been there.
   const morningSpots = useMemo(() => {
-    if (tutorialStep === 'approach') return [TUTORIAL_MIRROR_SPOT]
-    if (morningLesson || tutorialStep === 'summary') return []
+    if (tutorialStep === 'walking' || morningLesson || tutorialStep === 'summary') return []
     return [
       ...PRACTICE_SPOTS,
       ...TECHNIQUE_SPOTS.filter((spot) => progression.enabledNodeIds.includes(spot.id)),
@@ -1330,7 +1353,10 @@ function App() {
   }, [tutorialStep, morningLesson, progression.enabledNodeIds])
 
   return (
-    <main className={`game-shell status-${status} load-${Math.min(load, 5)} cafe-beat-${cafeBeatPhase}`}>
+    <main
+      className={`game-shell status-${status} load-${Math.min(load, 5)} cafe-beat-${cafeBeatPhase}`}
+      data-tutorial-step={tutorialStep}
+    >
       <div className="world-layer">
         <Canvas
           shadows="basic"
@@ -1579,7 +1605,7 @@ function App() {
         </>
       )}
 
-      {tutorialStep !== 'none' && (
+      {tutorialStep !== 'none' && tutorialStep !== 'walking' && (
         <TutorialCallout
           step={tutorialStep}
           target={tutorialTarget}
@@ -1597,7 +1623,6 @@ function App() {
         <MorningHouse
           spots={morningSpots}
           tutorialStep={tutorialRun ? tutorialStep : 'none'}
-          onApproachMirror={approachTutorialMirror}
           enabledNodeIds={progression.enabledNodeIds}
           onTechniqueComplete={completeMorningTechnique}
           onQueueSpawn={queueMorningSpawn}
@@ -1669,13 +1694,12 @@ const TUTORIAL_TARGET_SELECTORS = {
   home: '.go-home',
   homeReminder: '.go-home',
   meter: '.load-meter',
-  approach: '.morning-tag-rehearse',
   room: '.morning-tag-coffee',
   door: '.morning-door',
 }
 
 // Steps whose copy is a plain eyebrow/title/body triple keyed by step name.
-const TUTORIAL_COPY_STEPS = ['meter', 'homeReminder', 'approach', 'room', 'door']
+const TUTORIAL_COPY_STEPS = ['meter', 'homeReminder', 'room', 'door']
 
 function OverloadMeter({ t, load, capacity, band, ratio, shake, highlighted = false }) {
   return (
@@ -1871,7 +1895,7 @@ function TutorialCallout({ step, target, onProceed }) {
         <span>{copy.eyebrow}</span>
         <strong>{copy.title}</strong>
         {copy.body && <p>{copy.body}</p>}
-        {step !== 'first' && step !== 'second' && step !== 'approach' && (
+        {step !== 'first' && step !== 'second' && (
           <button className="tutorial-next" type="button" onClick={onProceed}>
             {step === 'meter' ? t('tutorial.proceed') : t('common.gotIt')}
           </button>

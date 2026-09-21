@@ -5,10 +5,12 @@ import * as THREE from 'three'
 import { Box, Cylinder } from '../world/JourneyScene.jsx'
 import {
   morningProjections,
-  openMorningSpot,
+  requestMorningSpot,
   setMorningHover,
   useMorningState,
+  walkToFloor,
 } from './morningStore.js'
+import { approachPose } from './morningSpots.js'
 
 // The things in the room, drawn as the things they are.
 //
@@ -209,9 +211,12 @@ function Prop({ spot, done, disabled, active }) {
   }, [])
 
   const click = useCallback((event) => {
+    // Stop the floor underneath from also taking the click.
     event.stopPropagation()
     if (disabled || done) return
-    openMorningSpot(spot.id)
+    // Clicking the object walks to it exactly as clicking its label does; this
+    // used to open the window on the spot, from wherever the player stood.
+    requestMorningSpot(spot.id)
   }, [disabled, done, spot.id])
 
   return (
@@ -225,9 +230,37 @@ function Prop({ spot, done, disabled, active }) {
   )
 }
 
+// The patch of floor the player is walking to. A ring where they clicked, so
+// the click reads as "go there" rather than as nothing having happened.
+function WalkMarker({ target }) {
+  const ref = useRef(null)
+  const bornRef = useRef(0)
+
+  useEffect(() => {
+    bornRef.current = performance.now()
+  }, [target.key])
+
+  useFrame(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const age = (performance.now() - bornRef.current) / 1000
+    const settle = Math.min(1, age / 0.9)
+    mesh.scale.setScalar(1.5 - settle * 0.5)
+    mesh.material.opacity = age > 1.5 ? Math.max(0, 1 - (age - 1.5) / 0.7) * 0.85 : 0.85
+    mesh.visible = mesh.material.opacity > 0.01
+  })
+
+  return (
+    <mesh ref={ref} position={[target.x, 0.02, target.z]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.26, 0.36, 26]} />
+      <meshBasicMaterial color="#ffd166" transparent opacity={0.85} depthWrite={false} side={THREE.DoubleSide} />
+    </mesh>
+  )
+}
+
 export default function MorningProps({ spots, disabled = false }) {
   const { camera, size } = useThree()
-  const { doneIds, usedIds, hoverId, openId } = useMorningState()
+  const { doneIds, usedIds, hoverId, openId, focus } = useMorningState()
   const vector = useMemo(() => new THREE.Vector3(), [])
   const doneSet = useMemo(() => new Set([...doneIds, ...usedIds]), [doneIds, usedIds])
 
@@ -254,8 +287,41 @@ export default function MorningProps({ spots, disabled = false }) {
     document.body.style.cursor = ''
   }, [])
 
+  // Where the yellow ring goes: the patch of floor that was clicked, or the
+  // spot the player is walking up to stand in front of.
+  const marker = useMemo(() => {
+    if (!focus) return null
+    if (focus.type === 'floor') return { x: focus.x, z: focus.z, key: focus.key }
+    const spot = spots.find((entry) => entry.id === focus.id)
+    if (!spot) return null
+    const pose = approachPose(spot)
+    return { x: pose.position[0], z: pose.position[2], key: focus.key }
+  }, [focus, spots])
+
+  const floorClick = useCallback((event) => {
+    if (disabled || openId !== null) return
+    event.stopPropagation()
+    walkToFloor(event.point.x, event.point.z)
+  }, [disabled, openId])
+
   return (
     <group>
+      {/* An invisible sheet over the floor, so any bare patch of it can be
+          walked to. Props stop propagation, so clicking a thing never also
+          registers as clicking the floor behind it. */}
+      <mesh
+        position={[0, 0.001, -1]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        onClick={floorClick}
+        onPointerOver={() => { document.body.style.cursor = 'pointer' }}
+        onPointerOut={() => { document.body.style.cursor = '' }}
+      >
+        <planeGeometry args={[9, 18]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      {marker && <WalkMarker target={marker} />}
+
       {spots.map((spot) => (
         <Prop
           key={spot.id}

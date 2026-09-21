@@ -18,15 +18,10 @@ import {
   markMorningDone,
   markMorningUsed,
   morningProjections,
-  openMorningSpot,
-  setMorningFocus,
+  requestMorningSpot,
   setMorningHover,
   useMorningState,
 } from './morningStore.js'
-
-// How long the walk to a thing takes before its window opens. Matched to the
-// camera glide in CameraRig so the player arrives before anything appears.
-const APPROACH_MS = 620
 
 // The Morning is the untimed half of the day: the player stands in their own
 // house and touches things until they are ready. Nothing here is scored, no
@@ -112,7 +107,6 @@ function RewardBurst({ text, tone }) {
 export default function MorningHouse({
   spots = null,
   tutorialStep = 'none',
-  onApproachMirror,
   enabledNodeIds = [],
   onTechniqueComplete,
   onQueueSpawn,
@@ -125,7 +119,6 @@ export default function MorningHouse({
   const [burst, setBurst] = useState(null)
   const burstTimerRef = useRef(null)
 
-  const approachTimerRef = useRef(null)
   // During the scripted lesson App narrows the room to one object; otherwise
   // the Morning shows everything it owns.
   const visibleSpots = spots ?? [
@@ -157,25 +150,7 @@ export default function MorningHouse({
   )
   useLabelPlacement(labelRefs, spotIds)
 
-  useEffect(() => () => {
-    window.clearTimeout(burstTimerRef.current)
-    window.clearTimeout(approachTimerRef.current)
-  }, [])
-
-  // Clicking a thing walks you over to it first. The window only opens once
-  // you have arrived, so the room reads as somewhere you move through rather
-  // than a row of buttons over a photograph.
-  const approach = useCallback((id) => {
-    window.clearTimeout(approachTimerRef.current)
-    setMorningFocus(id)
-    // The mirror during the opening lesson is a place to stand, not a window
-    // to open: the tutorial takes over once the player gets there.
-    if (tutorialStep === 'approach') {
-      approachTimerRef.current = window.setTimeout(() => onApproachMirror?.(), APPROACH_MS)
-      return
-    }
-    approachTimerRef.current = window.setTimeout(() => openMorningSpot(id), APPROACH_MS)
-  }, [onApproachMirror, tutorialStep])
+  useEffect(() => () => window.clearTimeout(burstTimerRef.current), [])
 
   const showBurst = useCallback((text, tone = 'gain') => {
     window.clearTimeout(burstTimerRef.current)
@@ -184,7 +159,6 @@ export default function MorningHouse({
   }, [])
 
   const close = useCallback(() => {
-    window.clearTimeout(approachTimerRef.current)
     closeMorningSpot()
     setCleared(false)
   }, [])
@@ -242,7 +216,7 @@ export default function MorningHouse({
             active={hoverId === spot.id}
             disabled={busy}
             registerRef={registerRef}
-            onOpen={approach}
+            onOpen={requestMorningSpot}
           />
         ))}
         {techniqueSpots.map((spot) => (
@@ -255,7 +229,7 @@ export default function MorningHouse({
             active={hoverId === spot.id}
             disabled={busy}
             registerRef={registerRef}
-            onOpen={approach}
+            onOpen={requestMorningSpot}
           />
         ))}
       </div>
