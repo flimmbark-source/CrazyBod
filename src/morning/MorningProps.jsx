@@ -4,6 +4,7 @@ import * as THREE from 'three'
 
 import { Box, Cylinder } from '../world/JourneyScene.jsx'
 import {
+  morningLook,
   morningProjections,
   requestMorningSpot,
   setMorningHover,
@@ -266,7 +267,7 @@ function Prop({ spot, done, disabled, active, onLeave }) {
   const click = useCallback((event) => {
     // Stop the floor underneath from also taking the click.
     event.stopPropagation()
-    if (disabled || done) return
+    if (disabled || done || morningLook.suppressClick) return
     // The door is the way out of the Morning, not a thing to stand in front of.
     if (spot.startsTheDay) {
       onLeave?.()
@@ -357,7 +358,8 @@ export default function MorningProps({ spots, disabled = false, onLeave }) {
   }, [focus, spots])
 
   const floorClick = useCallback((event) => {
-    if (disabled || openId !== null) return
+    // A click that was really a drag is a look, not a destination.
+    if (disabled || openId !== null || morningLook.suppressClick) return
     event.stopPropagation()
     walkToFloor(event.point.x, event.point.z)
   }, [disabled, openId])

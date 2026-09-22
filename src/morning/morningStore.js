@@ -37,6 +37,19 @@ function emit() {
 
 export const morningProjections = new Map()
 
+// Click-and-hold to look around. The drag handler piles up raw pixel deltas
+// here and the camera consumes them each frame; keeping it out of React state
+// means dragging does not re-render the overlay sixty times a second.
+// `suppressClick` is set once a drag has travelled far enough to be a drag
+// rather than a click, so letting go does not also walk you somewhere.
+export const morningLook = { dx: 0, dy: 0, suppressClick: false }
+
+export function resetMorningLook() {
+  morningLook.dx = 0
+  morningLook.dy = 0
+  morningLook.suppressClick = false
+}
+
 export function subscribe(listener) {
   listeners.add(listener)
   return () => listeners.delete(listener)
@@ -57,6 +70,7 @@ function cancelArrival() {
 
 export function resetMorning() {
   cancelArrival()
+  resetMorningLook()
   walkCounter = 0
   state = { focus: null, openId: null, doneIds: [], usedIds: [], hoverId: null }
   morningProjections.clear()

@@ -13,6 +13,7 @@ import {
 } from '../techniques/techniqueEngine.js'
 import { getNode } from '../progression/skillTreeConfig.js'
 import { DOOR_SPOT, PRACTICE_SPOTS, TECHNIQUE_SPOTS } from './morningSpots.js'
+import useMorningLook from './useMorningLook.js'
 import {
   closeMorningSpot,
   markMorningDone,
@@ -193,6 +194,10 @@ export default function MorningHouse({
   const activePractice = PRACTICE_SPOTS.find((spot) => spot.id === openId) ?? null
   const activeTechnique = techniqueSpots.find((spot) => spot.id === openId) ?? null
   const busy = Boolean(activePractice || activeTechnique)
+  // Looking around belongs to the player: off while the scripted opening is
+  // carrying them, and off while a window has their attention.
+  const playerHasTheRoom = ['none', 'room', 'door'].includes(tutorialStep)
+  useMorningLook(playerHasTheRoom && !busy)
 
   return (
     <section

@@ -70,7 +70,7 @@ export const en = {
 
   // --- Intro -------------------------------------------------------------
   'intro.title': 'All you have to do is get to the cafe',
-  'intro.body': "It is a short walk to meet your friend Mara. Little windows keep popping up on the way. Finish a window and it goes away. If too many are open at once, the day ends badly.",
+  'intro.body': "It's just a quick walk to see your friend at the cafe. Complete the Minigames that pop up, too many on the screen and you'll bust!",
   'intro.tutorial': 'TUTORIAL',
 
   // --- Tutorial callouts -------------------------------------------------
@@ -80,10 +80,10 @@ export const en = {
   'tutorial.proceed': 'PROCEED',
   'tutorial.first.eyebrow': 'FIRST MINIGAME',
   'tutorial.first.title': 'Hold to clear it.',
-  'tutorial.first.body': 'Press and hold the button, or hold the Space key, until the bar fills.',
+  'tutorial.first.body': 'Hold the button or Space until it clears. Release when it tells you to.',
   'tutorial.second.eyebrow': 'A DIFFERENT MINIGAME',
   'tutorial.second.title': 'This one uses movement.',
-  'tutorial.second.body': 'Click the window first. Then use the arrow keys to move to the exit.',
+  'tutorial.second.body': 'Click the box, then use the arrow keys or WASD to reach the exit.',
   'tutorial.home.title': 'Too much? Go home. You keep your points.',
   'tutorial.room.eyebrow': 'THE ROOM IS YOURS',
   'tutorial.room.title': 'Click anything you like.',
@@ -461,7 +461,7 @@ export const he = {
 
   // --- Intro -------------------------------------------------------------
   'intro.title': 'כל מה שעליך לעשות הוא להגיע לבית הקפה',
-  'intro.body': 'זו הליכה קצרה לפגישה עם מארה. בדרך קופצים חלונות קטנים. כשמסיימים חלון הוא נעלם. אם נפתחים יותר מדי בבת אחת, היום נגמר רע.',
+  'intro.body': 'זו רק הליכה קצרה כדי לפגוש חבר בבית הקפה. השלימו את המשחקונים שקופצים — יותר מדי על המסך ותקרסו!',
   'intro.tutorial': 'מדריך',
 
   // --- Tutorial callouts -------------------------------------------------
@@ -471,10 +471,10 @@ export const he = {
   'tutorial.proceed': 'להמשיך',
   'tutorial.first.eyebrow': 'המשחקון הראשון',
   'tutorial.first.title': 'החזיקו כדי לפתור.',
-  'tutorial.first.body': 'לחצו והחזיקו את הכפתור, או החזיקו את מקש הרווח, עד שהפס מתמלא.',
+  'tutorial.first.body': 'החזיקו את הכפתור או רווח עד שזה נפתר. שחררו כשמבקשים.',
   'tutorial.second.eyebrow': 'משחקון אחר',
   'tutorial.second.title': 'זה משתמש בתנועה.',
-  'tutorial.second.body': 'קודם לחצו על החלון. אחר כך זוזו עם מקשי החיצים עד היציאה.',
+  'tutorial.second.body': 'לחצו על התיבה, ואז השתמשו במקשי החיצים או WASD כדי להגיע ליציאה.',
   'tutorial.home.title': 'יותר מדי? לכו הביתה. הנקודות נשארות אצלכם.',
   'tutorial.room.eyebrow': 'החדר שלכם',
   'tutorial.room.title': 'לחצו על מה שבא לכם.',

@@ -3,6 +3,12 @@ import { memo, useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useT } from '../i18n/i18n.js'
 import { WALK_SPEED } from '../morning/morningSpots.js'
+import { morningLook } from '../morning/morningStore.js'
+
+// Radians of turn per pixel dragged, and how far up and down the player may
+// look before it stops reading as a room.
+const LOOK_SENSITIVITY = 0.0032
+const LOOK_PITCH_LIMIT = 0.52
 
 // English signage strings mapped to translation keys. Translating inside Label
 // keeps the 3D scene's memoized parents from needing to thread the language.
@@ -65,17 +71,18 @@ const MORNING_POSE = {
 // back to face the room when the lesson is done. Free movement only takes over
 // once they have turned away.
 export const MORNING_PATH = [
-  { at: 0, position: [0.55, 1.65, 3.1], look: [0.4, 1.5, -4.6], fov: 70 },
-  { at: 1.1, position: [1.02, 1.65, 2.0], look: [1.7, 1.85, -0.8], fov: 67 },
-  { at: 2.2, position: [1.56, 1.65, 0.73], look: [2.62, 2.0, -1.75], fov: 62 },
-  // Turning away again, then a step back into the middle of the room.
-  { at: 3.5, position: [1.5, 1.65, 0.95], look: [0.5, 1.55, -4.2], fov: 66 },
-  { at: 4.4, position: [0.92, 1.65, 1.75], look: [0.45, 1.5, -4.6], fov: 70 },
+  // Straight ahead into the room, facing the way you were already facing.
+  { at: 0, position: [0.55, 1.65, 3.1], look: [0.55, 1.5, -4.6], fov: 70 },
+  { at: 1.35, position: [0.55, 1.65, 0.0], look: [0.55, 1.5, -7.6], fov: 70 },
+  // Then turn on the spot to face the mirror.
+  { at: 2.2, position: [0.55, 1.65, 0.0], look: [2.62, 2.05, -1.75], fov: 65 },
+  // Afterwards, turn back to straight ahead and stay exactly where you are.
+  { at: 3.1, position: [0.55, 1.65, 0.0], look: [0.55, 1.5, -7.6], fov: 70 },
 ]
 
 // The marks along that path the tutorial holds at.
 export const MORNING_PATH_AT_MIRROR = 2.2
-export const MORNING_PATH_END = 4.4
+export const MORNING_PATH_END = 3.1
 // How fast the path is walked. The mirror lesson and the turn-away both read
 // their length from here rather than keeping their own copies.
 export const MORNING_PATH_WALK_MS = MORNING_PATH_AT_MIRROR * 1000
@@ -367,6 +374,10 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
   const wasActiveRef = useRef(false)
   const morningAimRef = useRef(null)
   const morningPathRef = useRef(0)
+  // Where the player has dragged the view to, and which destination that drag
+  // belongs to: walking somewhere new re-aims at it rather than keeping an
+  // offset from the last place they looked.
+  const freeAimRef = useRef({ key: null, dragged: false, yaw: 0, pitch: 0 })
   const morningStep = useMemo(() => new THREE.Vector3(), [])
 
   useFrame(({ camera }, delta) => {
@@ -392,6 +403,9 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
       smoothedPosition.set(...sample.position)
       smoothedLook.set(...sample.look)
       morningAimRef.current = null
+      freeAimRef.current.dragged = false
+      morningLook.dx = 0
+      morningLook.dy = 0
       gaitTimeRef.current += delta
       const walking = morningStage !== 'hold'
       const step = walking ? Math.sin(gaitTimeRef.current * 9.2) * 0.026 : 0
@@ -442,6 +456,43 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
       } else {
         smoothedPosition.copy(targetPosition)
       }
+      // Click and hold to look around. The aim is re-derived from whatever the
+      // camera is pointing at until the player drags, and from then on it is
+      // theirs until they walk somewhere else.
+      const aim = freeAimRef.current
+      const poseKey = pose === MORNING_POSE ? 'room' : pose.key ?? 'pose'
+      if (aim.key !== poseKey) {
+        aim.key = poseKey
+        aim.dragged = false
+      }
+      const lookX = morningLook.dx
+      const lookY = morningLook.dy
+      morningLook.dx = 0
+      morningLook.dy = 0
+      if (lookX || lookY) {
+        if (!aim.dragged) {
+          morningStep.copy(targetLook).sub(smoothedPosition)
+          const reach = morningStep.length() || 1
+          aim.yaw = Math.atan2(morningStep.x, morningStep.z)
+          aim.pitch = Math.asin(THREE.MathUtils.clamp(morningStep.y / reach, -1, 1))
+          aim.dragged = true
+        }
+        aim.yaw -= lookX * LOOK_SENSITIVITY
+        aim.pitch = THREE.MathUtils.clamp(
+          aim.pitch - lookY * LOOK_SENSITIVITY,
+          -LOOK_PITCH_LIMIT,
+          LOOK_PITCH_LIMIT,
+        )
+      }
+      if (aim.dragged) {
+        const reach = 4
+        targetLook.set(
+          smoothedPosition.x + Math.sin(aim.yaw) * Math.cos(aim.pitch) * reach,
+          smoothedPosition.y + Math.sin(aim.pitch) * reach,
+          smoothedPosition.z + Math.cos(aim.yaw) * Math.cos(aim.pitch) * reach,
+        )
+      }
+
       smoothedLook.lerp(targetLook, 1 - Math.exp(-delta * 3.4))
 
       gaitTimeRef.current += walking ? delta : 0

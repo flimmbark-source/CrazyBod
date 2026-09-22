@@ -786,9 +786,9 @@ function App() {
     if (tutorialStep !== 'room' || morningTurned) return undefined
     const timer = window.setTimeout(() => {
       setMorningTurned(true)
-      // Hand the free-movement camera the spot the authored path left them on,
-      // so taking over is not a step backwards.
-      walkToFloor(0.92, 1.75)
+      // Hand the free-movement camera the exact spot the authored path left
+      // them standing on, so taking over does not move them.
+      walkToFloor(0.55, 0.0)
     }, MORNING_PATH_TURN_MS)
     return () => window.clearTimeout(timer)
   }, [status, tutorialRun, tutorialStep, morningTurned])
