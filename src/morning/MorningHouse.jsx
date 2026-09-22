@@ -76,18 +76,23 @@ function useLabelPlacement(labelRefs, spotIds) {
         }
         const width = element.offsetWidth
         const height = element.offsetHeight
+        // The label is centred on the thing it names, so one sitting near the
+        // edge of the frame would hang half off the screen. Keep the whole name
+        // readable; it still points at the right side of the room.
+        const edge = width / 2 + 6
+        const centerX = Math.min(Math.max(projection.x, edge), window.innerWidth - edge)
         let top = projection.y - height
         // Sorted-by-depth nudging: anything already placed that this would sit
         // on top of pushes it further up.
         for (const other of placed) {
-          const overlapsX = Math.abs(other.centerX - projection.x) < (other.width + width) / 2 + 6
+          const overlapsX = Math.abs(other.centerX - centerX) < (other.width + width) / 2 + 6
           if (overlapsX && Math.abs(other.top - top) < height + 4) {
             top = other.top - height - 6
           }
         }
-        placed.push({ centerX: projection.x, top, width, height })
+        placed.push({ centerX, top, width, height })
         element.style.visibility = 'visible'
-        element.style.transform = `translate(-50%, 0) translate(${projection.x}px, ${Math.max(6, top)}px)`
+        element.style.transform = `translate(-50%, 0) translate(${centerX}px, ${Math.max(6, top)}px)`
       }
     }
     frame = window.requestAnimationFrame(place)
@@ -107,7 +112,7 @@ function RewardBurst({ text, tone }) {
 
 export default function MorningHouse({
   spots = null,
-  tutorialStep = 'none',
+  carried = false,
   enabledNodeIds = [],
   onTechniqueComplete,
   onQueueSpawn,
@@ -195,8 +200,9 @@ export default function MorningHouse({
   const activeTechnique = techniqueSpots.find((spot) => spot.id === openId) ?? null
   const busy = Boolean(activePractice || activeTechnique)
   // Looking around belongs to the player: off while the scripted opening is
-  // carrying them, and off while a window has their attention.
-  const playerHasTheRoom = ['none', 'room', 'door'].includes(tutorialStep)
+  // carrying them on the authored path, and off while a window has their
+  // attention.
+  const playerHasTheRoom = !carried
   useMorningLook(playerHasTheRoom && !busy)
 
   return (

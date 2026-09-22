@@ -42,12 +42,13 @@ export const morningProjections = new Map()
 // means dragging does not re-render the overlay sixty times a second.
 // `suppressClick` is set once a drag has travelled far enough to be a drag
 // rather than a click, so letting go does not also walk you somewhere.
-export const morningLook = { dx: 0, dy: 0, suppressClick: false }
+export const morningLook = { dx: 0, dy: 0, suppressClick: false, dragging: false }
 
 export function resetMorningLook() {
   morningLook.dx = 0
   morningLook.dy = 0
   morningLook.suppressClick = false
+  morningLook.dragging = false
 }
 
 export function subscribe(listener) {

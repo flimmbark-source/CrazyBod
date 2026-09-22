@@ -12,9 +12,9 @@
 // standing close together on the same counter get different lifts so their
 // tags stack instead of sitting on top of each other.
 export const PRACTICE_SPOTS = [
-  { id: 'keys', model: 'keys', kind: 'workingMemory', position: [2.55, 0.92, 0.35], lift: 0.28 },
-  { id: 'coffee', model: 'mug', kind: 'fatigue', position: [2.6, 0.91, -0.4], lift: 0.4 },
-  { id: 'water', model: 'glass', kind: 'weakGrip', position: [2.64, 0.91, -1.12], lift: 0.52 },
+  { id: 'keys', model: 'keys', kind: 'workingMemory', position: [3.4, 0.92, -4.85], lift: 0.3 },
+  { id: 'coffee', model: 'mug', kind: 'fatigue', position: [3.42, 0.91, -5.55], lift: 0.44 },
+  { id: 'water', model: 'glass', kind: 'weakGrip', position: [3.44, 0.91, -6.2], lift: 0.58 },
   { id: 'clothes', model: 'clothes', kind: 'jointSlip', position: [-1.15, 1.0, 0.5], lift: 0.3 },
   { id: 'window', model: 'window', kind: 'lightSensitivity', position: [-3.72, 2.15, -3.5], lift: 0.5 },
 ]
@@ -54,7 +54,7 @@ export const DOOR_SPOT = {
   id: 'door',
   model: 'frontDoor',
   position: [0, 1.95, -14.25],
-  lift: 1.35,
+  lift: 0.75,
   reward: 'morning.reward.door',
   startsTheDay: true,
 }
@@ -86,7 +86,8 @@ export const TUTORIAL_MIRROR_SPOT = {
 // time a thing moves), the standing position is derived: step back from the
 // object toward the middle of the room, stop at eye height, and look at it.
 const ROOM_STAND = [0.55, 3.1]
-const ROOM_BOUNDS = { minX: -3.3, maxX: 3.3, minZ: -6.6, maxZ: 4.4 }
+// The bedroom runs back to the wall the hall opens through, at z = -7.88.
+const ROOM_BOUNDS = { minX: -3.3, maxX: 3.3, minZ: -7.1, maxZ: 4.4 }
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value))
@@ -98,13 +99,13 @@ export function approachPose(spot) {
   const toRoomZ = ROOM_STAND[1] - objectZ
   const length = Math.hypot(toRoomX, toRoomZ) || 1
   const standoff = spot.standoff ?? 1.5
+  const standing = resolveFloorTarget(
+    clamp(objectX + (toRoomX / length) * standoff, ROOM_BOUNDS.minX, ROOM_BOUNDS.maxX),
+    clamp(objectZ + (toRoomZ / length) * standoff, ROOM_BOUNDS.minZ, ROOM_BOUNDS.maxZ),
+  ) ?? { x: ROOM_STAND[0], z: ROOM_STAND[1] }
 
   return {
-    position: [
-      clamp(objectX + (toRoomX / length) * standoff, ROOM_BOUNDS.minX, ROOM_BOUNDS.maxX),
-      1.65,
-      clamp(objectZ + (toRoomZ / length) * standoff, ROOM_BOUNDS.minZ, ROOM_BOUNDS.maxZ),
-    ],
+    position: [standing.x, 1.65, standing.z],
     look: [objectX, objectY + (spot.lookOffset ?? 0), objectZ],
     fov: spot.fov ?? 62,
   }
@@ -121,15 +122,16 @@ export function approachPose(spot) {
 const FURNITURE = [
   [-3.35, -0.75, -0.35, 4.15],  // the bed
   [-0.95, -0.01, 2.28, 3.22],   // the nightstand
-  [2.12, 3.12, -1.45, 0.75],    // the kitchen counter
+  [2.92, 3.9, -6.75, -4.35],    // the kitchen counter by the door
   [2.68, 3.52, -2.6, -0.9],     // the sink unit
 ]
 
-// The walls. The hall beyond the bedroom narrows, so anything past its mouth
-// is squeezed to the hall's width.
-const FLOOR_BOUNDS = { minX: -3.4, maxX: 3.4, minZ: -6.2, maxZ: 4.2 }
-const HALL_MOUTH_Z = -5.4
-const HALL_HALF_WIDTH = 1.7
+// The walls. The room is full width right back to the wall the hall opens
+// through; only the hall itself is narrow, and the front door is clicked rather
+// than walked to, so the floor stops at the wall.
+const FLOOR_BOUNDS = { minX: -3.4, maxX: 3.4, minZ: -7.2, maxZ: 4.2 }
+const HALL_MOUTH_Z = -7.2
+const HALL_HALF_WIDTH = 1.9
 
 // Push a point out of a footprint through whichever side it is nearest.
 function pushOut(x, z, [minX, maxX, minZ, maxZ]) {

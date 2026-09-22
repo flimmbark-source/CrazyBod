@@ -46,6 +46,10 @@ export default function useMorningLook(active) {
       travelled += Math.abs(dx) + Math.abs(dy)
       if (travelled < DRAG_THRESHOLD) return
       morningLook.suppressClick = true
+      if (!morningLook.dragging) {
+        morningLook.dragging = true
+        document.body.style.cursor = 'grabbing'
+      }
       morningLook.dx += dx
       morningLook.dy += dy
     }
@@ -53,6 +57,10 @@ export default function useMorningLook(active) {
     const up = (event) => {
       if (event.pointerId !== pointerId) return
       pointerId = null
+      if (morningLook.dragging) {
+        morningLook.dragging = false
+        document.body.style.cursor = 'grab'
+      }
       // The click event lands right after this one; clear the flag after it.
       if (morningLook.suppressClick) {
         window.setTimeout(() => { morningLook.suppressClick = false }, 0)

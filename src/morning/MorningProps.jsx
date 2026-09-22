@@ -129,7 +129,7 @@ const HIT_SIZES = {
   mirror: [0.3, 1.25, 1.6],
   mat: [0.95, 0.4, 2.1],
   clipboard: [0.75, 0.95, 0.25],
-  frontDoor: [1.9, 2.2, 0.3],
+  frontDoor: [1.2, 1.4, 0.3],
 }
 
 function HitProxy({ model, onOver, onOut, onClick }) {
@@ -166,7 +166,7 @@ function KnockingHand() {
   })
 
   return (
-    <group>
+    <group scale={0.5}>
       <mesh>
         <circleGeometry args={[0.98, 30]} />
         <meshBasicMaterial color="#1d1726" transparent opacity={0.55} depthWrite={false} />
@@ -256,12 +256,12 @@ function Prop({ spot, done, disabled, active, onLeave }) {
     event.stopPropagation()
     if (disabled) return
     setMorningHover(spot.id)
-    document.body.style.cursor = 'pointer'
+    if (!morningLook.dragging) document.body.style.cursor = 'pointer'
   }, [disabled, spot.id])
 
   const leave = useCallback(() => {
     setMorningHover(null)
-    document.body.style.cursor = ''
+    if (!morningLook.dragging) document.body.style.cursor = 'grab'
   }, [])
 
   const click = useCallback((event) => {
@@ -337,7 +337,10 @@ export default function MorningProps({ spots, disabled = false, onLeave }) {
       morningProjections.set(spot.id, {
         x: (vector.x * 0.5 + 0.5) * size.width,
         y: (-vector.y * 0.5 + 0.5) * size.height,
-        visible: vector.z < 1,
+        // Behind the camera, or off the side of the frame once the player can
+        // turn: either way the label has nothing to point at, and clamping it
+        // to the edge would leave a sliver of a name hanging off the screen.
+        visible: vector.z < 1 && Math.abs(vector.x) <= 1 && Math.abs(vector.y) <= 1,
       })
     }
   })
@@ -373,8 +376,10 @@ export default function MorningProps({ spots, disabled = false, onLeave }) {
         position={[0, 0.001, -1]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={floorClick}
-        onPointerOver={() => { document.body.style.cursor = 'pointer' }}
-        onPointerOut={() => { document.body.style.cursor = '' }}
+        // An open hand over bare room: this is a view you can take hold of and
+        // turn, which a plain arrow or a pointing finger does not say.
+        onPointerOver={() => { if (!morningLook.dragging) document.body.style.cursor = 'grab' }}
+        onPointerOut={() => { if (!morningLook.dragging) document.body.style.cursor = '' }}
       >
         <planeGeometry args={[9, 18]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />

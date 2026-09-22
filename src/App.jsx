@@ -72,6 +72,13 @@ import {
 } from './narrative/cafeBeat.js'
 
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
+
+// The scripted opening, in order. While one of these is on screen the Morning
+// is carried: the camera is on rails and the room's things are not yet live.
+// The room is handed back on the summary's PROCEED, so `meter`, `room` and
+// `door` -- advice pinned to things the player can already click, not gates --
+// are deliberately absent.
+const MORNING_LESSON_STEPS = ['walking', 'first', 'second', 'summary']
 // How many times this save has watched the overload meter reach one-from-full.
 // The Go Home lesson fires on the second one, which is the moment the player
 // first needs the escape hatch and does not yet know it is there.
@@ -380,6 +387,8 @@ function App() {
   // The Go Home lesson now fires as the door opens, once per tutorial run.
   const morningHomeLessonRef = useRef(false)
   const [morningTurned, setMorningTurned] = useState(false)
+  const [lessonElapsed, setLessonElapsed] = useState(0)
+  const lessonElapsedRef = useRef(0)
   const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   // While the day clock is below this value, a completed stretch thins the
@@ -466,9 +475,11 @@ function App() {
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
   // The Morning shows real minigame windows and a real overload meter during
   // the scripted lesson, so the tutorial teaches the thing it will actually be.
+  // The Morning is running the scripted lesson: everything from arriving at
+  // the mirror until the room is handed over.
   const morningLesson = status === 'morning'
     && tutorialRun
-    && ['first', 'second', 'meter'].includes(tutorialStep)
+    && MORNING_LESSON_STEPS.includes(tutorialStep)
   const orderingPaused = status === 'playing' && orderDialogueOpen
   const cafeBeatActive = status === 'playing' && cafeBeatPhase !== CAFE_BEAT_PHASES.INACTIVE
   // Mara's walk-out (her outburst, then leaving) is when the day's final seconds
@@ -563,6 +574,8 @@ function App() {
     morningSpawnQueueRef.current = []
     morningHomeLessonRef.current = false
     setMorningTurned(false)
+    lessonElapsedRef.current = 0
+    setLessonElapsed(0)
     resetMorning()
     setMicrogames([])
     microgamesRef.current = []
@@ -771,19 +784,40 @@ function App() {
   }, [status])
 
   // The day opens on the player walking to the mirror. Nothing is asked of them
-  // for that first second and a half; the lesson starts once they are standing
-  // in front of it.
+  // until they are standing in front of it; then the lesson's own clock starts
+  // and the sequence below runs off it.
   useEffect(() => {
     if (status !== 'morning' || tutorialStep !== 'walking') return undefined
-    const timer = window.setTimeout(() => setTutorialStep('first'), MORNING_PATH_WALK_MS)
+    const timer = window.setTimeout(() => {
+      lessonElapsedRef.current = 0
+      setLessonElapsed(0)
+      setTutorialStep('none')
+    }, MORNING_PATH_WALK_MS)
     return () => window.clearTimeout(timer)
   }, [status, tutorialStep])
 
-  // Turning away from the mirror is the last authored move. Once it is done the
-  // player has the room and drives themselves.
+  // The lesson clock. It advances only between the callouts, exactly as the day
+  // clock used to: a callout on screen stops it, so the four seconds between
+  // the two minigames are four seconds of the player actually playing.
   useEffect(() => {
     if (status !== 'morning' || !tutorialRun) return undefined
-    if (tutorialStep !== 'room' || morningTurned) return undefined
+    if (tutorialStep !== 'none' || tutorialSecondSeenRef.current) return undefined
+    let last = performance.now()
+    const id = window.setInterval(() => {
+      const now = performance.now()
+      lessonElapsedRef.current += (now - last) / 1000
+      last = now
+      setLessonElapsed(lessonElapsedRef.current)
+    }, 100)
+    return () => window.clearInterval(id)
+  }, [status, tutorialRun, tutorialStep])
+
+  // Turning away from the mirror is the last authored move. It runs under the
+  // overload-meter tip, which is the first thing the player is told once the
+  // summary hands the room back; when it lands they drive themselves.
+  useEffect(() => {
+    if (status !== 'morning' || !tutorialRun) return undefined
+    if (tutorialStep !== 'meter' || morningTurned) return undefined
     const timer = window.setTimeout(() => {
       setMorningTurned(true)
       // Hand the free-movement camera the exact spot the authored path left
@@ -793,20 +827,31 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [status, tutorialRun, tutorialStep, morningTurned])
 
-  // The scripted lessons used to spawn themselves into the timed day at fixed
-  // second marks. They now happen at the bathroom mirror during the Morning:
-  // the player walks over, meets one minigame, then a second, then the meter.
+  // The scripted lessons, unchanged from how they always ran — only the clock
+  // they are measured against is the Morning's rather than the day's.
   useEffect(() => {
-    if (status !== 'morning' || !tutorialRun) return
-    if (tutorialStep === 'first' && !tutorialFirstSeenRef.current) {
+    if (status !== 'morning' || !tutorialRun || tutorialStep !== 'none') return
+
+    const first = TUTORIAL_SEQUENCE[0]
+    const second = TUTORIAL_SEQUENCE[1]
+
+    if (!tutorialFirstSeenRef.current && lessonElapsed >= first.at) {
       tutorialFirstSeenRef.current = true
-      spawnMicrogame(TUTORIAL_SEQUENCE[0].kind, TUTORIAL_SEQUENCE[0].role)
+      spawnMicrogame(first.kind, first.role)
+      setTutorialStep(first.role)
+      return
     }
-    if (tutorialStep === 'second' && !tutorialSecondSeenRef.current) {
+
+    if (
+      tutorialFirstSeenRef.current
+      && !tutorialSecondSeenRef.current
+      && lessonElapsed >= second.at
+    ) {
       tutorialSecondSeenRef.current = true
-      spawnMicrogame(TUTORIAL_SEQUENCE[1].kind, TUTORIAL_SEQUENCE[1].role)
+      spawnMicrogame(second.kind, second.role)
+      setTutorialStep(second.role)
     }
-  }, [status, tutorialRun, tutorialStep, spawnMicrogame])
+  }, [lessonElapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
 
   // Leaving the house is the last lesson: the day starts, and the way out of it
   // is pointed at before anything has had a chance to pile up.
@@ -1259,10 +1304,10 @@ function App() {
     })
 
     if (tutorialRun && tutorialStep === 'first' && resolvedGame?.tutorialRole === 'first') {
-      setTutorialStep('second')
+      setTutorialStep('none')
     }
     if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
-      setTutorialStep('meter')
+      setTutorialStep('summary')
     }
   }, [tutorialRun, tutorialStep])
 
@@ -1301,8 +1346,8 @@ function App() {
     setTutorialStep('none')
   }
 
-  // Morning: walking -> first -> second -> meter -> summary, and then the room
-  // is handed over. `room` and `door` are advice pinned to things, not gates:
+  // Morning: walking -> first -> second -> summary, and then the room is handed
+  // over. `meter`, `room` and `door` are advice pinned to things, not gates:
   // the player already has control by the time they appear.
   const advanceTutorial = () => {
     // The contextual Go Home reminder is not part of the scripted run, so
@@ -1311,11 +1356,11 @@ function App() {
       setTutorialStep('none')
       return
     }
-    if (tutorialStep === 'meter') {
-      setTutorialStep('summary')
+    if (tutorialStep === 'summary') {
+      setTutorialStep('meter')
       return
     }
-    if (tutorialStep === 'summary') {
+    if (tutorialStep === 'meter') {
       setTutorialStep('room')
       return
     }
@@ -1339,7 +1384,7 @@ function App() {
   const morningStage = useMemo(() => {
     if (status !== 'morning' || !tutorialRun || morningTurned) return null
     if (tutorialStep === 'walking') return 'walk'
-    if (morningLesson || tutorialStep === 'summary') return 'hold'
+    if (morningLesson) return 'hold'
     return 'turn'
   }, [status, tutorialRun, morningTurned, tutorialStep, morningLesson])
 
@@ -1357,7 +1402,8 @@ function App() {
   // Which objects the Morning offers. The tutorial narrows the room to the
   // mirror until the player has been there.
   const morningSpots = useMemo(() => {
-    if (tutorialStep === 'walking' || morningLesson || tutorialStep === 'summary') return []
+    // Nothing in the room is offered until the lesson hands it over.
+    if (morningLesson) return []
     return [
       ...PRACTICE_SPOTS,
       ...TECHNIQUE_SPOTS.filter((spot) => progression.enabledNodeIds.includes(spot.id)),
@@ -1648,7 +1694,7 @@ function App() {
       {status === 'morning' && (
         <MorningHouse
           spots={morningSpots}
-          tutorialStep={tutorialRun ? tutorialStep : 'none'}
+          carried={morningStage !== null}
           enabledNodeIds={progression.enabledNodeIds}
           onTechniqueComplete={completeMorningTechnique}
           onQueueSpawn={queueMorningSpawn}

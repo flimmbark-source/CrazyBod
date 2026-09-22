@@ -631,15 +631,16 @@ const BedroomStatic = memo(function BedroomStatic() {
         <Box position={[0.12, 1.34, 0]} size={[0.26, 0.09, 2.25]} color="#8a7a68" castShadow={false} />
       </group>
 
-      <group position={[2.62, 0, -0.35]}>
-        <Box position={[0, 0.42, 0]} size={[0.76, 0.84, 1.95]} color="#7e6f63" />
-        <Box position={[0, 0.875, 0]} size={[0.86, 0.07, 2.05]} color="#cbb9a4" />
-        <Box position={[-0.34, 0.48, 0]} size={[0.05, 0.56, 1.55]} color="#6a5d53" castShadow={false} />
+      <group position={[3.42, 0, -5.55]}>
+        <Box position={[0, 0.42, 0]} size={[0.76, 0.84, 2.0]} color="#7e6f63" />
+        <Box position={[0, 0.875, 0]} size={[0.86, 0.07, 2.1]} color="#cbb9a4" />
+        <Box position={[-0.34, 0.48, 0]} size={[0.05, 0.56, 1.6]} color="#6a5d53" castShadow={false} />
       </group>
 
       {/* The sink side of the room sat in shadow: the only lamp is over the
           bed, which left the mirror and the counter unreadable. */}
       <pointLight position={[2.6, 3.1, -1.4]} intensity={0.85} color="#ffe8c4" distance={9} decay={2} />
+      <pointLight position={[3.0, 3.0, -5.4]} intensity={0.7} color="#ffe8c4" distance={8} decay={2} />
 
 <group
   position={[3.1, 0, -1.75]}
