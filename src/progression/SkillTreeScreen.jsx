@@ -96,7 +96,7 @@ function StartDayTip({ t, onDismiss }) {
     <section className="tutorial-layer tutorial-layer-tree-start" aria-live="polite">
       <aside
         ref={calloutRef}
-        className={`tutorial-callout tutorial-callout-tree-start placement-${placement.direction}`}
+        className={`tutorial-callout has-action tutorial-callout-tree-start placement-${placement.direction}`}
         style={{
           left: `${placement.left}px`,
           top: `${placement.top}px`,

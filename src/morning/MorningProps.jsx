@@ -128,6 +128,7 @@ const HIT_SIZES = {
   mirror: [0.3, 1.25, 1.6],
   mat: [0.95, 0.4, 2.1],
   clipboard: [0.75, 0.95, 0.25],
+  frontDoor: [1.9, 2.2, 0.3],
 }
 
 function HitProxy({ model, onOver, onOut, onClick }) {
@@ -150,8 +151,60 @@ function HitProxy({ model, onOver, onOut, onClick }) {
 
 const SHARED_HIT_GEOMETRY = new THREE.BoxGeometry(1, 1, 1)
 
+// A fist about to knock, hung on the front door. The door is the only thing in
+// the room that ends the Morning, and at the far end of the hall it needs to
+// say so from a distance — so this is drawn big, and it knocks.
+function KnockingHand() {
+  const ref = useRef(null)
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    // Two quick knocks, then a pause.
+    const beat = clock.elapsedTime % 2.4
+    const knock = beat < 0.18 || (beat > 0.32 && beat < 0.5)
+    ref.current.position.z = knock ? -0.2 : 0.1
+  })
+
+  return (
+    <group>
+      <mesh>
+        <circleGeometry args={[0.98, 30]} />
+        <meshBasicMaterial color="#1d1726" transparent opacity={0.55} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 0, 0.01]}>
+        <ringGeometry args={[0.9, 0.98, 30]} />
+        <meshBasicMaterial color="#ffd166" transparent opacity={0.85} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <group ref={ref} position={[-0.08, 0, 0.1]}>
+        {/* The fist, with knuckles along the top. */}
+        <Box position={[0, 0, 0]} size={[0.78, 0.62, 0.3]} color="#f0c9a4" castShadow={false} />
+        {[-0.27, -0.09, 0.09, 0.27].map((x) => (
+          <Box key={x} position={[x, 0.32, 0.02]} size={[0.15, 0.12, 0.28]} color="#e5b892" castShadow={false} />
+        ))}
+        {/* Thumb folded across the front. */}
+        <Box position={[-0.3, -0.16, 0.14]} size={[0.34, 0.24, 0.16]} color="#e5b892" castShadow={false} />
+        {/* Wrist. */}
+        <Box position={[0.14, -0.42, -0.02]} size={[0.46, 0.3, 0.26]} color="#d9a97f" castShadow={false} />
+      </group>
+      {/* Knock lines. */}
+      {[1.08, 1.32, 1.56].map((radius, index) => (
+        <mesh key={radius} position={[0.1, 0.16, 0.04]} rotation={[0, 0, -0.55]}>
+          <ringGeometry args={[radius, radius + 0.1, 20, 1, 0, 1.0]} />
+          <meshBasicMaterial
+            color="#ffd166"
+            transparent
+            opacity={0.95 - index * 0.26}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
 const MODELS = {
   mug: Mug,
+  frontDoor: KnockingHand,
   glass: Glass,
   clothes: Clothes,
   window: WindowLatch,
@@ -186,11 +239,11 @@ function Halo({ radius, active, done }) {
   )
 }
 
-function Prop({ spot, done, disabled, active }) {
+function Prop({ spot, done, disabled, active, onLeave }) {
   const Model = MODELS[spot.model] ?? Mug
   const groupRef = useRef(null)
   // Wall-mounted things get no floor ring; it would lie flat in the wall.
-  const floorMounted = spot.model !== 'window' && spot.model !== 'mirror' && spot.model !== 'clipboard'
+  const floorMounted = !['window', 'mirror', 'clipboard', 'frontDoor'].includes(spot.model)
 
   useFrame(() => {
     if (!groupRef.current) return
@@ -214,10 +267,15 @@ function Prop({ spot, done, disabled, active }) {
     // Stop the floor underneath from also taking the click.
     event.stopPropagation()
     if (disabled || done) return
+    // The door is the way out of the Morning, not a thing to stand in front of.
+    if (spot.startsTheDay) {
+      onLeave?.()
+      return
+    }
     // Clicking the object walks to it exactly as clicking its label does; this
     // used to open the window on the spot, from wherever the player stood.
     requestMorningSpot(spot.id)
-  }, [disabled, done, spot.id])
+  }, [disabled, done, onLeave, spot.id, spot.startsTheDay])
 
   return (
     <group position={spot.position}>
@@ -258,7 +316,7 @@ function WalkMarker({ target }) {
   )
 }
 
-export default function MorningProps({ spots, disabled = false }) {
+export default function MorningProps({ spots, disabled = false, onLeave }) {
   const { camera, size } = useThree()
   const { doneIds, usedIds, hoverId, openId, focus } = useMorningState()
   const vector = useMemo(() => new THREE.Vector3(), [])
@@ -329,6 +387,7 @@ export default function MorningProps({ spots, disabled = false }) {
           done={doneSet.has(spot.id)}
           disabled={disabled || openId !== null}
           active={hoverId === spot.id}
+          onLeave={onLeave}
         />
       ))}
     </group>

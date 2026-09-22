@@ -47,7 +47,19 @@ export const TECHNIQUE_SPOTS = [
   },
 ]
 
-export const ALL_SPOTS = [...PRACTICE_SPOTS, ...TECHNIQUE_SPOTS]
+// The front door. Clicking it is the ready-up: the day starts, and the day's
+// own opening carries the player out through it, so this is the one thing in
+// the room you do not first walk over to.
+export const DOOR_SPOT = {
+  id: 'door',
+  model: 'frontDoor',
+  position: [0, 1.95, -14.25],
+  lift: 1.35,
+  reward: 'morning.reward.door',
+  startsTheDay: true,
+}
+
+export const ALL_SPOTS = [...PRACTICE_SPOTS, ...TECHNIQUE_SPOTS, DOOR_SPOT]
 
 export function spotById(id) {
   return ALL_SPOTS.find((spot) => spot.id === id) ?? null

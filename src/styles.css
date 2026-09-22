@@ -545,32 +545,3 @@ button { font: inherit; }
   .speaker-speaking-dot { animation: none; }
 }
 
-/* The continue affordance on the overload / went-home stages. */
-.end-stage-continue {
-  position: absolute;
-  z-index: 5;
-  bottom: 18px;
-  left: 50%;
-  padding: 11px 24px;
-  transform: translateX(-50%);
-  border: 3px solid #23301f;
-  border-radius: 9px;
-  color: #1d2a19;
-  background: #8fd46a;
-  box-shadow: 0 5px 0 #23301f;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 1000;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  animation: end-stage-continue-in 260ms ease-out;
-}
-.end-stage-continue:hover { background: #a3e07f; }
-.end-stage-continue:active { translate: 0 4px; box-shadow: 0 1px 0 #23301f; }
-@keyframes end-stage-continue-in {
-  from { opacity: 0; transform: translate(-50%, 8px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .end-stage-continue { animation: none; }
-}

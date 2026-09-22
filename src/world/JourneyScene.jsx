@@ -59,6 +59,43 @@ const MORNING_POSE = {
   fov: 70,
 }
 
+// The opening of the tutorial is authored the same way the day is: a short
+// keyframe path the player is carried along, rather than anything they drive.
+// They walk to the bathroom mirror, stand at it for the two lessons, and turn
+// back to face the room when the lesson is done. Free movement only takes over
+// once they have turned away.
+export const MORNING_PATH = [
+  { at: 0, position: [0.55, 1.65, 3.1], look: [0.4, 1.5, -4.6], fov: 70 },
+  { at: 1.1, position: [1.02, 1.65, 2.0], look: [1.7, 1.85, -0.8], fov: 67 },
+  { at: 2.2, position: [1.56, 1.65, 0.73], look: [2.62, 2.0, -1.75], fov: 62 },
+  // Turning away again, then a step back into the middle of the room.
+  { at: 3.5, position: [1.5, 1.65, 0.95], look: [0.5, 1.55, -4.2], fov: 66 },
+  { at: 4.4, position: [0.92, 1.65, 1.75], look: [0.45, 1.5, -4.6], fov: 70 },
+]
+
+// The marks along that path the tutorial holds at.
+export const MORNING_PATH_AT_MIRROR = 2.2
+export const MORNING_PATH_END = 4.4
+// How fast the path is walked. The mirror lesson and the turn-away both read
+// their length from here rather than keeping their own copies.
+export const MORNING_PATH_WALK_MS = MORNING_PATH_AT_MIRROR * 1000
+export const MORNING_PATH_TURN_MS = (MORNING_PATH_END - MORNING_PATH_AT_MIRROR) * 1000
+
+function sampleMorningPath(time) {
+  const upperIndex = MORNING_PATH.findIndex((keyframe) => time <= keyframe.at)
+  if (upperIndex <= 0) return MORNING_PATH[0]
+  const previous = MORNING_PATH[upperIndex - 1]
+  const next = MORNING_PATH[upperIndex]
+  const span = Math.max(0.001, next.at - previous.at)
+  const progress = smoothstep((time - previous.at) / span)
+
+  return {
+    position: previous.position.map((value, index) => THREE.MathUtils.lerp(value, next.position[index], progress)),
+    look: previous.look.map((value, index) => THREE.MathUtils.lerp(value, next.look[index], progress)),
+    fov: THREE.MathUtils.lerp(previous.fov, next.fov, progress),
+  }
+}
+
 // Door timings, exported so the sound effects and the Morning agree with the
 // visuals instead of each keeping their own copy.
 export const APARTMENT_DOOR_OPENS_AT = 0
@@ -317,7 +354,7 @@ function WalkingNpc({ start, end, duration, offset, color, accent, active, scale
   )
 }
 
-function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = null }) {
+function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = null, morningStage = null }) {
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
@@ -329,13 +366,44 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
   const cameraElapsedRef = useRef(0)
   const wasActiveRef = useRef(false)
   const morningAimRef = useRef(null)
+  const morningPathRef = useRef(0)
   const morningStep = useMemo(() => new THREE.Vector3(), [])
 
   useFrame(({ camera }, delta) => {
     if (!enabled) return
 
-    // Morning: glide between standing in the room and whatever the player has
-    // walked over to.
+    // Morning: either the authored opening (walk to the mirror, stand at it,
+    // turn away) or, once that is done, free movement between whatever the
+    // player has clicked.
+    if (elapsed < 0 && morningStage) {
+      const target = morningStage === 'walk'
+        ? MORNING_PATH_AT_MIRROR
+        : morningStage === 'hold'
+          ? MORNING_PATH_AT_MIRROR
+          : MORNING_PATH_END
+      if (morningStage === 'hold') {
+        morningPathRef.current = MORNING_PATH_AT_MIRROR
+      } else {
+        morningPathRef.current = Math.min(target, morningPathRef.current + delta)
+      }
+      const sample = sampleMorningPath(morningPathRef.current)
+      // Keep the free-movement state in step with the authored path, so the
+      // hand-over at the end of the turn is not a jump.
+      smoothedPosition.set(...sample.position)
+      smoothedLook.set(...sample.look)
+      morningAimRef.current = null
+      gaitTimeRef.current += delta
+      const walking = morningStage !== 'hold'
+      const step = walking ? Math.sin(gaitTimeRef.current * 9.2) * 0.026 : 0
+      camera.position.set(sample.position[0], sample.position[1] + step, sample.position[2])
+      camera.lookAt(smoothedLook)
+      if (Math.abs(sample.fov - camera.fov) > 0.01) {
+        camera.fov = THREE.MathUtils.lerp(camera.fov, sample.fov, 1 - Math.exp(-delta * 4))
+        camera.updateProjectionMatrix()
+      }
+      return
+    }
+
     if (elapsed < 0) {
       const pose = morningFocus ?? MORNING_POSE
       targetPosition.set(...pose.position)
@@ -894,6 +962,7 @@ function World({ elapsed, active }) {
 
 export function AuthoredJourneyScene({
   morningFocus = null,
+  morningStage = null,
   elapsed,
   active,
   cameraEnabled = true,
@@ -924,6 +993,7 @@ export function AuthoredJourneyScene({
         enabled={cameraEnabled}
         dialogueStage={dialogueStage}
         morningFocus={morningFocus}
+        morningStage={morningStage}
       />
       <World elapsed={elapsed} active={active} />
     </>

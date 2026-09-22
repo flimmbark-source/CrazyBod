@@ -80,7 +80,7 @@ function ScoreLedger({ result, banked }) {
   )
 }
 
-function OverloadBust({ capacity, canContinue, onContinue }) {
+function OverloadBust({ capacity }) {
   const t = useT()
   return (
     <section className="overload-bust-stage" role="alert" aria-live="assertive">
@@ -101,16 +101,11 @@ function OverloadBust({ capacity, canContinue, onContinue }) {
           <i key={index} />
         ))}
       </div>
-      {canContinue && (
-        <button type="button" className="end-stage-continue" onClick={onContinue}>
-          {t('common.continue')}
-        </button>
-      )}
     </section>
   )
 }
 
-function HomeReturn({ capacity, activeAtEnd, canContinue, onContinue }) {
+function HomeReturn({ capacity, activeAtEnd }) {
   const t = useT()
   return (
     <section className="home-return-stage" role="status" aria-live="polite">
@@ -131,11 +126,6 @@ function HomeReturn({ capacity, activeAtEnd, canContinue, onContinue }) {
           <i key={index} className={index < activeAtEnd ? 'filled' : ''} />
         ))}
       </div>
-      {canContinue && (
-        <button type="button" className="end-stage-continue" onClick={onContinue}>
-          {t('common.continue')}
-        </button>
-      )}
     </section>
   )
 }
@@ -181,7 +171,7 @@ function SkillTreeTutorialTip({ onDismiss }) {
     <section className="tutorial-layer tutorial-layer-results-skill-tree" aria-live="polite">
       <aside
         ref={calloutRef}
-        className={`tutorial-callout tutorial-callout-results-skill-tree placement-${placement.direction}`}
+        className={`tutorial-callout has-action tutorial-callout-results-skill-tree placement-${placement.direction}`}
         style={{
           left: `${placement.left}px`,
           top: `${placement.top}px`,
@@ -270,34 +260,15 @@ export default function ResultsScreen({
     }
   }, [phase, onSkillTree])
 
-  // The overload stage used to be swept away after two seconds — the single
-  // loudest beat in the game, gone before it registered, and often before its
-  // sting had finished playing. It now holds long enough to land, offers a
-  // Continue as soon as the animation settles, and only falls through on its
-  // own well after that.
-  const [canContinue, setCanContinue] = useState(false)
-
   useEffect(() => {
-    if (phase !== 'bust' && phase !== 'home') {
-      setCanContinue(false)
-      return undefined
-    }
+    if (phase !== 'bust' && phase !== 'home') return undefined
 
     const reducedMotion = prefersReducedMotion()
-    const settleAt = phase === 'bust'
-      ? (reducedMotion ? 1600 : 2200)
-      : (reducedMotion ? 1200 : 1800)
-    const holdFor = phase === 'bust'
-      ? (reducedMotion ? 5200 : 7000)
-      : (reducedMotion ? 3200 : 4600)
-
-    setCanContinue(false)
-    const settleTimer = window.setTimeout(() => setCanContinue(true), settleAt)
-    const timer = window.setTimeout(() => setPhase('results'), holdFor)
-    return () => {
-      window.clearTimeout(settleTimer)
-      window.clearTimeout(timer)
-    }
+    const duration = phase === 'bust'
+      ? (reducedMotion ? 1850 : 2150)
+      : (reducedMotion ? 1500 : 2200)
+    const timer = window.setTimeout(() => setPhase('results'), duration)
+    return () => window.clearTimeout(timer)
   }, [phase])
 
   const rootClass = useMemo(() => {
@@ -309,18 +280,9 @@ export default function ResultsScreen({
   return (
     <div className={rootClass}>
       {phase === 'bust' ? (
-        <OverloadBust
-          capacity={capacity}
-          canContinue={canContinue}
-          onContinue={() => setPhase('results')}
-        />
+        <OverloadBust capacity={capacity} />
       ) : phase === 'home' ? (
-        <HomeReturn
-          capacity={capacity}
-          activeAtEnd={result.activeAtEnd}
-          canContinue={canContinue}
-          onContinue={() => setPhase('results')}
-        />
+        <HomeReturn capacity={capacity} activeAtEnd={result.activeAtEnd} />
       ) : (
         <>
           <ResultsCard

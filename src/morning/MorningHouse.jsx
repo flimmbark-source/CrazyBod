@@ -12,7 +12,7 @@ import {
   STRETCH_SEQUENCE,
 } from '../techniques/techniqueEngine.js'
 import { getNode } from '../progression/skillTreeConfig.js'
-import { PRACTICE_SPOTS, TECHNIQUE_SPOTS } from './morningSpots.js'
+import { DOOR_SPOT, PRACTICE_SPOTS, TECHNIQUE_SPOTS } from './morningSpots.js'
 import {
   closeMorningSpot,
   markMorningDone,
@@ -124,6 +124,7 @@ export default function MorningHouse({
   const visibleSpots = spots ?? [
     ...PRACTICE_SPOTS,
     ...TECHNIQUE_SPOTS.filter((spot) => enabledNodeIds.includes(spot.id)),
+    DOOR_SPOT,
   ]
   const practiceSpots = useMemo(
     () => visibleSpots.filter((spot) => PRACTICE_SPOTS.some((entry) => entry.id === spot.id)),
@@ -133,6 +134,7 @@ export default function MorningHouse({
     () => visibleSpots.filter((spot) => TECHNIQUE_SPOTS.some((entry) => entry.id === spot.id)),
     [visibleSpots],
   )
+  const doorSpot = visibleSpots.find((spot) => spot.id === DOOR_SPOT.id) ?? null
   const doneSet = useMemo(() => new Set(doneIds), [doneIds])
   const usedSet = useMemo(() => new Set(usedIds), [usedIds])
   const labelRefs = useRef(new Map())
@@ -199,12 +201,6 @@ export default function MorningHouse({
     >
       <SettingsMenu variant="fixed" />
 
-      <header className="morning-banner" hidden={tutorialStep !== 'none' && tutorialStep !== 'door'}>
-        <strong>{t('morning.title')}</strong>
-        <p>{t('morning.body')}</p>
-        <em>{t('morning.noTimer')}</em>
-      </header>
-
       <div className="morning-tags">
         {practiceSpots.map((spot) => (
           <SpotLabel
@@ -219,6 +215,19 @@ export default function MorningHouse({
             onOpen={requestMorningSpot}
           />
         ))}
+        {doorSpot && (
+          <SpotLabel
+            key={doorSpot.id}
+            spot={doorSpot}
+            name={t(`morning.spot.${doorSpot.id}`)}
+            reward={{ text: t(doorSpot.reward), upgrade: true }}
+            done={false}
+            active={hoverId === doorSpot.id}
+            disabled={busy}
+            registerRef={registerRef}
+            onOpen={() => onLeave?.()}
+          />
+        )}
         {techniqueSpots.map((spot) => (
           <SpotLabel
             key={spot.id}
@@ -235,16 +244,6 @@ export default function MorningHouse({
       </div>
 
       {burst && <RewardBurst key={burst.key} text={burst.text} tone={burst.tone} />}
-
-      <button
-        type="button"
-        className={`morning-door${tutorialStep === 'door' ? ' tutorial-target' : ''}`}
-        onClick={onLeave}
-        hidden={busy || (tutorialStep !== 'none' && tutorialStep !== 'room' && tutorialStep !== 'door')}
-      >
-        <strong>{t('morning.openDoor')}</strong>
-        <small>{t('morning.openDoorHint')}</small>
-      </button>
 
       {activePractice && (
         <div

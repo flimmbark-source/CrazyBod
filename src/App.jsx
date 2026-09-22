@@ -19,21 +19,23 @@ import SuppressionTechnique from './techniques/SuppressionTechnique.jsx'
 import MorningHouse from './morning/MorningHouse.jsx'
 import MorningProps from './morning/MorningProps.jsx'
 import {
+  DOOR_SPOT,
   PRACTICE_SPOTS,
   TECHNIQUE_SPOTS,
-  TUTORIAL_MIRROR_SPOT,
   approachPose,
   floorPose,
   spotById,
 } from './morning/morningSpots.js'
 import {
-  morningWalkDuration,
-  requestMorningSpot,
   resetMorning,
-  resetMorningFocus,
   useMorningState,
+  walkToFloor,
 } from './morning/morningStore.js'
-import { MORNING_ELAPSED } from './world/JourneyScene.jsx'
+import {
+  MORNING_ELAPSED,
+  MORNING_PATH_TURN_MS,
+  MORNING_PATH_WALK_MS,
+} from './world/JourneyScene.jsx'
 import {
   PHYSICAL_SYMPTOM_KINDS,
   rehearsalSucceeded,
@@ -377,7 +379,7 @@ function App() {
   const atEdgeRef = useRef(false)
   // The Go Home lesson now fires as the door opens, once per tutorial run.
   const morningHomeLessonRef = useRef(false)
-  const morningWalkRef = useRef(1400)
+  const [morningTurned, setMorningTurned] = useState(false)
   const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   // While the day clock is below this value, a completed stretch thins the
@@ -560,6 +562,7 @@ function App() {
     }
     morningSpawnQueueRef.current = []
     morningHomeLessonRef.current = false
+    setMorningTurned(false)
     resetMorning()
     setMicrogames([])
     microgamesRef.current = []
@@ -569,12 +572,6 @@ function App() {
     // meets two minigames there, and is handed the room at PROCEED.
     setTutorialRun(withTutorial)
     setTutorialStep(withTutorial ? 'walking' : 'none')
-    // Walking to the mirror is the opening of the tutorial. How long it takes
-    // is how long the walk takes.
-    if (withTutorial) {
-      morningWalkRef.current = morningWalkDuration(TUTORIAL_MIRROR_SPOT.id)
-      requestMorningSpot(TUTORIAL_MIRROR_SPOT.id, () => {})
-    }
     setStatus('morning')
   }, [])
 
@@ -778,9 +775,23 @@ function App() {
   // in front of it.
   useEffect(() => {
     if (status !== 'morning' || tutorialStep !== 'walking') return undefined
-    const timer = window.setTimeout(() => setTutorialStep('first'), morningWalkRef.current)
+    const timer = window.setTimeout(() => setTutorialStep('first'), MORNING_PATH_WALK_MS)
     return () => window.clearTimeout(timer)
   }, [status, tutorialStep])
+
+  // Turning away from the mirror is the last authored move. Once it is done the
+  // player has the room and drives themselves.
+  useEffect(() => {
+    if (status !== 'morning' || !tutorialRun) return undefined
+    if (tutorialStep !== 'room' || morningTurned) return undefined
+    const timer = window.setTimeout(() => {
+      setMorningTurned(true)
+      // Hand the free-movement camera the spot the authored path left them on,
+      // so taking over is not a step backwards.
+      walkToFloor(0.92, 1.75)
+    }, MORNING_PATH_TURN_MS)
+    return () => window.clearTimeout(timer)
+  }, [status, tutorialRun, tutorialStep, morningTurned])
 
   // The scripted lessons used to spawn themselves into the timed day at fixed
   // second marks. They now happen at the bathroom mirror during the Morning:
@@ -1305,9 +1316,6 @@ function App() {
       return
     }
     if (tutorialStep === 'summary') {
-      // Handing the room over: step back from the mirror so the player can see
-      // what they have been given.
-      resetMorningFocus()
       setTutorialStep('room')
       return
     }
@@ -1326,14 +1334,18 @@ function App() {
     ? microgames.find((game) => game.tutorialRole === tutorialStep)
     : null
 
-  // Where the Morning camera stands. During the mirror lesson the player is
-  // held at the mirror until the room is handed over.
+  // The opening is carried, not driven: walk in, stand at the mirror through
+  // both lessons, turn back to the room. Free movement resumes after the turn.
+  const morningStage = useMemo(() => {
+    if (status !== 'morning' || !tutorialRun || morningTurned) return null
+    if (tutorialStep === 'walking') return 'walk'
+    if (morningLesson || tutorialStep === 'summary') return 'hold'
+    return 'turn'
+  }, [status, tutorialRun, morningTurned, tutorialStep, morningLesson])
+
+  // Where the Morning camera stands once the player is driving.
   const morningFocusPose = useMemo(() => {
     if (status !== 'morning') return null
-    // The lesson holds the player at the mirror until the room is handed over.
-    if (morningLesson || tutorialStep === 'summary') {
-      return { ...approachPose(TUTORIAL_MIRROR_SPOT), key: 'mirror-lesson' }
-    }
     if (!morningFocus) return null
     if (morningFocus.type === 'floor') {
       return { ...floorPose(morningFocus), key: `floor-${morningFocus.key}` }
@@ -1349,6 +1361,7 @@ function App() {
     return [
       ...PRACTICE_SPOTS,
       ...TECHNIQUE_SPOTS.filter((spot) => progression.enabledNodeIds.includes(spot.id)),
+      DOOR_SPOT,
     ]
   }, [tutorialStep, morningLesson, progression.enabledNodeIds])
 
@@ -1395,13 +1408,16 @@ function App() {
             <>
               <AuthoredJourneyScene
                 morningFocus={morningFocusPose}
+                morningStage={morningStage}
                 elapsed={status === 'morning' ? MORNING_ELAPSED : dayElapsed}
                 active={dayAdvancing}
                 cameraEnabled={!cafeBeatActive}
                 dialogueStage={dialogueOpen ? 'mara' : orderDialogueOpen ? 'order' : null}
               />
               <CafeNarrativeBeatScene elapsed={dayElapsed} phase={cafeBeatPhase} />
-              {status === 'morning' && <MorningProps spots={morningSpots} />}
+              {status === 'morning' && (
+                <MorningProps spots={morningSpots} onLeave={leaveTheHouse} />
+              )}
             </>
           )}
           <SnapshotCaptureBridge registerCapture={registerSnapshotCapture} />
@@ -1576,20 +1592,30 @@ function App() {
 
       {/* The scripted lesson borrows the day's own furniture: real minigame
           windows and the real overload meter, in the room, before any clock. */}
+      {status === 'morning' && (
+        <header className="hud">
+          <div className="hud-panel">
+            <span className="hud-label">{t('hud.time')}</span>
+            <strong>{t('hud.timeValue', { n: DAY_LENGTH })}</strong>
+          </div>
+          <OverloadMeter
+            t={t}
+            load={load}
+            capacity={capacity}
+            band={overloadBand}
+            ratio={overloadRatio}
+            shake={overloadShake}
+            highlighted={tutorialStep === 'meter'}
+          />
+          <div className="hud-panel score-panel">
+            <span className="hud-label">{t('hud.score')}</span>
+            <strong>0</strong>
+          </div>
+        </header>
+      )}
+
       {morningLesson && (
         <>
-          <header className="hud hud-lesson">
-            <OverloadMeter
-              t={t}
-              load={load}
-              capacity={capacity}
-              band={overloadBand}
-              ratio={overloadRatio}
-              shake={overloadShake}
-              highlighted={tutorialStep === 'meter'}
-            />
-          </header>
-
           <section className="microgame-layer" aria-live="polite">
             {microgames.map((game, index) => (
               <MicrogameWindow
@@ -1695,7 +1721,7 @@ const TUTORIAL_TARGET_SELECTORS = {
   homeReminder: '.go-home',
   meter: '.load-meter',
   room: '.morning-tag-coffee',
-  door: '.morning-door',
+  door: '.morning-tag-door',
 }
 
 // Steps whose copy is a plain eyebrow/title/body triple keyed by step name.
@@ -1884,18 +1910,23 @@ function TutorialCallout({ step, target, onProceed }) {
               body: '',
             }
 
+  // Only a callout that ends in a button may take pointer events; see
+  // tutorial.css. The steps that just describe the window in front of you must
+  // stay transparent to clicks.
+  const hasAction = step !== 'first' && step !== 'second'
+
   return (
     <section className={`tutorial-layer tutorial-layer-${step}`} aria-live="polite">
       <aside
         ref={calloutRef}
-        className={`tutorial-callout tutorial-callout-${step} placement-${calloutPosition.direction}`}
+        className={`tutorial-callout tutorial-callout-${step} placement-${calloutPosition.direction}${hasAction ? ' has-action' : ''}`}
         style={{ left: `${calloutPosition.left}px`, top: `${calloutPosition.top}px` }}
       >
         <i className="tutorial-pointer" aria-hidden="true" />
         <span>{copy.eyebrow}</span>
         <strong>{copy.title}</strong>
         {copy.body && <p>{copy.body}</p>}
-        {step !== 'first' && step !== 'second' && (
+        {hasAction && (
           <button className="tutorial-next" type="button" onClick={onProceed}>
             {step === 'meter' ? t('tutorial.proceed') : t('common.gotIt')}
           </button>
