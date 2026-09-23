@@ -8,12 +8,8 @@ import progressUrl from './universfield-new-notification-059-494262.mp3'
 import completionUrl from './universfield-new-notification-04-326127.mp3'
 import startCueUrl from './floraphonic-silly-trumpet-3-187810.mp3'
 
-// Door timings are owned by the scene so the sound and the visual swing cannot
-// drift apart when the day is re-timed.
-import {
-  APARTMENT_DOOR_OPENS_AT,
-  CAFE_DOOR_OPENS_AT,
-} from './JourneyScene.jsx'
+const APARTMENT_DOOR_OPENS_AT = 13.05
+const CAFE_DOOR_OPENS_AT = 28.75
 const OVERLOAD_STING_MS = 1300
 const OVERLOAD_MUSIC_FILE = 'sonican-big-band-detective-30-seconds-486239.mp3'
 const PROGRESS_IDLE_MS = 180
@@ -291,10 +287,8 @@ export default function useRequestedJourneySfx({ status, dayElapsed, load, volum
     }
 
     const previous = previousElapsedRef.current
-    // The apartment door starts swinging on the very first frame of the day,
-    // so its cue needs a hair of lead-in to be a crossing at all.
     const doors = [
-      ['apartment', Math.max(0.05, APARTMENT_DOOR_OPENS_AT)],
+      ['apartment', APARTMENT_DOOR_OPENS_AT],
       ['cafe', CAFE_DOOR_OPENS_AT],
     ]
 

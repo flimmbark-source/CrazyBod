@@ -4,11 +4,7 @@
 // game (App.jsx) and the external result script (endScreens.js). That
 // duplication must not return: every subsystem imports from here.
 
-// The scored day now begins at the front door. Everything that used to happen
-// on the clock inside the house (waking, washing, getting ready) moved into the
-// untimed Morning, so the whole scored day is the journey itself — which is why
-// it is longer than the old 50s day even though fewer events happen in it.
-export const DAY_LENGTH = 56
+export const DAY_LENGTH = 50
 export const SCORE_PER_SECOND = 10
 export const BASE_OVERLOAD_LIMIT = 5
 export const DAY_ELAPSED_EVENT = 'crazybod:day-elapsed'
@@ -24,11 +20,11 @@ export const OVERLOAD_SCORE_MULTIPLIER = 0.25
 // never runElapsed. The pacing director derives its weights/interval/pair
 // chance from the matching phase id.
 export const PHASES = [
-  { id: 'headingOut', label: 'LEAVING THE HOUSE', start: 0, end: 4 },
-  { id: 'walking', label: 'WALKING TO THE CAFÉ', start: 4, end: 29 },
-  { id: 'meeting', label: 'MEETING MARA', start: 29, end: 36 },
-  { id: 'ordering', label: 'ORDERING', start: 36, end: 45 },
-  { id: 'sitting', label: 'SITTING DOWN', start: 45, end: 56 },
+  { id: 'waking', label: 'WAKING UP', start: 0, end: 5 },
+  { id: 'gettingReady', label: 'GETTING READY', start: 5, end: 15 },
+  { id: 'walking', label: 'WALKING TO THE CAFÉ', start: 15, end: 30 },
+  { id: 'ordering', label: 'ORDERING', start: 30, end: 42 },
+  { id: 'sitting', label: 'SITTING DOWN', start: 42, end: 50 },
 ]
 
 export function phaseFor(dayElapsed) {

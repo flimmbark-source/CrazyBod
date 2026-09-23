@@ -24,7 +24,6 @@ import './modes/mandala/mandala.css'
 import './cafeBeat.css'
 import './settings/settingsMenu.css'
 import './morning/morning.css'
-import './techniques/pickFromPicture.css'
 import './microgameEnhancements.js'
 import './tutorialFocusGuide.js'
 

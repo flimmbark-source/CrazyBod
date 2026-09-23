@@ -95,8 +95,8 @@ const GO_HOME_LESSON_ON_NEAR_MISS = 2
 // player out on the street, which is where "you can turn back" means something.
 const GO_HOME_LESSON_AT = 2.6
 // Day times the two street conversations open at, matched to the camera path.
-const MARA_GREETING_AT = 30
-const ORDER_DIALOGUE_AT = 40
+const MARA_GREETING_AT = 25
+const ORDER_DIALOGUE_AT = 35
 const READY_CUE_MS = 1150
 const START_CUE_MS = 650
 
@@ -104,9 +104,9 @@ const START_CUE_MS = 650
 // then one at every dialogue choice. Kept in memory for the run only.
 const MAX_RUN_SNAPSHOTS = 14
 const AMBIENT_SNAPSHOT_COUNT = 3
-// The first conversation (Mara) opens at day 30s; keep the candid shots before
-// it, spaced across the long walk.
-const AMBIENT_SNAPSHOT_WINDOW = [3, 28]
+// The first conversation (Mara) opens at day 25s; keep the candid shots before
+// it, spaced out across the early walk.
+const AMBIENT_SNAPSHOT_WINDOW = [4, 23]
 
 // Pick a few ascending, well-spaced random day-times for the candid snapshots.
 function buildAmbientSnapshotTimes() {
@@ -353,8 +353,6 @@ function App() {
   // Three plainly separated states so the climb toward a bust is legible:
   // room left, rising (two slots or fewer), and edge (one slot left).
   const slotsLeft = Math.max(0, capacity - load)
-  const overloadBand = slotsLeft <= 1 ? 'edge' : slotsLeft <= 2 ? 'rising' : 'calm'
-  const overloadShake = Math.max(0, load - 2) * 0.8
   const homeShake = Math.max(0, load - 1) * 0.85
   const distortion = load >= 5 ? 3 : load >= 4 ? 2 : load >= 3 ? 1 : 0
   const tutorialPaused = status === 'playing' && tutorialStep !== 'none'
@@ -751,7 +749,6 @@ function App() {
       spawnElapsed,
       phaseId: currentPhaseId,
       purchasedUpgrades: progression.purchasedNodeIds.length,
-      dayElapsed: dayElapsedRef.current,
     })
     requestSpawns(batch.kinds)
   }, [spawningEnabled, spawnElapsed, currentPhaseId, requestSpawns, progression.purchasedNodeIds.length])
@@ -1037,34 +1034,6 @@ function App() {
     setSuppressing(false)
   }, [])
 
-  // Watch the approach to the edge. Each fresh arrival at the last free slot is
-  // counted once; the second one across this save pauses the day and points at
-  // Go Home.
-  useEffect(() => {
-    if (status !== 'playing') {
-      atEdgeRef.current = false
-      return
-    }
-    if (slotsLeft > 1 || load === 0) {
-      atEdgeRef.current = false
-      return
-    }
-    if (atEdgeRef.current || load >= capacity) return
-    atEdgeRef.current = true
-
-    const count = readNearOverloadCount() + 1
-    writeNearOverloadCount(count)
-    if (
-      count >= GO_HOME_LESSON_ON_NEAR_MISS
-      && !goHomeLessonShownRef.current
-      && tutorialStep === 'none'
-      && !cafeBeatActive
-    ) {
-      goHomeLessonShownRef.current = true
-      setTutorialStep('homeReminder')
-    }
-  }, [slotsLeft, load, capacity, status, cafeBeatActive, tutorialStep])
-
   useEffect(() => {
     if (status !== 'playing' || dayElapsed >= DAY_LENGTH || cafeBeatActive || load < capacity || suppressing) return
     if (!suppressUsedRef.current && progression.enabledNodeIds.includes('suppress')) {
@@ -1225,12 +1194,6 @@ function App() {
   // over. `meter`, `room` and `door` are advice pinned to things, not gates:
   // the player already has control by the time they appear.
   const advanceTutorial = () => {
-    // The contextual Go Home reminder is not part of the scripted run, so
-    // dismissing it must not mark the tutorial complete.
-    if (tutorialStep === 'homeReminder') {
-      setTutorialStep('none')
-      return
-    }
     if (tutorialStep === 'summary') {
       setTutorialStep('meter')
       return
@@ -1398,23 +1361,14 @@ function App() {
               <strong>{t('hud.timeValue', { n: remainingTime })}</strong>
             </div>
 
-            <OverloadMeter
-              t={t}
-              load={load}
-              capacity={capacity}
-              band={overloadBand}
-              ratio={overloadRatio}
-              shake={overloadShake}
-              highlighted={tutorialStep === 'meter'}
-            />
-
+            <div className="phase-label">{phaseName(dayElapsed)}</div>
             <div className="hud-panel score-panel">
               <span className="hud-label">{t('hud.score')}</span>
               <strong>{score}</strong>
             </div>
           </header>
 
-          <div className="phase-label">{phaseName(dayElapsed)}</div>
+          <OverloadMeter load={load} capacity={capacity} />
 
           <section
             className="microgame-layer"
@@ -1515,29 +1469,28 @@ function App() {
       )}
 
       {/* The scripted lesson borrows the day's own furniture: real minigame
-          windows and the real overload meter, in the room, before any clock. */}
-      {/* A practice takes the whole screen and brings its own bar; the room's
-          HUD underneath would only show through it. */}
+          windows and the real overload meter, in the room, before any clock.
+          A practice takes the whole screen and brings its own bar, so the
+          room's HUD stands down while one is open. */}
       {status === 'morning' && !morningOpenId && (
-        <header className="hud">
-          <div className="hud-panel">
-            <span className="hud-label">{t('hud.time')}</span>
-            <strong>{t('hud.timeValue', { n: DAY_LENGTH })}</strong>
-          </div>
+        <>
+          <header className="hud">
+            <div className="hud-panel">
+              <span className="hud-label">{t('hud.time')}</span>
+              <strong>{t('hud.timeValue', { n: DAY_LENGTH })}</strong>
+            </div>
+            <div className="phase-label">{t('morning.practiceTag')}</div>
+            <div className="hud-panel score-panel">
+              <span className="hud-label">{t('hud.score')}</span>
+              <strong>0</strong>
+            </div>
+          </header>
           <OverloadMeter
-            t={t}
             load={load}
             capacity={capacity}
-            band={overloadBand}
-            ratio={overloadRatio}
-            shake={overloadShake}
             highlighted={tutorialStep === 'meter'}
           />
-          <div className="hud-panel score-panel">
-            <span className="hud-label">{t('hud.score')}</span>
-            <strong>0</strong>
-          </div>
-        </header>
+        </>
       )}
 
       {morningLesson && (
@@ -1641,14 +1594,13 @@ function App() {
 // minigame window.
 const TUTORIAL_TARGET_SELECTORS = {
   home: '.go-home',
-  homeReminder: '.go-home',
   meter: '.load-meter',
   room: '.morning-tag-coffee',
   door: '.morning-tag-door',
 }
 
 // Steps whose copy is a plain eyebrow/title/body triple keyed by step name.
-const TUTORIAL_COPY_STEPS = ['meter', 'homeReminder', 'room', 'door']
+const TUTORIAL_COPY_STEPS = ['meter', 'room', 'door']
 
 
 function TutorialCallout({ step, target, onProceed }) {
@@ -1774,13 +1726,7 @@ function TutorialCallout({ step, target, onProceed }) {
             title: t('tutorial.meter.title'),
             body: t('tutorial.meter.body'),
           }
-        : step === 'homeReminder'
-          ? {
-              eyebrow: t('tutorial.homeReminder.eyebrow'),
-              title: t('tutorial.homeReminder.title'),
-              body: t('tutorial.homeReminder.body'),
-            }
-          : {
+        : {
               eyebrow: '',
               title: t('tutorial.home.title'),
               body: '',

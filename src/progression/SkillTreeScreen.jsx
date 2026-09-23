@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import {
   SKILL_TREE_NODES,
@@ -33,85 +33,6 @@ function nodeTagline(t, node) {
 }
 
 const RELEASE_HIDDEN_NODE_IDS = new Set(['swordCursor', 'mandalaDive'])
-
-// Shown once, the first time the tree is ever opened. Without it the tree is a
-// screen full of buttons with no stated exit, and players sat on it wondering
-// what they were meant to do.
-const TREE_TIP_STORAGE_KEY = 'crazybod:skill-tree-start-tip-seen'
-
-function treeTipSeen() {
-  try {
-    return window.localStorage.getItem(TREE_TIP_STORAGE_KEY) === 'true'
-  } catch {
-    return false
-  }
-}
-
-function markTreeTipSeen() {
-  try {
-    window.localStorage.setItem(TREE_TIP_STORAGE_KEY, 'true')
-  } catch {
-    // Best effort; the tip reappears next session if storage is unavailable.
-  }
-}
-
-// A callout in the same shape as the in-run tutorial steps, pinned to the
-// Start The Day button.
-function StartDayTip({ t, onDismiss }) {
-  const calloutRef = useRef(null)
-  const [placement, setPlacement] = useState({ left: 0, top: 0, direction: 'above', ready: false })
-
-  useLayoutEffect(() => {
-    const position = () => {
-      const callout = calloutRef.current
-      const target = document.querySelector('.skill-tree-start')
-      if (!callout || !target) return
-      const rect = target.getBoundingClientRect()
-      const width = callout.offsetWidth
-      const height = callout.offsetHeight
-      const edge = 12
-      const gap = 22
-      const clampLeft = (left) => Math.max(edge, Math.min(left, window.innerWidth - width - edge))
-      const clampTop = (top) => Math.max(edge, Math.min(top, window.innerHeight - height - edge))
-      const aboveTop = rect.top - height - gap
-      const direction = aboveTop < edge ? 'below' : 'above'
-      const top = direction === 'below' ? rect.bottom + gap : aboveTop
-      setPlacement({
-        left: clampLeft(rect.left + rect.width / 2 - width / 2),
-        top: clampTop(top),
-        direction,
-        ready: true,
-      })
-    }
-
-    const frame = window.requestAnimationFrame(position)
-    window.addEventListener('resize', position)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', position)
-    }
-  }, [])
-
-  return (
-    <section className="tutorial-layer tutorial-layer-tree-start" aria-live="polite">
-      <aside
-        ref={calloutRef}
-        className={`tutorial-callout has-action tutorial-callout-tree-start placement-${placement.direction}`}
-        style={{
-          left: `${placement.left}px`,
-          top: `${placement.top}px`,
-          visibility: placement.ready ? 'visible' : 'hidden',
-        }}
-      >
-        <i className="tutorial-pointer" aria-hidden="true" />
-        <span>{t('treeTip.eyebrow')}</span>
-        <strong>{t('treeTip.title')}</strong>
-        <p>{t('treeTip.body')}</p>
-        <button className="tutorial-next" type="button" onClick={onDismiss}>{t('common.gotIt')}</button>
-      </aside>
-    </section>
-  )
-}
 
 const ICONS = {
   sword: <path d="M18 4l2 2-8 8-1 3 3-1 8-8M6 18l3 3M4 20l3-3" />,
@@ -259,13 +180,6 @@ export default function SkillTreeScreen({
   const t = useT()
   const [activeId, setActiveId] = useState(null)
   const [deniedId, setDeniedId] = useState(null)
-  const [showStartTip, setShowStartTip] = useState(false)
-
-  useEffect(() => {
-    if (treeTipSeen()) return
-    markTreeTipSeen()
-    setShowStartTip(true)
-  }, [])
   const visibleNodes = SKILL_TREE_NODES.filter((node) => !RELEASE_HIDDEN_NODE_IDS.has(node.id))
   const active = activeId ? SKILL_TREE_NODES_BY_ID[activeId] : null
   const activeVisible = active
@@ -391,15 +305,9 @@ export default function SkillTreeScreen({
         />
       </div>
 
-      <button
-        type="button"
-        className={`skill-tree-start${showStartTip ? ' tutorial-target' : ''}`}
-        onClick={onStartDay}
-      >
+      <button type="button" className="skill-tree-start" onClick={onStartDay}>
         {t('common.startDay')}
       </button>
-
-      {showStartTip && <StartDayTip t={t} onDismiss={() => setShowStartTip(false)} />}
     </div>
   )
 }

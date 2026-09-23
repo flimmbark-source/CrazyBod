@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MICROGAME_NAMES } from '../minigames/catalog.jsx'
 import { MicrogameWindow, positionFor } from '../minigames/window.jsx'
-import OverloadMeter, { overloadBand } from '../ui/OverloadMeter.jsx'
+import OverloadMeter from '../ui/OverloadMeter.jsx'
 import { useT } from '../i18n/i18n.js'
 import { practiceScript } from './practiceConfig.js'
 
@@ -133,14 +133,7 @@ export default function PracticeSession({ id, name, onPass, onFail, onLeave }) {
           <strong>{name}</strong>
         </div>
         {canFail ? (
-          <OverloadMeter
-            t={t}
-            load={load}
-            capacity={capacity}
-            band={overloadBand(load, capacity)}
-            ratio={Math.min(1, load / capacity)}
-            shake={Math.max(0, load - 2) * 0.8}
-          />
+          <OverloadMeter load={load} capacity={capacity} />
         ) : (
           <div className="practice-session-count">
             <span>{t('practice.left')}</span>

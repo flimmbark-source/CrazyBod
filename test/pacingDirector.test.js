@@ -12,8 +12,8 @@ test('takeSpawnBatch keys pacing off phaseId and spawnElapsed', () => {
   initializePacingDirector(director, 0)
   assert.ok(director.nextSpawnAt > 0)
 
-  const batch = takeSpawnBatch(director, { spawnElapsed: 5, phaseId: 'walking' })
-  assert.equal(batch.phase, 'walking')
+  const batch = takeSpawnBatch(director, { spawnElapsed: 5, phaseId: 'gettingReady' })
+  assert.equal(batch.phase, 'gettingReady')
   assert.ok(Array.isArray(batch.kinds))
   assert.ok(batch.kinds.length >= 1)
   // Each entry is a {kind, slot} object so pair-aware nodes can stagger.
@@ -32,7 +32,7 @@ test('unknown phaseId falls back to the last phase without throwing', () => {
 })
 
 test('owned upgrades add 0.3 seconds each to every phase spawn delay', () => {
-  const phaseIds = ['headingOut', 'walking', 'meeting', 'ordering', 'sitting']
+  const phaseIds = ['waking', 'gettingReady', 'walking', 'ordering', 'sitting']
 
   for (const phaseId of phaseIds) {
     const withoutUpgrades = createPacingDirector(99)

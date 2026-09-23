@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { MICROGAME_NAMES as CATALOG_NAMES, NewMicrogameContent } from './catalog.jsx'
+import { NewMicrogameContent } from './catalog.jsx'
 import { useT } from '../i18n/i18n.js'
 
-// The four original microgames. They used to live inside App.jsx, which meant
-// nothing but the running day could show one — the Morning needs exactly these
-// four to teach with, so they live here and both screens render them through
-// MicrogameContent below.
+// The four original microgames, lifted out of App.jsx unchanged so that the
+// Morning can show the same ones the day does. Nothing here is new code.
 
 function DiscomfortGame({ onResolve }) {
   const t = useT()
@@ -159,10 +157,4 @@ export function MicrogameContent({ kind, onResolve, paused = false }) {
       <NewMicrogameContent kind={kind} onResolve={onResolve} />
     </>
   )
-}
-
-// The window title for a kind, translated.
-export function useMicrogameName() {
-  const t = useT()
-  return (kind) => (CATALOG_NAMES[kind] ? t(`microgame.${kind}`) : kind)
 }

@@ -148,6 +148,10 @@
   }
 }
 
+.results-actions:not(.has-skill-tree) .results-restart {
+  grid-column: 1 / -1;
+}
+
 /* Two columns, two rows. The day and its quieter twin down the left; the tree
    and the switch that belongs to Practice down the right. DOM order is
    restart, practice, tree, switch -- so each is placed explicitly. */
@@ -156,7 +160,6 @@
 .results-skill-tree { grid-column: 2; grid-row: 1; }
 .results-tutorial-toggle { grid-column: 2; grid-row: 2; }
 
-.results-actions:not(.has-skill-tree) .results-restart,
 .results-actions:not(.has-skill-tree) .results-practice {
   grid-column: 1 / -1;
 }
@@ -201,8 +204,6 @@
   translate: 0 4px;
   box-shadow: 0 1px 0 #292431;
 }
-
-
 
 .results-actions button:focus-visible {
   outline: 4px solid #fff8ef;

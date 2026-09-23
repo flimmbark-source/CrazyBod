@@ -171,7 +171,7 @@ function SkillTreeTutorialTip({ onDismiss }) {
     <section className="tutorial-layer tutorial-layer-results-skill-tree" aria-live="polite">
       <aside
         ref={calloutRef}
-        className={`tutorial-callout has-action tutorial-callout-results-skill-tree placement-${placement.direction}`}
+        className={`tutorial-callout tutorial-callout-results-skill-tree placement-${placement.direction}`}
         style={{
           left: `${placement.left}px`,
           top: `${placement.top}px`,

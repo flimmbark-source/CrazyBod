@@ -22,33 +22,39 @@ const WORLD_LABEL_KEYS = {
 // MORNING_ELAPSED below. From the door the walk to the cafe is deliberately the
 // longest stretch of the day.
 const PLAYER_PATH = [
-  // Leaving the house: the door is already swinging as the day starts.
-  { at: 0, position: [0, 1.65, -13.0], look: [0, 1.45, -20], walk: 0, fov: 67 },
-  { at: 1.4, position: [0, 1.65, -17.4], look: [0, 1.48, -26], walk: 0.92, fov: 68 },
+  // Waking up: begin beside the bed and walk straight to the bathroom.
+  { at: 0, position: [0.55, 1.65, 3.1], look: [0.4, 1.43, -4.2], walk: 0.9, fov: 68 },
+  { at: 4.4, position: [0.55, 1.65, -1.2], look: [0.4, 1.43, -5.4], walk: 0.9, fov: 68 },
+  { at: 4.9, position: [0.55, 1.65, -1.2], look: [2.85, 1.42, -1.7], walk: 0, fov: 67 },
+  { at: 7.35, position: [0.55, 1.65, -1.2], look: [2.85, 1.42, -1.7], walk: 0, fov: 67 },
 
-  // Walking to the cafe: a long, steady street.
-  { at: 8, position: [-0.4, 1.65, -30], look: [0, 1.42, -38], walk: 1, fov: 68 },
-  { at: 16, position: [-0.4, 1.65, -45], look: [0, 1.42, -53], walk: 1, fov: 68 },
-  { at: 24, position: [0, 1.65, -58], look: [0, 1.42, -66], walk: 1, fov: 68 },
+  // Getting ready: turn into the hall, approach the door, stop, then leave after it opens.
+  { at: 8, position: [0.55, 1.65, -1.2], look: [0, 1.45, -10.4], walk: 0, fov: 67 },
+  { at: 12.15, position: [0, 1.65, -10.7], look: [0, 1.45, -14.7], walk: 0.9, fov: 67 },
+  { at: 13.05, position: [0, 1.65, -13.0], look: [0, 1.43, -14.85], walk: 0.55, fov: 67 },
+  { at: 14.55, position: [0, 1.65, -13.0], look: [0, 1.43, -16.8], walk: 0, fov: 67 },
+  { at: 15.0, position: [0, 1.65, -13.0], look: [0, 1.45, -22], walk: 0, fov: 67 },
+  { at: 16, position: [0, 1.65, -17.4], look: [0, 1.48, -26], walk: 0.92, fov: 68 },
 
-  // Meeting Mara outside, then in through the cafe doorway.
-  { at: 29, position: [0, 1.65, -65.5], look: [-1.8, 1.48, -70.8], walk: 1, fov: 68 },
-  { at: 30, position: [0, 1.65, -68.2], look: [-2.2, 1.48, -70.9], walk: 0.55, fov: 67 },
-  { at: 33.1, position: [0, 1.65, -68.2], look: [-2.2, 1.48, -70.9], walk: 0, fov: 66 },
-  { at: 33.8, position: [0, 1.65, -70.8], look: [0, 1.5, -77], walk: 0.6, fov: 67 },
-  { at: 34.8, position: [0, 1.65, -70.8], look: [0, 1.5, -80], walk: 0, fov: 67 },
-  { at: 36.2, position: [0, 1.65, -79], look: [0, 1.5, -87], walk: 0.82, fov: 67 },
+  // Walking to the café: keep the existing Mara greeting, then enter through the doorway.
+  { at: 20, position: [-0.4, 1.65, -37], look: [0, 1.42, -45], walk: 1, fov: 68 },
+  { at: 24.2, position: [0, 1.65, -65.5], look: [-1.8, 1.48, -70.8], walk: 1, fov: 68 },
+  { at: 25, position: [0, 1.65, -68.2], look: [-2.2, 1.48, -70.9], walk: 0.55, fov: 67 },
+  { at: 28.1, position: [0, 1.65, -68.2], look: [-2.2, 1.48, -70.9], walk: 0, fov: 66 },
+  { at: 28.8, position: [0, 1.65, -70.8], look: [0, 1.5, -77], walk: 0.6, fov: 67 },
+  { at: 29.8, position: [0, 1.65, -70.8], look: [0, 1.5, -80], walk: 0, fov: 67 },
+  { at: 31.2, position: [0, 1.65, -79], look: [0, 1.5, -87], walk: 0.82, fov: 67 },
 
   // Ordering: turn toward the counter, approach the barista and stop for the order.
-  { at: 38.4, position: [0, 1.65, -85], look: [-1.3, 1.48, -95.15], walk: 0.78, fov: 67 },
-  { at: 40, position: [-0.6, 1.65, -89], look: [-1.3, 1.48, -95.15], walk: 0.45, fov: 65 },
-  { at: 41, position: [-0.6, 1.65, -89], look: [4.2, 1.42, -91.6], walk: 0, fov: 66 },
+  { at: 33.4, position: [0, 1.65, -85], look: [-1.3, 1.48, -95.15], walk: 0.78, fov: 67 },
+  { at: 35, position: [-0.6, 1.65, -89], look: [-1.3, 1.48, -95.15], walk: 0.45, fov: 65 },
+  { at: 36, position: [-0.6, 1.65, -89], look: [4.2, 1.42, -91.6], walk: 0, fov: 66 },
 
   // Sitting down: move to the player's side of the table, then settle so the
   // seated eyeline rises to meet Mara's head across the table.
-  { at: 45.5, position: [4.2, 1.65, -88.25], look: [4.2, 1.55, -91.6], walk: 0.78, fov: 64 },
-  { at: 46.2, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
-  { at: 56, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
+  { at: 40.5, position: [4.2, 1.65, -88.25], look: [4.2, 1.55, -91.6], walk: 0.78, fov: 64 },
+  { at: 41.2, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
+  { at: 50, position: [4.2, 1.58, -88.25], look: [4.2, 1.62, -91.6], walk: 0, fov: 63 },
 ]
 
 // Where the camera stands during the untimed Morning: in the bedroom, facing
@@ -105,9 +111,9 @@ function sampleMorningPath(time) {
 
 // Door timings, exported so the sound effects and the Morning agree with the
 // visuals instead of each keeping their own copy.
-export const APARTMENT_DOOR_OPENS_AT = 0
-export const APARTMENT_DOOR_SWING_SECONDS = 0.8
-export const CAFE_DOOR_OPENS_AT = 33.75
+export const APARTMENT_DOOR_OPENS_AT = 13.05
+export const APARTMENT_DOOR_SWING_SECONDS = 1.15
+export const CAFE_DOOR_OPENS_AT = 28.75
 
 const BEDROOM_COLOR = new THREE.Color('#b8a7bb')
 const STREET_COLOR = new THREE.Color('#9eb4c0')
@@ -521,7 +527,7 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
 
     targetPosition.set(sample.position[0] + sway, sample.position[1] + bob, sample.position[2])
     targetLook.set(...sample.look)
-    if (dialogueStage === 'mara' && elapsed >= 29.5 && elapsed < 34.4) {
+    if (dialogueStage === 'mara' && elapsed >= 24.5 && elapsed < 29.4) {
       targetLook.lerp(MARA_LOOK, 0.82)
     }
     if (dialogueStage === 'order') targetLook.lerp(BARISTA_LOOK, 0.9)
@@ -568,8 +574,8 @@ function Atmosphere({ elapsed }) {
   const target = useMemo(() => new THREE.Color(), [])
 
   useFrame(({ scene }, delta) => {
-    if (elapsed < 1.5) target.copy(BEDROOM_COLOR)
-    else if (elapsed < 30) target.copy(STREET_COLOR)
+    if (elapsed < 16) target.copy(BEDROOM_COLOR)
+    else if (elapsed < 25) target.copy(STREET_COLOR)
     else target.copy(CAFE_COLOR)
 
     if (!(scene.background instanceof THREE.Color)) scene.background = target.clone()
@@ -891,7 +897,7 @@ const CafeFacadeStatic = memo(function CafeFacadeStatic() {
 
 function CafeFacade({ elapsed, active }) {
   const cafeDoorProgress = clamp01((elapsed - CAFE_DOOR_OPENS_AT) / 0.9)
-  const maraMode = elapsed >= 29 && elapsed < 34.2 ? 'wave' : 'idle'
+  const maraMode = elapsed >= 24 && elapsed < 29.2 ? 'wave' : 'idle'
 
   return (
     <group>
@@ -990,9 +996,9 @@ const CafeInterior = memo(function CafeInterior({ active }) {
 function World({ elapsed, active }) {
   // The bedroom stays drawn through the Morning (negative elapsed) and for the
   // first moments of the walk, while the cafe fades in down the street.
-  const bedroomVisible = elapsed < 6
-  const streetVisible = elapsed >= -1 && elapsed < 40
-  const cafeVisible = elapsed >= 8
+  const bedroomVisible = elapsed < 19
+  const streetVisible = elapsed >= -1 && elapsed < 35
+  const cafeVisible = elapsed >= 18
 
   return (
     <group>

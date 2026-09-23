@@ -3,9 +3,9 @@ import { memo, useCallback, useMemo } from 'react'
 import { MicrogameContent } from './core.jsx'
 import { useT } from '../i18n/i18n.js'
 
-// The real minigame window, and the geometry that places one on screen. The
-// day spawns these; so does the Morning's practice, which is the point -- a
-// practice is the same windows the day will throw, not a lookalike.
+// The real minigame window and the geometry that places one on screen, lifted
+// out of App.jsx unchanged. The day spawns these; so does the Morning, which
+// is the point -- a practice is the same window the day will throw.
 
 export function seededFraction(seed, value) {
   let next = (seed ^ Math.imul(value + 1, 0x9e3779b9)) >>> 0
@@ -38,10 +38,7 @@ export function positionFor(seed, index, existingGames) {
     minimumLeft,
     ((viewportWidth - width - 10) / viewportWidth) * 100,
   )
-  // Keep windows clear of the top bar: the overload meter now lives up there
-  // with the phase label under it, and a window landing on either hid the one
-  // reading the player most needs.
-  const minimumTop = compact ? 22 : 21
+  const minimumTop = compact ? 18 : 15
   const maximumTop = Math.max(
     minimumTop,
     ((viewportHeight - height - 14) / viewportHeight) * 100,

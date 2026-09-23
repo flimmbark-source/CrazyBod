@@ -196,9 +196,11 @@
 
 /* The Morning wears the day's own top bar now, and the settings gear sat on
    top of the clock panel. Drop it below the bar while the Morning is up. */
-.morning-layer > .settings-menu-fixed { top: 108px; }
+/* The overload meter sits under the clock panel at 88px; drop the gear below
+   it so the two do not stack on the same corner. */
+.morning-layer > .settings-menu-fixed { top: 152px; }
 @media (max-width: 820px) {
-  .morning-layer > .settings-menu-fixed { top: 92px; }
+  .morning-layer > .settings-menu-fixed { top: 136px; }
 }
 
 

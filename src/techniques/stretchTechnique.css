@@ -1,0 +1,65 @@
+.stretch-dialogue .stretch-joints {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stretch-joint {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 2px solid #282331;
+  border-radius: 9px;
+  background: #fffaf4;
+  color: #282331;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: none;
+  transition: transform 90ms ease;
+}
+
+.stretch-joint.is-active {
+  transform: scale(0.98);
+}
+
+.stretch-joint-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: #efcf69;
+  transition: transform 60ms linear;
+  z-index: 0;
+}
+
+.stretch-joint-label {
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.04em;
+}
+
+.stretch-joint.is-done {
+  cursor: default;
+  border-color: #a07a1f;
+  color: #4a3b12;
+}
+
+.stretch-joint.is-done .stretch-joint-fill {
+  background: #e6b93f;
+}
+
+@media (max-width: 520px) {
+  .stretch-dialogue .stretch-joints {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stretch-joint,
+  .stretch-joint-fill {
+    transition: none;
+  }
+}
