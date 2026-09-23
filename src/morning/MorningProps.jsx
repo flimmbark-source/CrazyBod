@@ -240,6 +240,79 @@ function Halo({ radius, active, done }) {
   )
 }
 
+// A soft yellow bloom sitting on the object itself. With the name tags now
+// hidden until the cursor finds them, this is what says "this is a thing you
+// can touch" -- readable from across the room and from any angle, because it is
+// a billboard rather than geometry. Brighter under the cursor, green once the
+// thing is done with.
+const GLOW_TEXTURE = (() => {
+  if (typeof document === 'undefined') return null
+  const size = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+  // No hot white core: additive blending blows a bright centre out to a white
+  // dot, which reads as a pixel artefact rather than as a glow. A low, wide
+  // falloff keeps the colour and lets it sit around the object.
+  gradient.addColorStop(0, 'rgba(255,255,255,0.62)')
+  gradient.addColorStop(0.22, 'rgba(255,255,255,0.42)')
+  gradient.addColorStop(0.52, 'rgba(255,255,255,0.16)')
+  gradient.addColorStop(0.78, 'rgba(255,255,255,0.05)')
+  gradient.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, size, size)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+
+// Roughly twice the size of the thing, so the bloom sits around it rather than
+// on it. A glow the size of a mug just looks like a mark on the mug.
+const GLOW_SIZES = {
+  mug: 1.05,
+  glass: 0.95,
+  clothes: 1.5,
+  keys: 0.9,
+  window: 2.6,
+  mirror: 2.4,
+  mat: 2.0,
+  clipboard: 1.5,
+  frontDoor: 3.0,
+}
+
+const GLOW_IDLE = new THREE.Color('#ffd166')
+const GLOW_ACTIVE = new THREE.Color('#fff0b8')
+const GLOW_DONE = new THREE.Color('#8fd46a')
+
+function Glow({ size = 0.62, active, done }) {
+  const ref = useRef(null)
+  useFrame(({ clock }) => {
+    const sprite = ref.current
+    if (!sprite) return
+    // A slow breath, so it reads as alive without pulling the eye off the room.
+    const breath = 1 + Math.sin(clock.elapsedTime * 1.6) * 0.06
+    const scale = size * (active ? 1.3 : 1) * breath
+    sprite.scale.set(scale, scale, 1)
+    sprite.material.opacity = done ? 0.14 : active ? 0.7 : 0.4
+    sprite.material.color.copy(done ? GLOW_DONE : active ? GLOW_ACTIVE : GLOW_IDLE)
+  })
+
+  if (!GLOW_TEXTURE) return null
+  return (
+    <sprite ref={ref} renderOrder={-1}>
+      <spriteMaterial
+        map={GLOW_TEXTURE}
+        transparent
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        toneMapped={false}
+      />
+    </sprite>
+  )
+}
+
 function Prop({ spot, done, disabled, active, onLeave }) {
   const Model = MODELS[spot.model] ?? Mug
   const groupRef = useRef(null)
@@ -281,6 +354,7 @@ function Prop({ spot, done, disabled, active, onLeave }) {
   return (
     <group position={spot.position}>
       {floorMounted && <Halo radius={spot.model === 'mat' ? 0.62 : 0.2} active={active} done={done} />}
+      {!disabled && <Glow size={GLOW_SIZES[spot.model] ?? 0.62} active={active} done={done} />}
       <group ref={groupRef}>
         <Model />
       </group>

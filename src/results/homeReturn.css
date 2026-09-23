@@ -249,4 +249,21 @@
     opacity: 0.34;
     transform: translate(-50%, -50%) scale(0.92);
   }
+
+  /* Same as the bust screen: without this the going-home screen is a still
+     frame for two seconds. Opacity only. */
+  .home-copy span,
+  .home-copy strong,
+  .home-copy em,
+  .home-meter i {
+    animation: home-reduced-fade 460ms ease both !important;
+  }
+  .home-copy strong { animation-delay: 140ms !important; }
+  .home-copy em { animation-delay: 340ms !important; }
+  .home-meter i { animation-delay: 460ms !important; }
+}
+
+@keyframes home-reduced-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

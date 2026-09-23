@@ -35,12 +35,12 @@ import {
 // A label pinned to a real object in the room. It knows nothing about where it
 // goes: MorningHouse places every label in one pass below, so labels for things
 // standing close together can be nudged apart.
-function SpotLabel({ spot, name, reward, done, active, disabled, registerRef, onOpen }) {
+function SpotLabel({ spot, name, reward, done, active, disabled, pinned = false, registerRef, onOpen }) {
   return (
     <button
       ref={(element) => registerRef(spot.id, element)}
       type="button"
-      className={`morning-tag morning-tag-${spot.id}${done ? ' is-done' : ''}${active ? ' is-active' : ''}`}
+      className={`morning-tag morning-tag-${spot.id}${done ? ' is-done' : ''}${active ? ' is-active' : ''}${pinned ? ' is-pinned' : ''}`}
       disabled={disabled || done}
       onPointerEnter={() => setMorningHover(spot.id)}
       onPointerLeave={() => setMorningHover(null)}
@@ -236,6 +236,7 @@ export default function MorningHouse({
             spot={doorSpot}
             name={t(`morning.spot.${doorSpot.id}`)}
             reward={{ text: t(doorSpot.reward), upgrade: true }}
+            pinned
             done={false}
             active={hoverId === doorSpot.id}
             disabled={busy}

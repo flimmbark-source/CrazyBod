@@ -70,8 +70,28 @@
   background: #8fd46a;
   opacity: 1;
 }
+/* The room is read by looking at it, not by reading a wall of labels: a name
+   only appears for the thing under the cursor. What marks a thing as touchable
+   the rest of the time is its glow (see MorningProps). The front door keeps its
+   label pinned -- it is the way out, and should not have to be hunted for. */
+.morning-tag {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 110ms ease, background 120ms ease, border-color 120ms ease;
+}
+.morning-tag.is-pinned,
+.morning-tag.is-active,
+.morning-tag:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
 .morning-tag.is-active { background: #fff6e6; border-color: #1d2a19; }
 .morning-tag.is-done { opacity: 0.55; cursor: default; }
+.morning-tag.is-done:not(.is-active):not(.is-pinned) { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .morning-tag { transition: none; }
+}
 .morning-tag-tick {
   position: absolute;
   top: -8px;

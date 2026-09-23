@@ -31,9 +31,12 @@ to `a24c14c`**. So the day is the original one:
 
 ### The Morning (new files only)
 
-`src/morning/` — the untimed house: the room's objects drawn in 3D, their
-labels, walking to what you click, click-and-hold to look around, the mirror /
-stretch / checklist techniques, and the front door that starts the day.
+`src/morning/` — the untimed house: the room's objects drawn in 3D, walking to
+what you click, click-and-hold to look around, the mirror / stretch / checklist
+techniques, and the front door that starts the day. Each object carries a soft
+yellow glow; its name only appears while the cursor is on it. The front door
+keeps its label pinned, since it is the way out. Every Morning begins standing
+beside the bed.
 
 `src/morning/PracticeSession.jsx` + `practiceConfig.js` — a practice is a short
 run of the day's real minigames. `keys`, `clothes` and `window` send three, one
@@ -75,10 +78,15 @@ the Morning.
    they had to stay — which means they are also visible during the day's
    getting-ready sequence. Say the word and I will hide them outside the
    Morning.
-2. **The end screens are static when your OS has "reduce motion" on.** Original
-   behaviour, original file, untouched: the `@media (prefers-reduced-motion:
-   reduce)` block in `endScreens.css` sets `.bust-tiles { display: none }` and
-   kills every other animation.
+2. ~~The end screens are static under reduce-motion.~~ **Diagnosed and
+   softened.** The `@media (prefers-reduced-motion: reduce)` blocks in
+   `endScreens.css` and `homeReturn.css` were killing every animation on those
+   screens, leaving a still frame for two seconds. Measured with the browser's
+   own `getAnimations()`: motion on, 90 of 90 frames had running animations;
+   motion reduced, 0 of 62 did. Those screens now fade their words in under the
+   setting -- opacity only, no travel, shake or scaling -- so they are alive
+   without breaking what the setting is for. Nothing changes for anyone with
+   motion enabled.
 
 ## Test baseline
 

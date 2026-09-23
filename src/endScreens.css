@@ -368,4 +368,23 @@
 
   .bust-tiles { display: none; }
   .bust-rings { opacity: 0.3; transform: scale(1.2); }
+
+  /* Killing every animation left this screen completely dead: it held one
+     still frame for two seconds and cut. Fade the words in instead. Opacity
+     only -- no travel, no shake, no scaling -- which is what the setting is
+     actually asking for. */
+  .bust-copy span,
+  .bust-copy strong,
+  .bust-copy em,
+  .bust-meter i {
+    animation: bust-reduced-fade 420ms ease both !important;
+  }
+  .bust-copy strong { animation-delay: 120ms !important; }
+  .bust-copy em { animation-delay: 300ms !important; }
+  .bust-meter i { animation-delay: 420ms !important; }
+}
+
+@keyframes bust-reduced-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

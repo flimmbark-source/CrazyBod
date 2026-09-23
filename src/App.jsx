@@ -274,6 +274,9 @@ function App() {
   // The Go Home lesson now fires as the door opens, once per tutorial run.
   const morningHomeLessonRef = useRef(false)
   const [morningTurned, setMorningTurned] = useState(false)
+  // Bumped once per Morning so the camera rig can put the player back beside
+  // the bed rather than walking them there from wherever the last one ended.
+  const [morningKey, setMorningKey] = useState(0)
   const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   // While the day clock is below this value, a completed stretch thins the
@@ -457,6 +460,7 @@ function App() {
     morningSpawnQueueRef.current = []
     morningHomeLessonRef.current = false
     setMorningTurned(false)
+    setMorningKey((n) => n + 1)
     resetMorning()
     setMicrogames([])
     microgamesRef.current = []
@@ -1296,6 +1300,7 @@ function App() {
               <AuthoredJourneyScene
                 morningFocus={morningFocusPose}
                 morningStage={morningStage}
+                morningKey={morningKey}
                 elapsed={status === 'morning' ? MORNING_ELAPSED : dayElapsed}
                 active={dayAdvancing}
                 cameraEnabled={!cafeBeatActive}

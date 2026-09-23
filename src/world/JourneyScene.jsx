@@ -367,7 +367,7 @@ function WalkingNpc({ start, end, duration, offset, color, accent, active, scale
   )
 }
 
-function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = null, morningStage = null }) {
+function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = null, morningStage = null, morningKey = 0 }) {
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const targetLook = useMemo(() => new THREE.Vector3(), [])
   const smoothedLook = useMemo(() => new THREE.Vector3(...PLAYER_PATH[0].look), [])
@@ -385,6 +385,22 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
   // offset from the last place they looked.
   const freeAimRef = useRef({ key: null, dragged: false, yaw: 0, pitch: 0 })
   const morningStep = useMemo(() => new THREE.Vector3(), [])
+  // Each Morning begins standing beside the bed. The smoothed position is kept
+  // across mounts so that walking is continuous within a session, which means a
+  // second Morning would otherwise start wherever the last one was left and
+  // walk itself back to the bed in front of the player. Snap instead.
+  const morningKeyRef = useRef(null)
+  if (morningKeyRef.current !== morningKey) {
+    morningKeyRef.current = morningKey
+    smoothedPosition.set(...MORNING_POSE.position)
+    smoothedLook.set(...MORNING_POSE.look)
+    morningAimRef.current = null
+    morningPathRef.current = 0
+    freeAimRef.current.key = null
+    freeAimRef.current.dragged = false
+    freeAimRef.current.yaw = 0
+    freeAimRef.current.pitch = 0
+  }
 
   useFrame(({ camera }, delta) => {
     if (!enabled) return
@@ -1019,6 +1035,7 @@ function World({ elapsed, active }) {
 export function AuthoredJourneyScene({
   morningFocus = null,
   morningStage = null,
+  morningKey = 0,
   elapsed,
   active,
   cameraEnabled = true,
@@ -1050,6 +1067,7 @@ export function AuthoredJourneyScene({
         dialogueStage={dialogueStage}
         morningFocus={morningFocus}
         morningStage={morningStage}
+        morningKey={morningKey}
       />
       <World elapsed={elapsed} active={active} />
     </>
