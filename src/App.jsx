@@ -22,6 +22,7 @@ import {
   DOOR_SPOT,
   PRACTICE_SPOTS,
   TECHNIQUE_SPOTS,
+  MORNING_STAND,
   approachPose,
   floorPose,
   spotById,
@@ -30,6 +31,7 @@ import {
   resetMorning,
   useMorningState,
   walkToFloor,
+  walkToStart,
 } from './morning/morningStore.js'
 import {
   MORNING_ELAPSED,
@@ -78,6 +80,9 @@ const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 // How far into the walk to the mirror the first lesson arrives. Early enough
 // that the player is plainly still moving when it does.
 const TUTORIAL_FIRST_AT_MS = 900
+
+// How long the player has in the house before the day takes them.
+const PRACTICE_SECONDS = 60
 
 // The scripted opening, in order. While one of these is on screen the Morning
 // is carried: the camera is on rails and the room's things are not yet live.
@@ -277,6 +282,13 @@ function App() {
   // Bumped once per Morning so the camera rig can put the player back beside
   // the bed rather than walking them there from wherever the last one ended.
   const [morningKey, setMorningKey] = useState(0)
+  // True while the player is being walked back to the start; the room stops
+  // taking clicks so the walk cannot be interrupted halfway.
+  const [morningLeaving, setMorningLeaving] = useState(false)
+  // The practice clock. Untimed used to mean the player could stand in the
+  // house forever; a minute is long enough to try things and short enough that
+  // the day is still the point.
+  const [practiceLeft, setPracticeLeft] = useState(PRACTICE_SECONDS)
   const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   // While the day clock is below this value, a completed stretch thins the
@@ -461,6 +473,9 @@ function App() {
     morningHomeLessonRef.current = false
     setMorningTurned(false)
     setMorningKey((n) => n + 1)
+    setMorningLeaving(false)
+    leavingRef.current = false
+    setPracticeLeft(PRACTICE_SECONDS)
     resetMorning()
     setMicrogames([])
     microgamesRef.current = []
@@ -492,8 +507,19 @@ function App() {
   // player has that switch on.
   const startPractice = useCallback(() => openMorning(tutorialEnabled), [openMorning, tutorialEnabled])
 
+  // The day starts from where it always started: beside the bed. Opening the
+  // door -- or running the practice clock out -- turns the player around, walks
+  // them back there, and only then begins the run.
+  const leavingRef = useRef(false)
   const leaveTheHouse = useCallback(() => {
-    beginGame()
+    if (leavingRef.current) return
+    leavingRef.current = true
+    setMorningLeaving(true)
+    walkToStart([MORNING_STAND[0], 1.65, MORNING_STAND[1]], () => {
+      leavingRef.current = false
+      setMorningLeaving(false)
+      beginGame()
+    })
   }, [beginGame])
 
   // The Morning's techniques are the same ones the day used to interrupt itself
@@ -714,6 +740,27 @@ function App() {
     }, Math.max(0, MORNING_PATH_WALK_MS - TUTORIAL_FIRST_AT_MS))
     return () => window.clearTimeout(timer)
   }, [status, tutorialRun, tutorialStep, spawnMicrogame])
+
+  // The practice clock. It only runs once the room has been handed over -- the
+  // scripted lesson is not something to be hurried through -- and stops the
+  // moment the player is on their way out.
+  useEffect(() => {
+    if (status !== 'morning' || morningLesson || morningLeaving) return undefined
+    let last = performance.now()
+    const id = window.setInterval(() => {
+      const now = performance.now()
+      const delta = (now - last) / 1000
+      last = now
+      setPracticeLeft((left) => Math.max(0, left - delta))
+    }, 100)
+    return () => window.clearInterval(id)
+  }, [status, morningLesson, morningLeaving])
+
+  // Time up: the day takes them, the same way the door does.
+  useEffect(() => {
+    if (status !== 'morning' || morningLeaving || practiceLeft > 0) return
+    leaveTheHouse()
+  }, [status, morningLeaving, practiceLeft, leaveTheHouse])
 
   // Turning away from the mirror is the last authored move. It runs under the
   // overload-meter tip, which is the first thing the player is told once the
@@ -1484,7 +1531,12 @@ function App() {
               <span className="hud-label">{t('hud.time')}</span>
               <strong>{t('hud.timeValue', { n: DAY_LENGTH })}</strong>
             </div>
-            <div className="phase-label">{t('morning.practiceTag')}</div>
+            <div className="phase-label practice-clock">
+              <span>{t('morning.practiceTag')}</span>
+              <i aria-hidden="true">
+                <b style={{ transform: `scaleX(${Math.max(0, practiceLeft) / PRACTICE_SECONDS})` }} />
+              </i>
+            </div>
             <div className="hud-panel score-panel">
               <span className="hud-label">{t('hud.score')}</span>
               <strong>0</strong>
@@ -1532,7 +1584,7 @@ function App() {
       {status === 'morning' && (
         <MorningHouse
           spots={morningSpots}
-          carried={morningStage !== null}
+          carried={morningStage !== null || morningLeaving}
           enabledNodeIds={progression.enabledNodeIds}
           onTechniqueComplete={completeMorningTechnique}
           onQueueSpawn={queueMorningSpawn}

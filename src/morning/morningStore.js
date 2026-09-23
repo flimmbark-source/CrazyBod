@@ -124,6 +124,33 @@ export function walkToFloor(x, z) {
   emit()
 }
 
+// Turn to face where the day begins, walk back to it, and hand over when the
+// player is standing there. Leaving by the door and running the practice clock
+// out both go through here, so the day never starts with a cut from wherever
+// the player happened to be.
+export function walkToStart(point, onArrive = null) {
+  cancelArrival()
+  const from = standingPointFor(state.focus)
+  walkCounter += 1
+  state.focus = {
+    type: 'floor',
+    x: point[0],
+    z: point[2],
+    // Unlike an ordinary floor click, this one has somewhere to look: the spot
+    // the player is walking back to, so they turn towards it first.
+    look: [point[0], 1.5, point[2] - 4],
+    key: walkCounter,
+  }
+  state.openId = null
+  emit()
+  const ms = walkDurationMs(from, [point[0], point[2]])
+  arrivalTimer = window.setTimeout(() => {
+    arrivalTimer = 0
+    onArrive?.()
+  }, Math.max(450, ms))
+  return Math.max(450, ms)
+}
+
 // Send the player back to the middle of the room (used when the opening lesson
 // hands the room over, so they are not left nose-to-glass at the mirror).
 export function resetMorningFocus() {

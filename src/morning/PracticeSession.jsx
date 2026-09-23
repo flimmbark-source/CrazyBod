@@ -32,7 +32,7 @@ function buildQueue(script, seed) {
   return queue
 }
 
-export default function PracticeSession({ id, name, onPass, onFail, onLeave }) {
+export default function PracticeSession({ id, name, onCleared, onPass, onFail, onLeave }) {
   const t = useT()
   const script = useMemo(() => practiceScript(id), [id])
   const seed = useMemo(() => (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0, [id])
@@ -85,13 +85,19 @@ export default function PracticeSession({ id, name, onPass, onFail, onLeave }) {
   const resolve = useCallback((gameId) => {
     if (resolvedRef.current.has(gameId)) return
     resolvedRef.current.add(gameId)
+    // Where the window stood, read before React takes it away, so the GET!
+    // lands on the thing the player just answered. The room owns the popup
+    // rather than this session: clearing the last one ends the practice in the
+    // same tick, and a GET! rendered here would go with it.
+    const rect = document.querySelector(`[data-game-id="${gameId}"]`)?.getBoundingClientRect()
+    if (rect && rect.width > 0) onCleared?.(rect.left + rect.width / 2, rect.top + rect.height / 2)
     setGames((current) => {
       const next = current.filter((game) => game.id !== gameId)
       gamesRef.current = next
       return next
     })
     setCleared((n) => n + 1)
-  }, [])
+  }, [onCleared])
 
   // Losing: only the practice that has a capacity can be lost, and it is lost
   // the moment the meter fills, exactly as the day is.
@@ -108,18 +114,13 @@ export default function PracticeSession({ id, name, onPass, onFail, onLeave }) {
 
   const finishedRef = useRef(false)
   useEffect(() => {
-    if (!outcome || finishedRef.current) return undefined
+    if (!outcome || finishedRef.current) return
     finishedRef.current = true
-    const timer = window.setTimeout(() => {
-      if (outcome === 'passed') onPass?.(id)
-      else onFail?.(id)
-    }, 1500)
-    return () => window.clearTimeout(timer)
+    if (outcome === 'passed') onPass?.(id)
+    else onFail?.(id)
   }, [outcome, id, onPass, onFail])
 
   if (!script) return null
-
-  const left = Math.max(0, queue.length - cleared)
 
   return (
     <section
@@ -132,14 +133,7 @@ export default function PracticeSession({ id, name, onPass, onFail, onLeave }) {
           <span>{t('morning.practiceTag')}</span>
           <strong>{name}</strong>
         </div>
-        {canFail ? (
-          <OverloadMeter load={load} capacity={capacity} />
-        ) : (
-          <div className="practice-session-count">
-            <span>{t('practice.left')}</span>
-            <strong>{left}</strong>
-          </div>
-        )}
+        {canFail ? <OverloadMeter load={load} capacity={capacity} /> : <span />}
         <button type="button" className="practice-session-leave" onClick={() => onLeave?.(id)}>
           {t('morning.leaveIt')}
         </button>
@@ -158,12 +152,6 @@ export default function PracticeSession({ id, name, onPass, onFail, onLeave }) {
         ))}
       </div>
 
-      {outcome && (
-        <div className="practice-session-verdict" role="status" aria-live="polite">
-          <strong>{outcome === 'passed' ? t('practice.passed') : t('practice.failed')}</strong>
-          <em>{outcome === 'passed' ? t('practice.passedBody') : t('practice.failedBody')}</em>
-        </div>
-      )}
     </section>
   )
 }

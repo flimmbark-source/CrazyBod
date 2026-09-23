@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { NewMicrogameContent } from './catalog.jsx'
 import { useT } from '../i18n/i18n.js'

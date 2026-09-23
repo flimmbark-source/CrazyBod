@@ -123,6 +123,11 @@ export default function MorningHouse({
   const { openId, doneIds, usedIds, hoverId } = useMorningState()
   const [burst, setBurst] = useState(null)
   const burstTimerRef = useRef(null)
+  // GET! popups from practice minigames. They live here rather than in the
+  // session so that the one for the last minigame -- which ends the practice
+  // in the same tick -- still gets to play.
+  const [gets, setGets] = useState([])
+  const getIdRef = useRef(0)
 
   // During the scripted lesson App narrows the room to one object; otherwise
   // the Morning shows everything it owns.
@@ -167,6 +172,13 @@ export default function MorningHouse({
 
   const close = useCallback(() => {
     closeMorningSpot()
+  }, [])
+
+  const popGet = useCallback((x, y) => {
+    const id = getIdRef.current
+    getIdRef.current += 1
+    setGets((current) => [...current, { id, x, y }])
+    window.setTimeout(() => setGets((current) => current.filter((g) => g.id !== id)), 1100)
   }, [])
 
   // A practice that is seen through is marked done and says so; one that is
@@ -261,11 +273,23 @@ export default function MorningHouse({
 
       {burst && <RewardBurst key={burst.key} text={burst.text} tone={burst.tone} />}
 
+      {gets.map((get) => (
+        <strong
+          key={get.id}
+          className="practice-get"
+          style={{ left: `${get.x}px`, top: `${get.y}px` }}
+          aria-hidden="true"
+        >
+          {t('morning.get')}
+        </strong>
+      ))}
+
       {activePractice && (
         <PracticeSession
           key={activePractice.id}
           id={activePractice.id}
           name={t(`morning.spot.${activePractice.id}`)}
+          onCleared={popGet}
           onPass={passPractice}
           onFail={failPractice}
           onLeave={close}

@@ -16,7 +16,7 @@ export const PRACTICE_SPOTS = [
   { id: 'coffee', model: 'mug', kind: 'fatigue', position: [3.42, 0.91, -5.55], lift: 0.44 },
   { id: 'water', model: 'glass', kind: 'weakGrip', position: [3.44, 0.91, -6.2], lift: 0.58 },
   { id: 'clothes', model: 'clothes', kind: 'jointSlip', position: [-1.15, 1.0, 0.5], lift: 0.3 },
-  { id: 'window', model: 'window', kind: 'lightSensitivity', position: [-3.72, 2.15, -3.5], lift: 0.5 },
+  { id: 'window', model: 'window', kind: 'lightSensitivity', position: [-3.72, 2.0, -3.5], lift: 0.9 },
 ]
 
 // The upgrade elements. Each appears only when its skill node is owned and
@@ -193,5 +193,8 @@ export function walkDurationMs([fromX, fromZ], [toX, toZ]) {
 // A floor pose has no look target: walking somewhere should not spin the
 // player round, so CameraRig carries their current facing to the new spot.
 export function floorPose(target) {
-  return { position: [target.x, 1.65, target.z], look: null, fov: 70 }
+  // Most floor targets have nothing to look at, so the camera carries the
+  // player's current facing. A walk back to the start names its own look, so
+  // they turn towards where the day begins before setting off.
+  return { position: [target.x, 1.65, target.z], look: target.look ?? null, fov: 70 }
 }

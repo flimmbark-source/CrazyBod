@@ -610,7 +610,13 @@ const BedroomStatic = memo(function BedroomStatic() {
     <group>
       <Box position={[0, -0.12, -1]} size={[8, 0.24, 14]} color="#9b806d" />
       <Box position={[0, 4.35, -1]} size={[8, 0.18, 14]} color="#d8c5ae" castShadow={false} />
-      <Box position={[-4, 2.2, -1]} size={[0.22, 4.4, 14]} color="#d2b69d" />
+      {/* The left wall, built around a hole. It used to be one slab, which is
+          why the window was a panel stuck on it rather than something you
+          could see through. Opening: y 0.8-3.2, z -5.15 to -1.85. */}
+      <Box position={[-4, 2.2, -6.575]} size={[0.22, 4.4, 2.85]} color="#d2b69d" />
+      <Box position={[-4, 2.2, 2.075]} size={[0.22, 4.4, 7.85]} color="#d2b69d" />
+      <Box position={[-4, 0.4, -3.5]} size={[0.22, 0.8, 3.3]} color="#d2b69d" />
+      <Box position={[-4, 3.8, -3.5]} size={[0.22, 1.2, 3.3]} color="#d2b69d" />
       <Box position={[4, 2.2, -1]} size={[0.22, 4.4, 14]} color="#d2b69d" />
       <Box position={[0, 2.2, 6]} size={[8, 4.4, 0.22]} color="#c79e89" />
       <Box position={[-3.86, 0.15, -1]} size={[0.12, 0.28, 13.7]} color="#876c62" />
@@ -643,13 +649,25 @@ const BedroomStatic = memo(function BedroomStatic() {
       {/* A window on the left wall, and the low counter the morning's coffee
           and water stand on. Both are part of the room proper: the Morning
           only adds the loose things you pick up, never the furniture. */}
-      <group position={[-3.88, 0, -3.5]}>
-        <Box position={[0, 2.15, 0]} size={[0.1, 1.5, 2.1]} color="#6f6355" castShadow={false} />
-        <Box position={[0.05, 2.15, 0]} size={[0.06, 1.28, 1.88]} color="#cfe2ea" opacity={0.82} castShadow={false} />
-        <Box position={[0.08, 2.15, 0]} size={[0.05, 1.32, 0.09]} color="#6f6355" castShadow={false} />
-        <Box position={[0.08, 2.15, 0]} size={[0.05, 0.09, 1.92]} color="#6f6355" castShadow={false} />
-        <Box position={[0.12, 1.34, 0]} size={[0.26, 0.09, 2.25]} color="#8a7a68" castShadow={false} />
+      {/* A wide window, the tree outside it, and the light that tree throws on
+          the floor. The glass is nearly clear so the tree is the view rather
+          than a suggestion of one. */}
+      <group position={[-3.95, 0, -3.5]}>
+        {/* Rails, jambs and a cross of glazing bars -- the frame only, so the
+            hole stays a hole. */}
+        <Box position={[0, 0.86, 0]} size={[0.14, 0.13, 3.34]} color="#6f6355" castShadow={false} />
+        <Box position={[0, 3.14, 0]} size={[0.14, 0.13, 3.34]} color="#6f6355" castShadow={false} />
+        <Box position={[0, 2.0, -1.6]} size={[0.14, 2.4, 0.13]} color="#6f6355" castShadow={false} />
+        <Box position={[0, 2.0, 1.6]} size={[0.14, 2.4, 0.13]} color="#6f6355" castShadow={false} />
+        <Box position={[0, 2.0, 0]} size={[0.1, 2.3, 0.09]} color="#6f6355" castShadow={false} />
+        <Box position={[0, 2.0, 0]} size={[0.1, 0.09, 3.2]} color="#6f6355" castShadow={false} />
+        {/* Glass, barely there: the tree is meant to be the view. */}
+        <Box position={[0, 2.0, 0]} size={[0.03, 2.28, 3.2]} color="#dff0f6" opacity={0.12} castShadow={false} />
+        {/* The sill, inside the room. */}
+        <Box position={[0.22, 0.79, 0]} size={[0.4, 0.1, 3.5]} color="#8a7a68" castShadow={false} />
       </group>
+      <OutsideTree />
+      <Komorebi />
 
       <group position={[3.42, 0, -5.55]}>
         <Box position={[0, 0.42, 0]} size={[0.76, 0.84, 2.0]} color="#7e6f63" />
@@ -719,6 +737,135 @@ const BedroomStatic = memo(function BedroomStatic() {
     </group>
   )
 })
+
+// What is on the other side of the window: a sky, a strip of grass, and a tree
+// close enough to fill the frame. Drawn without shadows -- it is scenery seen
+// through glass, and the room's own shadow budget is spent on the room.
+function OutsideTree() {
+  // Placed on the line the player actually looks along: from the bed and from
+  // the middle of the room, the window frames a point several metres further
+  // down the outside wall, not straight out from it.
+  const leaves = useMemo(() => ([
+    { position: [-6.9, 3.0, -6.3], radius: 1.7, color: '#5f8a45' },
+    { position: [-6.4, 3.9, -7.6], radius: 1.25, color: '#6d9b4e' },
+    { position: [-7.2, 3.6, -4.7], radius: 1.3, color: '#547c3d' },
+    { position: [-8.3, 3.7, -6.6], radius: 1.05, color: '#6d9b4e' },
+    { position: [-6.7, 4.6, -5.8], radius: 1.15, color: '#7aa957' },
+    { position: [-6.2, 2.3, -5.2], radius: 0.85, color: '#4d7338' },
+    { position: [-7.0, 2.2, -7.5], radius: 0.8, color: '#4d7338' },
+  ]), [])
+
+  return (
+    <group>
+      {/* Sky and ground behind the tree, so the window does not look out on
+          nothing. */}
+      <mesh position={[-13, 5, -5]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[20, 16]} />
+        <meshBasicMaterial color="#bcd6e4" />
+      </mesh>
+      {/* Stops short of the wall: any further and the grass shows as a green
+          line along the skirting inside the room. */}
+      <mesh position={[-9.1, 0.02, -5]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[9, 18]} />
+        <meshBasicMaterial color="#7f9663" />
+      </mesh>
+      <Cylinder position={[-6.9, 1.4, -6.3]} args={[0.24, 0.34, 2.9, 8]} color="#6b4f3a" castShadow={false} />
+      <Cylinder position={[-6.5, 2.5, -5.6]} args={[0.09, 0.13, 1.4, 6]} rotation={[0, 0, -0.65]} color="#6b4f3a" castShadow={false} />
+      <Cylinder position={[-7.3, 2.7, -7.1]} args={[0.09, 0.13, 1.4, 6]} rotation={[0, 0, 0.55]} color="#6b4f3a" castShadow={false} />
+      {leaves.map((leaf, index) => (
+        <mesh key={index} position={leaf.position}>
+          <icosahedronGeometry args={[leaf.radius, 0]} />
+          <meshLambertMaterial color={leaf.color} flatShading />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+// Komorebi: the scatter of light that comes through moving leaves. Painted as
+// one soft, drifting texture on the floor and the facing wall rather than as
+// real shadow casting, which at this leaf count would cost more than the rest
+// of the room put together.
+const KOMOREBI_TEXTURE = (() => {
+  if (typeof document === 'undefined') return null
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = 'rgba(0,0,0,0)'
+  ctx.fillRect(0, 0, size, size)
+  // A deterministic scatter of blurred blobs -- gaps between leaves, not leaves.
+  let seed = 0x9e3779b9
+  const rand = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+    return seed / 4294967296
+  }
+  for (let i = 0; i < 26; i += 1) {
+    const x = rand() * size
+    const y = rand() * size
+    const r = 12 + rand() * 30
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+    const peak = 0.35 + rand() * 0.45
+    g.addColorStop(0, `rgba(255,246,214,${peak})`)
+    g.addColorStop(0.55, `rgba(255,240,198,${peak * 0.32})`)
+    g.addColorStop(1, 'rgba(255,238,190,0)')
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+
+function Komorebi() {
+  const floorRef = useRef(null)
+  const wallRef = useRef(null)
+
+  useFrame(({ clock }) => {
+    if (!KOMOREBI_TEXTURE) return
+    const t = clock.elapsedTime
+    // Leaves move in a breeze, not on a loop: two offsets at different rates
+    // keep the pattern from visibly repeating.
+    KOMOREBI_TEXTURE.offset.x = Math.sin(t * 0.17) * 0.06 + t * 0.004
+    KOMOREBI_TEXTURE.offset.y = Math.cos(t * 0.11) * 0.05
+    const breath = 0.62 + Math.sin(t * 0.9) * 0.1
+    if (floorRef.current) floorRef.current.material.opacity = breath
+    if (wallRef.current) wallRef.current.material.opacity = breath * 0.5
+  })
+
+  if (!KOMOREBI_TEXTURE) return null
+  return (
+    <group>
+      {/* On the floor under the window. */}
+      <mesh ref={floorRef} position={[-1.9, 0.012, -3.4]} rotation={[-Math.PI / 2, 0, 0.22]}>
+        <planeGeometry args={[4.2, 4.6]} />
+        <meshBasicMaterial
+          map={KOMOREBI_TEXTURE}
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* And a fainter wash carried onto the wall opposite. */}
+      <mesh ref={wallRef} position={[3.38, 1.9, -3.4]} rotation={[0, -Math.PI / 2, 0]}>
+        <planeGeometry args={[3.6, 2.6]} />
+        <meshBasicMaterial
+          map={KOMOREBI_TEXTURE}
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </mesh>
+    </group>
+  )
+}
 
 function Bedroom({ elapsed }) {
   // The player opened this door themselves at the end of the Morning, so the
