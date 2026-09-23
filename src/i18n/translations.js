@@ -89,7 +89,7 @@ export const en = {
   'tutorial.second.eyebrow': 'A DIFFERENT MINIGAME',
   'tutorial.second.title': 'This one uses movement.',
   'tutorial.second.body': 'Click the box, then use the arrow keys or WASD to reach the exit.',
-  'tutorial.home.title': 'Too much? Go home. You keep your points.',
+  'tutorial.home.title': 'Go Home if you feel overwhelmed.',
   'tutorial.room.eyebrow': 'THE ROOM IS YOURS',
   'tutorial.room.title': 'Click anything you like.',
   'tutorial.room.body': 'Take your time in the morning, and do perform your routine to get ready for the day.',
@@ -122,7 +122,7 @@ export const en = {
 
   // --- Tutorial keyboard bridge (DOM-driven) -----------------------------
   'kb.pressEsc': 'Press ESC',
-  'kb.pressEscHome': 'Too much? Press ESC to go home and keep your points.',
+  'kb.pressEscHome': 'Press ESC to go home if you feel overwhelmed.',
   'kb.overwhelmedEyebrow': 'IF YOU BECOME OVERWHELMED',
   'kb.bustWarning': 'If the meter fills up you keep only a quarter of your points.',
 
@@ -485,7 +485,7 @@ export const he = {
   'tutorial.second.eyebrow': 'משחקון אחר',
   'tutorial.second.title': 'זה משתמש בתנועה.',
   'tutorial.second.body': 'לחצו על התיבה, ואז השתמשו במקשי החיצים או WASD כדי להגיע ליציאה.',
-  'tutorial.home.title': 'יותר מדי? לכו הביתה. הנקודות נשארות אצלכם.',
+  'tutorial.home.title': 'חזרו הביתה אם אתם מוצפים.',
   'tutorial.room.eyebrow': 'החדר שלכם',
   'tutorial.room.title': 'לחצו על מה שבא לכם.',
   'tutorial.room.body': 'קחו את הזמן בבוקר, ותעשו את השגרה שלכם כדי להתכונן ליום.',
@@ -518,7 +518,7 @@ export const he = {
 
   // --- Tutorial keyboard bridge (DOM-driven) -----------------------------
   'kb.pressEsc': 'לחצו ESC',
-  'kb.pressEscHome': 'יותר מדי? לחצו ESC כדי לחזור הביתה ולשמור על הנקודות.',
+  'kb.pressEscHome': 'לחצו ESC כדי לחזור הביתה אם אתם מוצפים.',
   'kb.overwhelmedEyebrow': 'אם אתם מוצפים',
   'kb.bustWarning': 'אם המד מתמלא, יישאר לכם רק רבע מהנקודות.',
 
