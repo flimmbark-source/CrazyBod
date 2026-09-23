@@ -55,6 +55,8 @@ import {
   scoreForElapsed,
 } from './config/gameConfig.js'
 import ResultsScreen from './results/ResultsScreen.jsx'
+import { MicrogameWindow, positionFor } from './minigames/window.jsx'
+import OverloadMeter from './ui/OverloadMeter.jsx'
 import { useProgression } from './progression/useProgression.js'
 import { computeCapacity } from './progression/progressionStore.js'
 import SkillTreeScreen from './progression/SkillTreeScreen.jsx'
@@ -73,12 +75,16 @@ import {
 
 const TUTORIAL_STORAGE_KEY = 'crazybod:tutorial-complete'
 
+// How far into the walk to the mirror the first lesson arrives. Early enough
+// that the player is plainly still moving when it does.
+const TUTORIAL_FIRST_AT_MS = 900
+
 // The scripted opening, in order. While one of these is on screen the Morning
 // is carried: the camera is on rails and the room's things are not yet live.
 // The room is handed back on the summary's PROCEED, so `meter`, `room` and
 // `door` -- advice pinned to things the player can already click, not gates --
 // are deliberately absent.
-const MORNING_LESSON_STEPS = ['walking', 'first', 'second', 'summary']
+const MORNING_LESSON_STEPS = ['walking', 'walkingOn', 'first', 'second', 'summary']
 // How many times this save has watched the overload meter reach one-from-full.
 // The Go Home lesson fires on the second one, which is the moment the player
 // first needs the escape hatch and does not yet know it is there.
@@ -187,125 +193,6 @@ function quoteChoice(dialogue, index) {
   return text ? `“${text}”` : ''
 }
 
-function seededFraction(seed, value) {
-  let next = (seed ^ Math.imul(value + 1, 0x9e3779b9)) >>> 0
-  next ^= next >>> 16
-  next = Math.imul(next, 0x7feb352d)
-  next ^= next >>> 15
-  next = Math.imul(next, 0x846ca68b)
-  next ^= next >>> 16
-  return (next >>> 0) / 4294967296
-}
-
-function microgameViewportSize() {
-  const viewportWidth = Math.max(window.innerWidth || 0, 320)
-  const viewportHeight = Math.max(window.innerHeight || 0, 480)
-  const compact = viewportWidth <= 820
-  const width = compact
-    ? Math.min(220, viewportWidth * 0.72)
-    : Math.min(252, Math.max(232, viewportWidth * 0.24))
-  const height = compact
-    ? 178
-    : Math.min(202, Math.max(184, viewportHeight * 0.24))
-
-  return { viewportWidth, viewportHeight, width, height, compact }
-}
-
-function positionFor(seed, index, existingGames) {
-  const { viewportWidth, viewportHeight, width, height, compact } = microgameViewportSize()
-  const minimumLeft = compact ? 2.5 : 3
-  const maximumLeft = Math.max(
-    minimumLeft,
-    ((viewportWidth - width - 10) / viewportWidth) * 100,
-  )
-  // Keep windows clear of the top bar: the overload meter now lives up there
-  // with the phase label under it, and a window landing on either hid the one
-  // reading the player most needs.
-  const minimumTop = compact ? 22 : 21
-  const maximumTop = Math.max(
-    minimumTop,
-    ((viewportHeight - height - 14) / viewportHeight) * 100,
-  )
-  const goHomeRect = document.querySelector('.go-home')?.getBoundingClientRect()
-  const reserved = goHomeRect && goHomeRect.width > 0 && goHomeRect.height > 0
-    ? {
-        left: goHomeRect.left - 18,
-        right: goHomeRect.right + 18,
-        top: goHomeRect.top - 18,
-        bottom: goHomeRect.bottom + 18,
-      }
-    : null
-  let fallback = { left: minimumLeft, top: minimumTop }
-  let hasSafeFallback = false
-
-  for (let attempt = 0; attempt < 32; attempt += 1) {
-    const left = minimumLeft
-      + seededFraction(seed, index * 31 + attempt * 2) * (maximumLeft - minimumLeft)
-    const top = minimumTop
-      + seededFraction(seed, index * 31 + attempt * 2 + 1) * (maximumTop - minimumTop)
-    const candidateLeft = (left / 100) * viewportWidth
-    const candidateTop = (top / 100) * viewportHeight
-    const candidateRight = candidateLeft + width
-    const candidateBottom = candidateTop + height
-    const clearOfGoHome = !reserved || (
-      candidateRight <= reserved.left
-      || candidateLeft >= reserved.right
-      || candidateBottom <= reserved.top
-      || candidateTop >= reserved.bottom
-    )
-
-    if (!clearOfGoHome) continue
-    const candidate = { left, top }
-    if (!hasSafeFallback) {
-      fallback = candidate
-      hasSafeFallback = true
-    }
-
-    const separated = existingGames.every((game) => {
-      const previousLeft = Number.parseFloat(game.position.left)
-      const previousTop = Number.parseFloat(game.position.top)
-      const horizontalDistance = ((left - previousLeft) / 100) * viewportWidth
-      const verticalDistance = ((top - previousTop) / 100) * viewportHeight
-      return Math.hypot(horizontalDistance, verticalDistance) >= Math.min(width, height) * 0.78
-    })
-
-    if (separated) {
-      return {
-        left: `${left.toFixed(1)}%`,
-        top: `${top.toFixed(1)}%`,
-      }
-    }
-  }
-
-  return {
-    left: `${fallback.left.toFixed(1)}%`,
-    top: `${fallback.top.toFixed(1)}%`,
-  }
-}
-
-function edgeOffsetFor(position) {
-  const { viewportWidth, viewportHeight, width, height } = microgameViewportSize()
-  const left = (Number.parseFloat(position.left) / 100) * viewportWidth
-  const top = (Number.parseFloat(position.top) / 100) * viewportHeight
-  const centerX = left + width / 2
-  const centerY = top + height / 2
-  const horizontal = centerX - viewportWidth / 2
-  const vertical = centerY - viewportHeight / 2
-  const edge = 12
-
-  if (Math.abs(horizontal) >= Math.abs(vertical)) {
-    return {
-      x: horizontal < 0 ? edge - left : viewportWidth - width - edge - left,
-      y: 0,
-    }
-  }
-
-  return {
-    x: 0,
-    y: vertical < 0 ? edge - top : viewportHeight - height - edge - top,
-  }
-}
-
 function App() {
   const t = useT()
   const [status, setStatus] = useState('intro')
@@ -343,7 +230,7 @@ function App() {
   const [directorReady, setDirectorReady] = useState(false)
   const [startCue, setStartCue] = useState(null)
   const { progression, purchaseNode, toggleNode, depositRun, resetTree, resetFull } = useProgression()
-  const { focus: morningFocus } = useMorningState()
+  const { focus: morningFocus, openId: morningOpenId } = useMorningState()
   // Central capability derivation (Sword / Mandala / Dive) from enabled nodes.
   const progressionEffects = deriveProgressionEffects(progression.enabledNodeIds)
   // Mandala travel simulation. Owned by its own hook; App only coordinates.
@@ -387,8 +274,6 @@ function App() {
   // The Go Home lesson now fires as the door opens, once per tutorial run.
   const morningHomeLessonRef = useRef(false)
   const [morningTurned, setMorningTurned] = useState(false)
-  const [lessonElapsed, setLessonElapsed] = useState(0)
-  const lessonElapsedRef = useRef(0)
   const goHomeLessonShownRef = useRef(false)
   const planStaggerRemainingRef = useRef(0)
   // While the day clock is below this value, a completed stretch thins the
@@ -574,8 +459,6 @@ function App() {
     morningSpawnQueueRef.current = []
     morningHomeLessonRef.current = false
     setMorningTurned(false)
-    lessonElapsedRef.current = 0
-    setLessonElapsed(0)
     resetMorning()
     setMicrogames([])
     microgamesRef.current = []
@@ -588,7 +471,24 @@ function App() {
     setStatus('morning')
   }, [])
 
-  const startGame = useCallback(() => openMorning(tutorialEnabled), [openMorning, tutorialEnabled])
+  // The day is the game, and it starts the way it always did: straight into
+  // the street with the clock running. The Morning is no longer on the way in
+  // -- it is Practice, opened deliberately from the results screen.
+  const startGame = useCallback(() => {
+    morningOutcomesRef.current = {
+      capacityBonus: 0,
+      planStaggerPairs: 0,
+      stretchSeconds: 0,
+      techniques: {},
+    }
+    morningSpawnQueueRef.current = []
+    setTutorialRun(false)
+    beginGame()
+  }, [beginGame])
+
+  // Practice is the Morning: the untimed house, with the tutorial if the
+  // player has that switch on.
+  const startPractice = useCallback(() => openMorning(tutorialEnabled), [openMorning, tutorialEnabled])
 
   const leaveTheHouse = useCallback(() => {
     beginGame()
@@ -644,6 +544,8 @@ function App() {
     return kind ?? null
   }, [])
 
+  // Used by the external restart event only: Practice with the tutorial on,
+  // whatever the switch currently says.
   const startTutorialGame = useCallback(() => {
     setTutorialEnabled(true)
     try {
@@ -783,34 +685,33 @@ function App() {
     return () => window.clearInterval(timer)
   }, [status])
 
-  // The day opens on the player walking to the mirror. Nothing is asked of them
-  // until they are standing in front of it; then the lesson's own clock starts
-  // and the sequence below runs off it.
+  // The two lessons are pinned to the walk itself rather than to a clock of
+  // their own: the first arrives while the player is still crossing the room,
+  // and the walk stops where it is until they answer it; the second is waiting
+  // when they look up and find the mirror.
   useEffect(() => {
-    if (status !== 'morning' || tutorialStep !== 'walking') return undefined
+    if (status !== 'morning' || !tutorialRun || tutorialStep !== 'walking') return undefined
+    if (tutorialFirstSeenRef.current) return undefined
+    const first = TUTORIAL_SEQUENCE[0]
     const timer = window.setTimeout(() => {
-      lessonElapsedRef.current = 0
-      setLessonElapsed(0)
-      setTutorialStep('none')
-    }, MORNING_PATH_WALK_MS)
+      tutorialFirstSeenRef.current = true
+      spawnMicrogame(first.kind, first.role)
+      setTutorialStep(first.role)
+    }, TUTORIAL_FIRST_AT_MS)
     return () => window.clearTimeout(timer)
-  }, [status, tutorialStep])
+  }, [status, tutorialRun, tutorialStep, spawnMicrogame])
 
-  // The lesson clock. It advances only between the callouts, exactly as the day
-  // clock used to: a callout on screen stops it, so the four seconds between
-  // the two minigames are four seconds of the player actually playing.
   useEffect(() => {
-    if (status !== 'morning' || !tutorialRun) return undefined
-    if (tutorialStep !== 'none' || tutorialSecondSeenRef.current) return undefined
-    let last = performance.now()
-    const id = window.setInterval(() => {
-      const now = performance.now()
-      lessonElapsedRef.current += (now - last) / 1000
-      last = now
-      setLessonElapsed(lessonElapsedRef.current)
-    }, 100)
-    return () => window.clearInterval(id)
-  }, [status, tutorialRun, tutorialStep])
+    if (status !== 'morning' || !tutorialRun || tutorialStep !== 'walkingOn') return undefined
+    if (tutorialSecondSeenRef.current) return undefined
+    const second = TUTORIAL_SEQUENCE[1]
+    const timer = window.setTimeout(() => {
+      tutorialSecondSeenRef.current = true
+      spawnMicrogame(second.kind, second.role)
+      setTutorialStep(second.role)
+    }, Math.max(0, MORNING_PATH_WALK_MS - TUTORIAL_FIRST_AT_MS))
+    return () => window.clearTimeout(timer)
+  }, [status, tutorialRun, tutorialStep, spawnMicrogame])
 
   // Turning away from the mirror is the last authored move. It runs under the
   // overload-meter tip, which is the first thing the player is told once the
@@ -826,32 +727,6 @@ function App() {
     }, MORNING_PATH_TURN_MS)
     return () => window.clearTimeout(timer)
   }, [status, tutorialRun, tutorialStep, morningTurned])
-
-  // The scripted lessons, unchanged from how they always ran — only the clock
-  // they are measured against is the Morning's rather than the day's.
-  useEffect(() => {
-    if (status !== 'morning' || !tutorialRun || tutorialStep !== 'none') return
-
-    const first = TUTORIAL_SEQUENCE[0]
-    const second = TUTORIAL_SEQUENCE[1]
-
-    if (!tutorialFirstSeenRef.current && lessonElapsed >= first.at) {
-      tutorialFirstSeenRef.current = true
-      spawnMicrogame(first.kind, first.role)
-      setTutorialStep(first.role)
-      return
-    }
-
-    if (
-      tutorialFirstSeenRef.current
-      && !tutorialSecondSeenRef.current
-      && lessonElapsed >= second.at
-    ) {
-      tutorialSecondSeenRef.current = true
-      spawnMicrogame(second.kind, second.role)
-      setTutorialStep(second.role)
-    }
-  }, [lessonElapsed, spawnMicrogame, status, tutorialRun, tutorialStep])
 
   // Leaving the house is the last lesson: the day starts, and the way out of it
   // is pointed at before anything has had a chance to pile up.
@@ -1304,7 +1179,7 @@ function App() {
     })
 
     if (tutorialRun && tutorialStep === 'first' && resolvedGame?.tutorialRole === 'first') {
-      setTutorialStep('none')
+      setTutorialStep('walkingOn')
     }
     if (tutorialRun && tutorialStep === 'second' && resolvedGame?.tutorialRole === 'second') {
       setTutorialStep('summary')
@@ -1383,7 +1258,10 @@ function App() {
   // both lessons, turn back to the room. Free movement resumes after the turn.
   const morningStage = useMemo(() => {
     if (status !== 'morning' || !tutorialRun || morningTurned) return null
-    if (tutorialStep === 'walking') return 'walk'
+    if (tutorialStep === 'walking' || tutorialStep === 'walkingOn') return 'walk'
+    // The first lesson stops the player where they stand -- mid-room, still
+    // facing the mirror they were heading for.
+    if (tutorialStep === 'first') return 'pause'
     if (morningLesson) return 'hold'
     return 'turn'
   }, [status, tutorialRun, morningTurned, tutorialStep, morningLesson])
@@ -1638,7 +1516,9 @@ function App() {
 
       {/* The scripted lesson borrows the day's own furniture: real minigame
           windows and the real overload meter, in the room, before any clock. */}
-      {status === 'morning' && (
+      {/* A practice takes the whole screen and brings its own bar; the room's
+          HUD underneath would only show through it. */}
+      {status === 'morning' && !morningOpenId && (
         <header className="hud">
           <div className="hud-panel">
             <span className="hud-label">{t('hud.time')}</span>
@@ -1707,15 +1587,10 @@ function App() {
         <OverlayCard eyebrow="" title={t('intro.title')}>
           <SettingsMenu variant="embedded" />
           <p>{t('intro.body')}</p>
-          <button
-            className="tutorial-toggle"
-            type="button"
-            aria-pressed={tutorialEnabled}
-            onClick={toggleTutorial}
-          >
-            <span>{t('intro.tutorial')}</span>
-            <strong>{tutorialEnabled ? t('common.on') : t('common.off')}</strong>
-          </button>
+          {/* The tutorial belongs to Practice now, and so does its switch --
+              it lives on the results screen, next to the button that opens
+              the house. Leaving a copy here would be a control that does
+              nothing to the button beneath it. */}
           <button type="button" onClick={startGame}>{t('common.startDay')}</button>
           {progression.treeUnlocked && (
             <button type="button" className="title-skill-tree" onClick={() => openSkillTree(false)}>
@@ -1745,7 +1620,9 @@ function App() {
           capacity={result.capacity}
           banked={progression.treeUnlocked ? progression.bank : null}
           onRestart={startGame}
-          onTutorial={startTutorialGame}
+          onPractice={startPractice}
+          tutorialEnabled={tutorialEnabled}
+          onToggleTutorial={toggleTutorial}
           onSkillTree={progression.treeUnlocked
             ? () => openSkillTree(firstUnlockPending)
             : undefined}
@@ -1773,53 +1650,6 @@ const TUTORIAL_TARGET_SELECTORS = {
 // Steps whose copy is a plain eyebrow/title/body triple keyed by step name.
 const TUTORIAL_COPY_STEPS = ['meter', 'homeReminder', 'room', 'door']
 
-function OverloadMeter({ t, load, capacity, band, ratio, shake, highlighted = false }) {
-  return (
-    <div
-      className={[
-        'load-meter',
-        `load-band-${band}`,
-        highlighted ? 'tutorial-target tutorial-meter-target' : '',
-      ].filter(Boolean).join(' ')}
-      dir="ltr"
-      aria-label={t('overload.aria', { load, capacity })}
-      style={{
-        '--overload': ratio,
-        '--overload-scale': 1 + ratio * 0.16,
-        '--overload-saturation': 1 + ratio * 0.8,
-        '--overload-contrast': 1 + ratio * 0.14,
-        '--overload-alpha': ratio * 0.72,
-        '--overload-shake': `${shake}px`,
-        '--overload-shake-neg': `${-shake}px`,
-      }}
-    >
-      <span className="load-meter-title">
-        {t('overload.label')}
-        <b className="load-meter-count">{load}/{capacity}</b>
-      </span>
-      <div className="load-pips">
-        {Array.from({ length: capacity }).map((_, index) => (
-          <i
-            key={index}
-            className={[
-              index < load ? 'filled' : '',
-              index === capacity - 1 ? 'last-slot' : '',
-            ].filter(Boolean).join(' ')}
-          />
-        ))}
-      </div>
-      {/* Two plain-language steps before the bust, so the climb is something
-          you can watch coming instead of something that happens to you. */}
-      <strong className="load-meter-status" aria-live="polite">
-        {band === 'edge'
-          ? t('overload.edge')
-          : band === 'rising'
-            ? t('overload.rising', { left: capacity - load })
-            : t('overload.room', { left: capacity - load })}
-      </strong>
-    </div>
-  )
-}
 
 function TutorialCallout({ step, target, onProceed }) {
   const t = useT()
@@ -2019,39 +1849,5 @@ function CompletionBurst({ effect }) {
     </div>
   )
 }
-
-const MicrogameWindow = memo(function MicrogameWindow({ game, index, load, tutorialTarget, onResolve, frozen = false }) {
-  const t = useT()
-  const resolve = useCallback(() => {
-    if (!frozen) onResolve(game.id)
-  }, [frozen, game.id, onResolve])
-  const beatOffset = useMemo(() => edgeOffsetFor(game.position), [game.position])
-
-  return (
-    <article
-      className={`microgame microgame-${game.kind}${tutorialTarget ? ' tutorial-target' : ''}`}
-      data-game-id={game.id}
-      data-game-kind={game.kind}
-      data-tutorial-role={game.tutorialRole || undefined}
-      style={{
-        ...game.position,
-        '--window-index': index,
-        '--load': load,
-        '--jitter': `${Math.max(0, load - 3)}px`,
-        '--jitter-duration': `${Math.max(0.2, 0.5 - Math.min(load, 4) * 0.06)}s`,
-        '--beat-x': `${beatOffset.x}px`,
-        '--beat-y': `${beatOffset.y}px`,
-      }}
-    >
-      <div className="microgame-header">
-        <span>{t(`microgame.${game.kind}`)}</span>
-        <i />
-      </div>
-      <div className="microgame-body">
-        <MicrogameContent kind={game.kind} onResolve={resolve} paused={frozen} />
-      </div>
-    </article>
-  )
-})
 
 export default App

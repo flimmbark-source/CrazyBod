@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { MicrogameContent } from '../minigames/core.jsx'
 import { useT } from '../i18n/i18n.js'
 import SettingsMenu from '../settings/SettingsMenu.jsx'
 import RehearsalTechnique from '../techniques/RehearsalTechnique.jsx'
@@ -13,6 +12,7 @@ import {
 } from '../techniques/techniqueEngine.js'
 import { getNode } from '../progression/skillTreeConfig.js'
 import { DOOR_SPOT, PRACTICE_SPOTS, TECHNIQUE_SPOTS } from './morningSpots.js'
+import PracticeSession from './PracticeSession.jsx'
 import useMorningLook from './useMorningLook.js'
 import {
   closeMorningSpot,
@@ -121,7 +121,6 @@ export default function MorningHouse({
 }) {
   const t = useT()
   const { openId, doneIds, usedIds, hoverId } = useMorningState()
-  const [cleared, setCleared] = useState(false)
   const [burst, setBurst] = useState(null)
   const burstTimerRef = useRef(null)
 
@@ -168,14 +167,20 @@ export default function MorningHouse({
 
   const close = useCallback(() => {
     closeMorningSpot()
-    setCleared(false)
   }, [])
 
-  const resolvePractice = useCallback(() => {
-    if (!openId) return
-    markMorningDone(openId)
-    setCleared(true)
-  }, [openId])
+  // A practice that is seen through is marked done and says so; one that is
+  // lost simply closes, so it can be tried again.
+  const passPractice = useCallback((id) => {
+    markMorningDone(id)
+    showBurst(t('morning.reward.practice'), 'gain')
+    closeMorningSpot()
+  }, [showBurst, t])
+
+  const failPractice = useCallback(() => {
+    showBurst(t('practice.failed'), 'miss')
+    closeMorningSpot()
+  }, [showBurst, t])
 
   const finishTechnique = useCallback((id, outcome) => {
     markMorningUsed(id)
@@ -186,7 +191,6 @@ export default function MorningHouse({
       granted ? 'gain' : 'miss',
     )
     closeMorningSpot()
-    setCleared(false)
   }, [onTechniqueComplete, showBurst, t])
 
   // Every answer given to the mirror pulls one more thing into the day.
@@ -257,29 +261,14 @@ export default function MorningHouse({
       {burst && <RewardBurst key={burst.key} text={burst.text} tone={burst.tone} />}
 
       {activePractice && (
-        <div
-          className="morning-practice-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t(`morning.spot.${activePractice.id}`)}
-        >
-          <div className={`morning-practice microgame microgame-${activePractice.kind}${cleared ? ' is-cleared' : ''}`}>
-            <div className="microgame-header">
-              <span>{t(`morning.spot.${activePractice.id}`)}</span>
-              <i />
-            </div>
-            <div className="microgame-body">
-              <MicrogameContent kind={activePractice.kind} onResolve={resolvePractice} />
-            </div>
-            {cleared && <strong className="morning-practice-get">{t('morning.get')}</strong>}
-            <footer className="morning-practice-footer">
-              <span className="morning-practice-tag">{t('morning.practiceTag')}</span>
-              <button type="button" onClick={close}>
-                {cleared ? t('morning.done') : t('morning.leaveIt')}
-              </button>
-            </footer>
-          </div>
-        </div>
+        <PracticeSession
+          key={activePractice.id}
+          id={activePractice.id}
+          name={t(`morning.spot.${activePractice.id}`)}
+          onPass={passPractice}
+          onFail={failPractice}
+          onLeave={close}
+        />
       )}
 
       {activeTechnique?.id === 'rehearse' && (

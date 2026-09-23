@@ -148,23 +148,50 @@
   }
 }
 
-.results-actions:not(.has-skill-tree) .results-restart {
+/* Two columns, two rows. The day and its quieter twin down the left; the tree
+   and the switch that belongs to Practice down the right. DOM order is
+   restart, practice, tree, switch -- so each is placed explicitly. */
+.results-restart { grid-column: 1; grid-row: 1; }
+.results-practice { grid-column: 1; grid-row: 2; }
+.results-skill-tree { grid-column: 2; grid-row: 1; }
+.results-tutorial-toggle { grid-column: 2; grid-row: 2; }
+
+.results-actions:not(.has-skill-tree) .results-restart,
+.results-actions:not(.has-skill-tree) .results-practice {
   grid-column: 1 / -1;
+}
+.results-actions:not(.has-skill-tree) .results-tutorial-toggle {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 
-.results-tutorial {
-  grid-column: 1 / -1;
-  justify-self: center;
-  min-height: 0 !important;
-  padding: 3px 8px !important;
-  border: 0 !important;
-  border-radius: 4px !important;
-  color: rgba(41, 36, 49, 0.72);
-  background: transparent !important;
-  box-shadow: none !important;
-  font-size: 14px !important;
-  letter-spacing: 0.12em !important;
+.results-practice {
+  color: #292431;
+  background: #8fd46a;
 }
+
+/* A switch, not a button: it says what it is and what it is set to, and it
+   does not look like something that starts a run. */
+.results-tutorial-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(41, 36, 49, 0.82);
+  background: #efe6d6;
+  font-size: 13px !important;
+  letter-spacing: 0.1em !important;
+}
+.results-tutorial-toggle span { font-weight: 850; }
+.results-tutorial-toggle strong {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: #fff8ef;
+  background: #8b8577;
+}
+.results-tutorial-toggle[aria-pressed="true"] strong { background: #5f9e3c; }
 
 .results-actions button:hover {
   filter: brightness(1.06);
@@ -175,19 +202,15 @@
   box-shadow: 0 1px 0 #292431;
 }
 
-.results-tutorial:active {
-  translate: 0 1px !important;
-  box-shadow: none !important;
-}
+
 
 .results-actions button:focus-visible {
   outline: 4px solid #fff8ef;
   outline-offset: 3px;
 }
 
-.results-tutorial:focus-visible {
+.results-tutorial-toggle:focus-visible {
   outline-color: #292431 !important;
-  outline-width: 2px !important;
 }
 
 @media (max-height: 900px) {
@@ -366,18 +389,21 @@
     padding: 15px 14px 17px;
   }
 
+  /* One column: everything stacks in DOM order -- day, practice, tree, switch
+     -- so the two-row placement above has to be let go of here. */
   .results-restart,
+  .results-practice,
   .results-skill-tree,
-  .results-actions:not(.has-skill-tree) .results-restart {
+  .results-tutorial-toggle,
+  .results-actions:not(.has-skill-tree) .results-restart,
+  .results-actions:not(.has-skill-tree) .results-practice,
+  .results-actions:not(.has-skill-tree) .results-tutorial-toggle {
     grid-column: 1;
+    grid-row: auto;
   }
 
   .results-actions button {
     min-height: 50px;
     font-size: 17px;
-  }
-
-  .results-tutorial {
-    grid-column: 1;
   }
 }

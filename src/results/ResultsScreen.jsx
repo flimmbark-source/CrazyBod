@@ -193,8 +193,10 @@ function ResultsCard({
   capacity,
   banked,
   onRestart,
-  onTutorial,
+  onPractice,
   onSkillTree,
+  tutorialEnabled,
+  onToggleTutorial,
   emphasizeSkillTree,
   highlightSkillTree = false,
 }) {
@@ -217,6 +219,12 @@ function ResultsCard({
           <button className="results-restart" type="button" onClick={onRestart}>
             {t('results.tryAnother')}
           </button>
+          {/* Practice is the untimed house: the day's minigames with nothing
+              riding on them. It sits under the day because it is the quieter
+              of the two doors out of this screen. */}
+          <button className="results-practice" type="button" onClick={onPractice}>
+            {t('results.practice')}
+          </button>
           {onSkillTree && (
             <button
               className={`results-skill-tree${emphasizeSkillTree ? ' is-new' : ''}${highlightSkillTree ? ' tutorial-target' : ''}`}
@@ -226,8 +234,16 @@ function ResultsCard({
               {t('common.skillTree')}
             </button>
           )}
-          <button className="results-tutorial" type="button" onClick={onTutorial}>
-            {t('results.playTutorial')}
+          {/* The tutorial is a property of Practice, so its switch lives here,
+              under the tree, rather than being a button that starts a run. */}
+          <button
+            className="results-tutorial-toggle"
+            type="button"
+            aria-pressed={tutorialEnabled}
+            onClick={onToggleTutorial}
+          >
+            <span>{t('intro.tutorial')}</span>
+            <strong>{tutorialEnabled ? t('common.on') : t('common.off')}</strong>
           </button>
         </div>
       </div>
@@ -240,8 +256,10 @@ export default function ResultsScreen({
   capacity,
   banked = null,
   onRestart,
-  onTutorial,
+  onPractice,
   onSkillTree,
+  tutorialEnabled = false,
+  onToggleTutorial,
   emphasizeSkillTree = false,
   snapshots = [],
 }) {
@@ -290,8 +308,10 @@ export default function ResultsScreen({
             capacity={capacity}
             banked={banked}
             onRestart={onRestart}
-            onTutorial={onTutorial}
+            onPractice={onPractice}
             onSkillTree={onSkillTree}
+            tutorialEnabled={tutorialEnabled}
+            onToggleTutorial={onToggleTutorial}
             emphasizeSkillTree={emphasizeSkillTree}
             highlightSkillTree={showSkillTreeTip}
           />

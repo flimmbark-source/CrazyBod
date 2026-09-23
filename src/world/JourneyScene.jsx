@@ -387,14 +387,12 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
     // turn away) or, once that is done, free movement between whatever the
     // player has clicked.
     if (elapsed < 0 && morningStage) {
-      const target = morningStage === 'walk'
-        ? MORNING_PATH_AT_MIRROR
-        : morningStage === 'hold'
-          ? MORNING_PATH_AT_MIRROR
-          : MORNING_PATH_END
+      const target = morningStage === 'turn' ? MORNING_PATH_END : MORNING_PATH_AT_MIRROR
       if (morningStage === 'hold') {
         morningPathRef.current = MORNING_PATH_AT_MIRROR
-      } else {
+      } else if (morningStage !== 'pause') {
+        // `pause` leaves the path exactly where it is: the player stopped
+        // mid-stride to deal with something, and picks the walk up from there.
         morningPathRef.current = Math.min(target, morningPathRef.current + delta)
       }
       const sample = sampleMorningPath(morningPathRef.current)
@@ -407,7 +405,7 @@ function CameraRig({ elapsed, active, enabled, dialogueStage, morningFocus = nul
       morningLook.dx = 0
       morningLook.dy = 0
       gaitTimeRef.current += delta
-      const walking = morningStage !== 'hold'
+      const walking = morningStage !== 'hold' && morningStage !== 'pause'
       const step = walking ? Math.sin(gaitTimeRef.current * 9.2) * 0.026 : 0
       camera.position.set(sample.position[0], sample.position[1] + step, sample.position[2])
       camera.lookAt(smoothedLook)

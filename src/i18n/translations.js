@@ -29,6 +29,11 @@ export const en = {
   'morning.done': 'DONE',
   'morning.leaveIt': 'LEAVE IT',
   'morning.reward.practice': 'Practice',
+  'practice.left': 'LEFT',
+  'practice.passed': 'PRACTICE DONE',
+  'practice.passedBody': 'Nothing counted. That was the point.',
+  'practice.failed': 'TOO MANY AT ONCE',
+  'practice.failedBody': 'Nothing lost. Try it again whenever you like.',
   'morning.reward.door': 'Starts the day',
   'morning.reward.rehearse': '+2 Capacity',
   'morning.reward.stretch': 'Fewer Aches',
@@ -193,7 +198,7 @@ export const en = {
   'skillTip.title': 'Spend your points.',
   'skillTip.body': 'The points you just banked buy upgrades. Open the skill tree to spend them.',
   'results.tryAnother': 'TRY ANOTHER DAY',
-  'results.playTutorial': 'PLAY TUTORIAL',
+  'results.practice': 'PRACTICE',
 
   // --- Skill tree screen -------------------------------------------------
   'skillTree.unlocked': 'UNLOCKED',
@@ -420,6 +425,11 @@ export const he = {
   'morning.done': 'סיימתי',
   'morning.leaveIt': 'להשאיר',
   'morning.reward.practice': 'תרגול',
+  'practice.left': 'נשארו',
+  'practice.passed': 'התרגול הושלם',
+  'practice.passedBody': 'שום דבר לא נספר. זו בדיוק המטרה.',
+  'practice.failed': 'יותר מדי בבת אחת',
+  'practice.failedBody': 'לא הפסדת כלום. אפשר לנסות שוב מתי שתרצה.',
   'morning.reward.door': 'מתחיל את היום',
   'morning.reward.rehearse': '+2 קיבולת',
   'morning.reward.stretch': 'פחות כאבים',
@@ -584,7 +594,7 @@ export const he = {
   'skillTip.title': 'השקיעו את הנקודות.',
   'skillTip.body': 'הנקודות שצברתם קונות שדרוגים. פתחו את עץ הכישורים כדי להוציא אותן.',
   'results.tryAnother': 'לנסות יום נוסף',
-  'results.playTutorial': 'לשחק במדריך',
+  'results.practice': 'תרגול',
 
   // --- Skill tree screen -------------------------------------------------
   'skillTree.unlocked': 'נפתח',
